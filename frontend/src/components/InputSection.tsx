@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Sparkles, Globe } from 'lucide-react'
+import { useApp } from '../contexts/AppContext'
 
 interface InputSectionProps {
   onGenerate: (data: any) => void
 }
 
 export function InputSection({ onGenerate }: InputSectionProps) {
+  const { t } = useApp()
   const [url, setUrl] = useState('')
   const [keywords, setKeywords] = useState('')
   const [platforms, setPlatforms] = useState<string[]>(['facebook', 'instagram'])
@@ -19,7 +21,7 @@ export function InputSection({ onGenerate }: InputSectionProps) {
     e.preventDefault()
     
     if (!url || !keywords) {
-      alert('Please fill in URL and keywords!')
+      alert(t('fillRequired'))
       return
     }
 
@@ -45,42 +47,42 @@ export function InputSection({ onGenerate }: InputSectionProps) {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-xl p-8 space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 space-y-6">
         
         {/* URL Input */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            <Globe className="inline w-4 h-4 mr-1" />
-            Website URL
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            <Globe className="inline w-4 h-4 mr-1 ltr:mr-1 rtl:ml-1" />
+            {t('websiteUrl')}
           </label>
           <input
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://example.com"
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition"
+            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition"
             required
           />
         </div>
 
         {/* Keywords */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Keywords / Description
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            {t('keywords')}
           </label>
           <textarea
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}
-            placeholder="New product launch, innovative solutions, technology..."
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition h-24 resize-none"
+            placeholder={t('keywordsPlaceholder')}
+            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition h-24 resize-none"
             required
           />
         </div>
 
         {/* Platforms */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-3">
-            Platforms
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            {t('platforms')}
           </label>
           <div className="flex gap-3">
             <button
@@ -89,7 +91,7 @@ export function InputSection({ onGenerate }: InputSectionProps) {
               className={`flex-1 py-3 rounded-lg font-medium transition ${
                 platforms.includes('facebook')
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
               Facebook
@@ -100,7 +102,7 @@ export function InputSection({ onGenerate }: InputSectionProps) {
               className={`flex-1 py-3 rounded-lg font-medium transition ${
                 platforms.includes('instagram')
                   ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
               }`}
             >
               Instagram
@@ -110,53 +112,53 @@ export function InputSection({ onGenerate }: InputSectionProps) {
 
         {/* Style */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Style
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            {t('style')}
           </label>
           <select
             value={style}
             onChange={(e) => setStyle(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition"
+            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition"
           >
-            <option value="professional">Professional</option>
-            <option value="casual">Casual</option>
-            <option value="funny">Funny</option>
-            <option value="inspirational">Inspirational</option>
-            <option value="educational">Educational</option>
-            <option value="sales">Sales-focused</option>
+            <option value="professional">{t('professional')}</option>
+            <option value="casual">{t('casual')}</option>
+            <option value="funny">{t('funny')}</option>
+            <option value="inspirational">{t('inspirational')}</option>
+            <option value="educational">{t('educational')}</option>
+            <option value="sales">{t('salesFocused')}</option>
           </select>
         </div>
 
         {/* Target Audience */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Target Audience
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            {t('targetAudience')}
           </label>
           <select
             value={targetAudience}
             onChange={(e) => setTargetAudience(e.target.value)}
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition"
+            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition"
           >
-            <option value="b2b">B2B</option>
-            <option value="b2c">B2C</option>
-            <option value="young_adults">Young Adults</option>
-            <option value="parents">Parents</option>
-            <option value="business_owners">Business Owners</option>
-            <option value="tech_enthusiasts">Tech Enthusiasts</option>
+            <option value="b2b">{t('b2b')}</option>
+            <option value="b2c">{t('b2c')}</option>
+            <option value="young_adults">{t('youngAdults')}</option>
+            <option value="parents">{t('parents')}</option>
+            <option value="business_owners">{t('businessOwners')}</option>
+            <option value="tech_enthusiasts">{t('techEnthusiasts')}</option>
           </select>
         </div>
 
         {/* Industry */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Industry
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            {t('industry')}
           </label>
           <input
             type="text"
             value={industry}
             onChange={(e) => setIndustry(e.target.value)}
-            placeholder="E-commerce, SaaS, Healthcare..."
-            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition"
+            placeholder={t('industryPlaceholder')}
+            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition"
           />
         </div>
 
@@ -169,7 +171,7 @@ export function InputSection({ onGenerate }: InputSectionProps) {
               onChange={(e) => setIncludeEmojis(e.target.checked)}
               className="w-5 h-5 text-blue-600 rounded"
             />
-            <span className="text-sm font-medium text-gray-700">Include Emojis</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('includeEmojis')}</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
@@ -178,7 +180,7 @@ export function InputSection({ onGenerate }: InputSectionProps) {
               onChange={(e) => setIncludeLogo(e.target.checked)}
               className="w-5 h-5 text-blue-600 rounded"
             />
-            <span className="text-sm font-medium text-gray-700">Include Logo</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('includeLogo')}</span>
           </label>
         </div>
 
@@ -188,7 +190,7 @@ export function InputSection({ onGenerate }: InputSectionProps) {
           className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4 rounded-lg font-semibold text-lg hover:from-blue-700 hover:to-purple-700 transition flex items-center justify-center gap-2 shadow-lg"
         >
           <Sparkles className="w-5 h-5" />
-          Generate Content
+          {t('generateButton')}
         </button>
       </form>
     </div>
