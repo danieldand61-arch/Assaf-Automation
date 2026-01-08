@@ -1,7 +1,7 @@
 import { useApp } from '../contexts/AppContext'
 
 export default function Header() {
-  const { theme, toggleTheme, language, setLanguage, t, isRTL } = useApp()
+  const { theme, toggleTheme, language, setLanguage, t } = useApp()
 
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm">
