@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 from typing import List, Optional
-import openai
+import google.generativeai as genai
 import os
 from dotenv import load_dotenv
 
@@ -23,7 +23,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Configure Google AI
+genai.configure(api_key=os.getenv("GOOGLE_AI_API_KEY"))
 
 
 class GenerateRequest(BaseModel):

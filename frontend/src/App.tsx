@@ -73,7 +73,7 @@ function App() {
 
       {/* Footer */}
       <footer className="mt-16 text-center text-gray-500 text-sm pb-6">
-        Powered by GPT-4 & DALL-E 3
+        Powered by Google Gemini 2.5 Pro & Nano Banana 🍌
       </footer>
     </div>
   )

@@ -1,5 +1,5 @@
 from typing import List, Dict
-import openai
+import google.generativeai as genai
 import json
 from backend.main import PostVariation
 
@@ -13,28 +13,31 @@ async def generate_posts(
     industry: str,
     include_emojis: bool
 ) -> List[PostVariation]:
-    """Generates social media post variations"""
+    """Generates social media post variations using Gemini 2.5 Pro"""
     
-    # Build prompt for GPT-4
+    # Build prompt for Gemini
     prompt = _build_prompt(
         website_data, keywords, platforms, style, 
         target_audience, industry, include_emojis
     )
     
-    response = await openai.ChatCompletion.acreate(
-        model="gpt-4-turbo-preview",
-        messages=[
-            {"role": "system", "content": "You are an expert in social media marketing and creating viral content for social networks."},
-            {"role": "user", "content": prompt}
-        ],
-        temperature=0.8,
-        max_tokens=2000
+    # Use Gemini 2.5 Pro for high-quality creative content
+    model = genai.GenerativeModel('gemini-2.5-pro')
+    
+    response = model.generate_content(
+        prompt,
+        generation_config={
+            "temperature": 0.8,
+            "top_p": 0.95,
+            "top_k": 40,
+            "max_output_tokens": 2048,
+        }
     )
     
-    content = response.choices[0].message.content
+    content = response.text
     
     # Parse response
-    variations = _parse_gpt_response(content, platforms)
+    variations = _parse_gemini_response(content, platforms)
     
     return variations
 
@@ -48,7 +51,7 @@ def _build_prompt(
     industry: str,
     include_emojis: bool
 ) -> str:
-    """Builds prompt for GPT-4"""
+    """Builds prompt for Gemini 2.5 Pro"""
     
     emoji_instruction = "Use emojis for more emotional impact." if include_emojis else "Don't use emojis."
     
@@ -101,8 +104,8 @@ IMPORTANT:
     return prompt
 
 
-def _parse_gpt_response(content: str, platforms: List[str]) -> List[PostVariation]:
-    """Parses GPT response and creates PostVariation objects"""
+def _parse_gemini_response(content: str, platforms: List[str]) -> List[PostVariation]:
+    """Parses Gemini response and creates PostVariation objects"""
     
     try:
         # Extract JSON from response
@@ -147,4 +150,3 @@ def _calculate_char_limits(platforms: List[str]) -> Dict[str, int]:
         "linkedin": 3000
     }
     return {p: limits.get(p, 1000) for p in platforms}
-

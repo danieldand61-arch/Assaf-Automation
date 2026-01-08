@@ -5,19 +5,19 @@ A powerful, user-friendly platform that takes a website URL and keywords, then a
 ## 🚀 Features (Phase 1)
 
 - **Smart Website Analysis**: Automatically extracts brand information, colors, logo, and tone
-- **AI Content Generation**: GPT-4 creates 4 unique post variations for each platform
-- **AI Image Generation**: DALL-E 3 generates images in optimal sizes for each platform
+- **AI Content Generation**: Gemini 2.5 Pro creates 4 unique post variations for each platform
+- **AI Image Generation**: Nano Banana 🍌 (Gemini 2.5 Flash Image) generates high-quality images
 - **Multi-Platform Support**: Facebook & Instagram with platform-specific optimizations
 - **Smart Hashtags**: Auto-generates trending and relevant hashtags
 - **Engagement Score**: Predicts post performance likelihood
 - **Live Preview**: See how posts will look on each platform
-- **Multiple Sizes**: Square (1080x1080), Landscape (1200x630), Story (1080x1920)
+- **Multiple Sizes**: Square 1024x1024 optimized for all platforms
 
 ## 📋 Requirements
 
 - Python 3.10+
 - Node.js 18+
-- OpenAI API Key
+- Google AI API Key (Google AI Studio)
 
 ## 🛠️ Installation
 
@@ -41,10 +41,10 @@ npm install
 
 ## ⚙️ Configuration
 
-1. Get an API key from https://platform.openai.com/api-keys
+1. Get an API key from https://aistudio.google.com/apikey
 2. Create `backend/.env` file:
 ```env
-OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
+GOOGLE_AI_API_KEY=AIzaSy...xxxxxxxxxxxxx
 ```
 
 ## 🚀 Running the Application
@@ -158,15 +158,17 @@ Generates social media content.
 ## 💰 Cost Estimate
 
 **Per generation (~4 posts + 3 images):**
-- GPT-4 Turbo: ~$0.05-0.10
-- DALL-E 3: ~$0.12-0.24
-- **Total: ~$0.20-0.35**
+- Gemini 2.5 Pro (text): ~$0.01-0.02
+- Nano Banana (images): ~$0.12
+- **Total: ~$0.13-0.14**
+- **70% cheaper than OpenAI GPT-4 + DALL-E!**
 
 ## 🎨 Tech Stack
 
 **Backend:**
 - FastAPI (async Python web framework)
-- OpenAI GPT-4 & DALL-E 3
+- Google Gemini 2.5 Pro (text generation)
+- Nano Banana 🍌 (Gemini 2.5 Flash Image for images)
 - BeautifulSoup4 (web scraping)
 - httpx (async HTTP)
 - Pillow (image processing)
@@ -191,10 +193,10 @@ Generates social media content.
 - Reinstall: `rm -rf node_modules && npm install`
 - Verify port 3000 is available
 
-### "OpenAI API key not found"
+### "Google AI API key not found"
 - Ensure `.env` file exists in `backend/` directory
 - Verify API key is valid and active
-- Check balance at https://platform.openai.com/usage
+- Get key at https://aistudio.google.com/apikey
 
 ### CORS errors
 - Ensure backend is running on port 8000
@@ -232,7 +234,7 @@ Generates social media content.
 ### Backend (Railway):
 1. Go to https://railway.app/new
 2. Deploy from GitHub → select this repo
-3. Add env variable: `OPENAI_API_KEY=sk-proj-xxxxx`
+3. Add env variable: `GOOGLE_AI_API_KEY=AIzaSy...xxxxx`
 4. Copy your Railway URL
 
 ### Frontend (Vercel):
@@ -251,13 +253,13 @@ Generates social media content.
 - GitHub account (free)
 - Vercel account (free)
 - Railway account ($5/month after trial)
-- OpenAI API key (pay-as-you-go)
+- Google AI API key from AI Studio (pay-as-you-go)
 
 ### Cost estimate:
 - Railway: $5/month
 - Vercel: FREE
-- OpenAI: ~$50-200/month (depends on usage)
-- **Total: ~$55-205/month**
+- Google AI: ~$20-80/month (depends on usage, 70% cheaper than OpenAI)
+- **Total: ~$25-85/month**
 
 ## 📝 License
 
@@ -269,4 +271,4 @@ Pull requests welcome!
 
 ---
 
-Made with 💡 using GPT-4 & DALL-E 3
+Made with 💡 using Google Gemini 2.5 Pro & Nano Banana 🍌
