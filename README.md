@@ -272,3 +272,5 @@ Pull requests welcome!
 ---
 
 Made with 💡 using Google Gemini 2.5 Pro & Nano Banana 🍌
+
+Deployed on Railway (Backend) & Vercel (Frontend)
