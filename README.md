@@ -12,6 +12,9 @@ A powerful, user-friendly platform that takes a website URL and keywords, then a
 - **Engagement Score**: Predicts post performance likelihood
 - **Live Preview**: See how posts will look on each platform
 - **Multiple Sizes**: Square 1024x1024 optimized for all platforms
+- **🌐 Bilingual Interface**: Full support for English & Hebrew (עברית) with RTL
+- **🌓 Dark/Light Theme**: Seamless theme switching with proper contrast for both modes
+- **✨ Modern UI**: Professional design with Heebo font for Hebrew and Inter for English
 
 ## 📋 Requirements
 
@@ -77,17 +80,21 @@ Backend API: **http://localhost:8000**
 
 ## 🎯 How to Use
 
-1. Enter a website URL (e.g., `https://apple.com`)
-2. Add keywords/description (e.g., `new iPhone, innovation, technology`)
-3. Select platforms (Facebook, Instagram, or both)
-4. Choose style (Professional, Casual, Funny, etc.)
-5. Select target audience
-6. Enter industry
-7. Toggle emojis and logo options
-8. Click "Generate Content"
-9. Wait 30-60 seconds for AI generation
-10. Review 4 post variations with images
-11. Download all content as ZIP
+1. **Choose your language**: Toggle between English (EN) and Hebrew (עב) in the header
+2. **Switch theme**: Click the sun/moon icon to toggle between light and dark mode
+3. Enter a website URL (e.g., `https://apple.com`)
+4. Add keywords/description (e.g., `new iPhone, innovation, technology`)
+5. Select platforms (Facebook, Instagram, or both)
+6. Choose style (Professional, Casual, Funny, etc.)
+7. Select target audience
+8. Enter industry
+9. Toggle emojis and logo options
+10. Click "Generate Content"
+11. Wait 30-60 seconds for AI generation
+12. Review 4 post variations with images
+13. Download all content as ZIP
+
+**Note**: Language and theme preferences are saved locally in your browser!
 
 ## 📁 Project Structure
 
@@ -177,9 +184,11 @@ Generates social media content.
 - React 18
 - TypeScript
 - Vite (build tool)
-- Tailwind CSS
+- Tailwind CSS (with dark mode support)
 - Zustand (state management)
 - Lucide React (icons)
+- i18n (English/Hebrew support with RTL)
+- Google Fonts (Inter + Heebo)
 
 ## 🐛 Troubleshooting
 
@@ -209,6 +218,9 @@ Generates social media content.
 - Multi-platform support
 - AI images
 - Preview system
+- Bilingual interface (EN/HE)
+- Dark/light theme
+- RTL support
 
 ### Phase 2: 🚧 PLANNED
 - Direct publishing to Facebook/Instagram
