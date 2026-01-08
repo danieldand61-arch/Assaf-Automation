@@ -15,27 +15,28 @@ load_dotenv()
 
 app = FastAPI(title="Social Media Automation API")
 
-# Log all requests middleware
-@app.middleware("http")
-async def log_requests(request: Request, call_next):
-    logger.info(f"📥 Incoming request: {request.method} {request.url.path}")
-    logger.info(f"   Origin: {request.headers.get('origin', 'No origin')}")
-    response = await call_next(request)
-    logger.info(f"📤 Response status: {response.status_code}")
-    return response
-
+# CORS must be FIRST!
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://*.vercel.app",  # Vercel preview deployments
-        os.getenv("FRONTEND_URL", "*")  # Production frontend URL
-    ],
+    allow_origins=["*"],  # Allow all origins for now (we'll restrict later)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Log all requests middleware (after CORS)
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"📥 Incoming request: {request.method} {request.url.path}")
+    logger.info(f"   Origin: {request.headers.get('origin', 'No origin')}")
+    try:
+        response = await call_next(request)
+        logger.info(f"📤 Response status: {response.status_code}")
+        return response
+    except Exception as e:
+        logger.error(f"❌ Middleware error: {str(e)}")
+        logger.exception("Full traceback:")
+        raise
 
 # Configure Google AI
 api_key = os.getenv("GOOGLE_AI_API_KEY")
