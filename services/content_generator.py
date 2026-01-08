@@ -21,8 +21,8 @@ async def generate_posts(
         target_audience, industry, include_emojis
     )
     
-    # Use Gemini 1.5 Pro for high-quality creative content
-    model = genai.GenerativeModel('gemini-1.5-pro')
+    # Use Gemini 2.5 Flash for fast text generation
+    model = genai.GenerativeModel('gemini-2.5-flash')
     
     response = model.generate_content(
         prompt,
