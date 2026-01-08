@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+backend/.env
+
+# Node
+node_modules/
+dist/
+dist-ssr/
+.npm
+.pnpm-debug.log*
+
+# Env files (keep .env.local for development)
+.env
+.env*.local
+!frontend/.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Build
+build/
+.cache/
+
