@@ -4,7 +4,6 @@ import { InputSection } from './components/InputSection'
 import { PreviewSection } from './components/PreviewSection'
 import { LoadingState } from './components/LoadingState'
 import { useContentStore } from './store/contentStore'
-import { config } from './config'
 import './App.css'
 
 function App() {
@@ -14,8 +13,10 @@ function App() {
   const handleGenerate = async (formData: any) => {
     setIsGenerating(true)
     
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    
     try {
-      const response = await fetch(`${config.apiUrl}/api/generate`, {
+      const response = await fetch(`${apiUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
