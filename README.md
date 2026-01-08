@@ -17,7 +17,7 @@ A powerful, user-friendly platform that takes a website URL and keywords, then a
 
 - Python 3.10+
 - Node.js 18+
-- Google AI API Key (Google AI Studio)
+- Google AI API Key from Google AI Studio
 
 ## 🛠️ Installation
 
