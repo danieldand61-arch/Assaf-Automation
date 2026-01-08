@@ -1,14 +1,28 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 from typing import List, Optional
 import google.generativeai as genai
 import os
+import logging
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
 app = FastAPI(title="Social Media Automation API")
+
+# Log all requests middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"📥 Incoming request: {request.method} {request.url.path}")
+    logger.info(f"   Origin: {request.headers.get('origin', 'No origin')}")
+    response = await call_next(request)
+    logger.info(f"📤 Response status: {response.status_code}")
+    return response
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,7 +38,12 @@ app.add_middleware(
 )
 
 # Configure Google AI
-genai.configure(api_key=os.getenv("GOOGLE_AI_API_KEY"))
+api_key = os.getenv("GOOGLE_AI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
+    logger.info("✅ Google AI configured successfully")
+else:
+    logger.error("❌ GOOGLE_AI_API_KEY not found in environment variables!")
 
 
 class GenerateRequest(BaseModel):
@@ -61,18 +80,41 @@ class GeneratedContent(BaseModel):
 
 @app.get("/")
 def read_root():
-    return {"status": "Social Media Automation API Running"}
+    logger.info("✅ Root endpoint called")
+    return {
+        "status": "Social Media Automation API Running",
+        "version": "1.0",
+        "endpoints": {
+            "generate": "/api/generate",
+            "health": "/health"
+        }
+    }
+
+@app.get("/health")
+def health_check():
+    api_key_set = bool(os.getenv("GOOGLE_AI_API_KEY"))
+    return {
+        "status": "healthy",
+        "api_key_configured": api_key_set
+    }
 
 
 @app.post("/api/generate", response_model=GeneratedContent)
 async def generate_content(request: GenerateRequest):
     """Main endpoint for content generation"""
+    logger.info(f"🚀 Starting content generation for URL: {request.url}")
+    logger.info(f"   Keywords: {request.keywords}")
+    logger.info(f"   Platforms: {request.platforms}")
+    
     try:
         # 1. Scrape website
+        logger.info("📄 Step 1: Scraping website...")
         from services.scraper import scrape_website
         website_data = await scrape_website(str(request.url))
+        logger.info(f"✅ Website scraped: {website_data.get('title', 'No title')}")
         
         # 2. Generate post texts
+        logger.info("✍️  Step 2: Generating post texts...")
         from services.content_generator import generate_posts
         variations = await generate_posts(
             website_data=website_data,
@@ -83,8 +125,10 @@ async def generate_content(request: GenerateRequest):
             industry=request.industry,
             include_emojis=request.include_emojis
         )
+        logger.info(f"✅ Generated {len(variations)} post variations")
         
         # 3. Generate images
+        logger.info("🖼️  Step 3: Generating images...")
         from services.image_generator import generate_images
         images = await generate_images(
             website_data=website_data,
@@ -92,6 +136,9 @@ async def generate_content(request: GenerateRequest):
             platforms=request.platforms,
             include_logo=request.include_logo
         )
+        logger.info(f"✅ Generated {len(images)} images")
+        
+        logger.info("🎉 Content generation completed successfully!")
         
         return GeneratedContent(
             variations=variations,
@@ -101,6 +148,8 @@ async def generate_content(request: GenerateRequest):
         )
         
     except Exception as e:
+        logger.error(f"❌ Error during content generation: {str(e)}")
+        logger.exception("Full traceback:")
         raise HTTPException(status_code=500, detail=str(e))
 
 
