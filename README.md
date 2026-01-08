@@ -223,15 +223,41 @@ Generates social media content.
 
 ## 🚀 Production Deployment
 
-Ready to deploy? Check out:
-- **[DEPLOY_STEPS.md](DEPLOY_STEPS.md)** - Quick step-by-step guide
-- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Detailed deployment documentation
+### Quick Deploy Guide
 
 **Recommended setup:**
 - Frontend → **Vercel** (free, optimized for React)
 - Backend → **Railway** ($5/month, perfect for FastAPI + AI)
 
-Deploy in 10 minutes! 🚀
+### Backend (Railway):
+1. Go to https://railway.app/new
+2. Deploy from GitHub → select this repo
+3. Add env variable: `OPENAI_API_KEY=sk-proj-xxxxx`
+4. Copy your Railway URL
+
+### Frontend (Vercel):
+1. Go to https://vercel.com/new
+2. Import this repo → select `frontend` folder
+3. Framework: Vite
+4. Add env variable: `VITE_API_URL=https://your-railway-url.app`
+5. Deploy!
+
+### Update CORS:
+1. Go back to Railway → Variables
+2. Add: `FRONTEND_URL=https://your-vercel-url.app`
+3. Done! Test at your Vercel URL 🚀
+
+### Requirements from client:
+- GitHub account (free)
+- Vercel account (free)
+- Railway account ($5/month after trial)
+- OpenAI API key (pay-as-you-go)
+
+### Cost estimate:
+- Railway: $5/month
+- Vercel: FREE
+- OpenAI: ~$50-200/month (depends on usage)
+- **Total: ~$55-205/month**
 
 ## 📝 License
 
