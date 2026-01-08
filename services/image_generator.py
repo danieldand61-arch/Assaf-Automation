@@ -1,6 +1,6 @@
 from typing import List, Dict
 import google.generativeai as genai
-from backend.main import ImageVariation, PostVariation
+from main import ImageVariation, PostVariation
 import httpx
 import io
 import base64
