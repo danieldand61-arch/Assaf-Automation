@@ -17,6 +17,10 @@ function App() {
     
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
     
+    console.log('🚀 Starting generation...')
+    console.log('📍 API URL:', apiUrl)
+    console.log('📦 Form data:', formData)
+    
     try {
       const response = await fetch(`${apiUrl}/api/generate`, {
         method: 'POST',
@@ -24,11 +28,25 @@ function App() {
         body: JSON.stringify(formData)
       })
       
+      console.log('📥 Response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Server error:', errorText)
+        throw new Error(`Server returned ${response.status}: ${errorText}`)
+      }
+      
       const data = await response.json()
+      console.log('✅ Data received:', data)
+      
+      if (!data || !data.variations || data.variations.length === 0) {
+        throw new Error('No content generated')
+      }
+      
       setGeneratedContent(data)
     } catch (error) {
-      console.error('Generation error:', error)
-      alert(t('generationError'))
+      console.error('❌ Generation error:', error)
+      alert(`${t('generationError')}\n\nDetails: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setIsGenerating(false)
     }
