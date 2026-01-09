@@ -17,6 +17,14 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
 
   const variation = generatedContent.variations[selectedVariation]
   const image = generatedContent.images[0]
+  
+  // DEBUG: Log image data
+  console.log('🖼️ DEBUG: Images array:', generatedContent.images)
+  console.log('🖼️ DEBUG: First image:', image)
+  if (image) {
+    console.log('🖼️ DEBUG: Image URL length:', image.url?.length)
+    console.log('🖼️ DEBUG: Image URL preview:', image.url?.substring(0, 100))
+  }
 
   const handleDownloadAll = () => {
     alert(t('downloadTodo'))
