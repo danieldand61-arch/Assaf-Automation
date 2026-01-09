@@ -12,14 +12,21 @@ async def generate_images(
     website_data: Dict,
     variations: List[PostVariation],
     platforms: List[str],
-    include_logo: bool
+    image_size: str = "1080x1080",
+    include_logo: bool = False
 ) -> List[ImageVariation]:
     """Generates images for posts using Gemini 2.5 Flash Image (Nano Banana)"""
     
     images = []
     
-    # Determine required sizes
-    sizes_needed = _get_required_sizes(platforms)
+    # Use user-selected size instead of platform-based
+    sizes_needed = [{
+        "name": f"custom_{image_size}",
+        "dimensions": image_size,
+        "aspect_ratio": _get_aspect_ratio(image_size)
+    }]
+    
+    logger.info(f"🔍 DEBUG: Generating image with size: {image_size}")
     
     # Take first post variation for image generation
     main_variation = variations[0] if variations else None
@@ -48,13 +55,26 @@ async def generate_images(
             )
             
             logger.info(f"🔍 DEBUG: Response received from NEW SDK")
+            logger.info(f"🔍 DEBUG: Response type: {type(response)}")
+            logger.info(f"🔍 DEBUG: Response dir: {[attr for attr in dir(response) if not attr.startswith('_')]}")
             logger.info(f"🔍 DEBUG: Has parts: {hasattr(response, 'parts')}")
+            logger.info(f"🔍 DEBUG: Has candidates: {hasattr(response, 'candidates')}")
+            logger.info(f"🔍 DEBUG: Has text: {hasattr(response, 'text')}")
+            
+            # Try different response structures
+            parts = None
+            if hasattr(response, 'parts'):
+                parts = response.parts
+                logger.info(f"🔍 DEBUG: Found parts directly")
+            elif hasattr(response, 'candidates') and response.candidates:
+                parts = response.candidates[0].content.parts if hasattr(response.candidates[0], 'content') else None
+                logger.info(f"🔍 DEBUG: Found parts in candidates")
             
             # Extract image using NEW SDK response structure
-            if hasattr(response, 'parts') and response.parts:
-                logger.info(f"🔍 DEBUG: Number of parts: {len(response.parts)}")
+            if parts:
+                logger.info(f"🔍 DEBUG: Number of parts: {len(parts)}")
                 
-                for i, part in enumerate(response.parts):
+                for i, part in enumerate(parts):
                     logger.info(f"🔍 DEBUG: Part {i}: has inline_data={hasattr(part, 'inline_data')}, has text={hasattr(part, 'text')}")
                     
                     # Skip text parts
@@ -110,6 +130,17 @@ async def generate_images(
             ))
     
     return images if images else _get_placeholder_images(sizes_needed)
+
+
+def _get_aspect_ratio(dimensions: str) -> str:
+    """Calculate aspect ratio from dimensions"""
+    try:
+        w, h = map(int, dimensions.split('x'))
+        from math import gcd
+        divisor = gcd(w, h)
+        return f"{w//divisor}:{h//divisor}"
+    except:
+        return "1:1"
 
 
 def _get_required_sizes(platforms: List[str]) -> List[Dict]:

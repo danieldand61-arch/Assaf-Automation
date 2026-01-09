@@ -11,6 +11,7 @@ export function InputSection({ onGenerate }: InputSectionProps) {
   const [url, setUrl] = useState('')
   const [keywords, setKeywords] = useState('')
   const [platforms, setPlatforms] = useState<string[]>(['facebook', 'instagram'])
+  const [imageSize, setImageSize] = useState('1080x1080')
   const [style, setStyle] = useState('professional')
   const [targetAudience, setTargetAudience] = useState('b2c')
   const [industry, setIndustry] = useState('business')
@@ -29,6 +30,7 @@ export function InputSection({ onGenerate }: InputSectionProps) {
       url,
       keywords,
       platforms,
+      image_size: imageSize,
       style,
       target_audience: targetAudience,
       industry,
@@ -108,6 +110,22 @@ export function InputSection({ onGenerate }: InputSectionProps) {
               Instagram
             </button>
           </div>
+        </div>
+
+        {/* Image Size */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            {t('imageSize')}
+          </label>
+          <select
+            value={imageSize}
+            onChange={(e) => setImageSize(e.target.value)}
+            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition"
+          >
+            <option value="1080x1080">📱 Square (1080x1080) - Instagram Feed</option>
+            <option value="1200x630">🖼️ Landscape (1200x630) - Facebook</option>
+            <option value="1080x1920">📲 Stories/Reels (1080x1920) - Vertical</option>
+          </select>
         </div>
 
         {/* Style */}

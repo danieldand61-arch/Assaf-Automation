@@ -61,6 +61,7 @@ class GenerateRequest(BaseModel):
     url: HttpUrl
     keywords: str
     platforms: List[str]  # ["facebook", "instagram"]
+    image_size: str = "1080x1080"  # Image dimensions
     style: str
     target_audience: str
     industry: str
@@ -145,6 +146,7 @@ async def generate_content(request: GenerateRequest):
             website_data=website_data,
             variations=variations,
             platforms=request.platforms,
+            image_size=request.image_size,
             include_logo=request.include_logo
         )
         logger.info(f"✅ Generated {len(images)} images")
