@@ -17,6 +17,11 @@ async def generate_images(
 ) -> List[ImageVariation]:
     """Generates images for posts using Gemini 2.5 Flash Image (Nano Banana)"""
     
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    logger.info(f"🔍 DEBUG: Generating image with size: {image_size}")
+    
     images = []
     
     # Use user-selected size instead of platform-based
@@ -26,8 +31,6 @@ async def generate_images(
         "aspect_ratio": _get_aspect_ratio(image_size)
     }]
     
-    logger.info(f"🔍 DEBUG: Generating image with size: {image_size}")
-    
     # Take first post variation for image generation
     main_variation = variations[0] if variations else None
     
@@ -35,8 +38,6 @@ async def generate_images(
     image_prompt = _build_image_prompt(website_data, main_variation)
     
     # Use Gemini 2.5 Flash Image with NEW SDK (Nano Banana 🍌)
-    import logging
-    logger = logging.getLogger(__name__)
     model_name = 'gemini-2.5-flash-image'
     logger.info(f"🔍 DEBUG: Using NEW Google GenAI SDK with model: {model_name}")
     
