@@ -102,17 +102,32 @@ async def generate_images(
                     # Check if data is bytes or string (base64)
                     logger.info(f"🔍 Raw data type: {type(raw_data)}")
                     
-                    if isinstance(raw_data, str):
-                        # Data is base64 string - decode it
-                        logger.info(f"📝 Data is string, decoding from base64...")
+                    # Check if data looks like base64 (starts with common base64 patterns)
+                    is_base64 = False
+                    if isinstance(raw_data, bytes):
+                        # Check if bytes contain base64 text (not binary image)
+                        # PNG in base64 starts with: iVBORw0KGgo
+                        # JPEG in base64 starts with: /9j/
+                        try:
+                            decoded_str = raw_data[:20].decode('ascii')
+                            if decoded_str.startswith('iVBOR') or decoded_str.startswith('/9j/') or decoded_str.startswith('AAAA'):
+                                is_base64 = True
+                                logger.info(f"🔍 Data is base64-encoded bytes (starts with: {decoded_str[:10]})")
+                        except:
+                            logger.info(f"✅ Data is binary bytes")
+                    elif isinstance(raw_data, str):
+                        is_base64 = True
+                        logger.info(f"📝 Data is base64 string")
+                    
+                    # Decode if base64
+                    if is_base64:
+                        if isinstance(raw_data, bytes):
+                            raw_data = raw_data.decode('ascii')
                         image_bytes = base64.b64decode(raw_data)
-                    elif isinstance(raw_data, bytes):
-                        # Data is already bytes
-                        logger.info(f"✅ Data is already bytes")
-                        image_bytes = raw_data
+                        logger.info(f"✅ Decoded from base64: {len(image_bytes)} bytes")
                     else:
-                        logger.error(f"❌ Unknown data type: {type(raw_data)}")
-                        continue
+                        image_bytes = raw_data
+                        logger.info(f"✅ Using raw bytes: {len(image_bytes)} bytes")
                     
                     logger.info(f"✅ Found image! Size: {len(image_bytes)} bytes, MIME: {mime_type}")
                     break
