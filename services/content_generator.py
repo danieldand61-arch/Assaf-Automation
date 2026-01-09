@@ -124,16 +124,32 @@ IMPORTANT:
 def _parse_gemini_response(content: str, platforms: List[str]) -> List[PostVariation]:
     """Parses Gemini response and creates PostVariation objects"""
     
+    import logging
+    logger = logging.getLogger(__name__)
+    
     try:
+        logger.info(f"🔍 DEBUG: Parsing response, content length: {len(content)}")
+        
         # Extract JSON from response
         json_start = content.find('{')
         json_end = content.rfind('}') + 1
+        
+        if json_start == -1 or json_end == 0:
+            logger.error(f"❌ DEBUG: No JSON found in response!")
+            logger.error(f"🔍 DEBUG: Response content: {content[:500]}")
+            raise ValueError("No JSON in response")
+        
         json_str = content[json_start:json_end]
+        logger.info(f"🔍 DEBUG: Extracted JSON string length: {len(json_str)}")
+        logger.info(f"🔍 DEBUG: JSON preview: {json_str[:200]}...")
         
         data = json.loads(json_str)
+        logger.info(f"🔍 DEBUG: JSON parsed successfully!")
+        logger.info(f"🔍 DEBUG: Variations in data: {len(data.get('variations', []))}")
         
         variations = []
-        for var in data.get('variations', []):
+        for i, var in enumerate(data.get('variations', [])):
+            logger.info(f"🔍 DEBUG: Processing variation {i+1}...")
             text = var['text']
             variations.append(PostVariation(
                 text=text,
@@ -143,9 +159,13 @@ def _parse_gemini_response(content: str, platforms: List[str]) -> List[PostVaria
                 call_to_action=var.get('call_to_action', 'Learn more!')
             ))
         
+        logger.info(f"✅ DEBUG: Successfully parsed {len(variations)} variations!")
         return variations
         
     except Exception as e:
+        logger.error(f"❌ DEBUG: Error parsing Gemini response: {type(e).__name__}: {str(e)}")
+        logger.error(f"🔍 DEBUG: Full response content:\n{content}")
+        logger.exception("Full traceback:")
         # Fallback: create basic variation
         return [
             PostVariation(
