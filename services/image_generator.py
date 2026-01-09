@@ -1,10 +1,11 @@
 from typing import List, Dict
-import google.generativeai as genai
+from google import genai  # NEW SDK for image generation
 from main import ImageVariation, PostVariation
 import httpx
 import io
 import base64
 from PIL import Image
+import os
 
 
 async def generate_images(
@@ -26,58 +27,61 @@ async def generate_images(
     # Create prompt for Nano Banana
     image_prompt = _build_image_prompt(website_data, main_variation)
     
-    # Use Gemini 2.5 Flash Image for image generation (as requested)
+    # Use Gemini 2.5 Flash Image with NEW SDK (Nano Banana 🍌)
     import logging
     logger = logging.getLogger(__name__)
     model_name = 'gemini-2.5-flash-image'
-    logger.info(f"🔍 DEBUG: Using image model: {model_name}")
-    model = genai.GenerativeModel(model_name)
+    logger.info(f"🔍 DEBUG: Using NEW Google GenAI SDK with model: {model_name}")
+    
+    # Initialize client with API key from environment
+    api_key = os.getenv("GOOGLE_AI_API_KEY")
+    client = genai.Client(api_key=api_key)
     
     for size_info in sizes_needed:
         try:
             logger.info(f"🔍 DEBUG: Generating image for {size_info['name']}...")
-            # Generate with Gemini 2.5 Flash Image
-            response = model.generate_content(
-                image_prompt,
-                generation_config={
-                    "temperature": 0.4,
-                    "top_p": 0.95,
-                }
+            
+            # Generate with NEW SDK
+            response = client.models.generate_content(
+                model=model_name,
+                contents=[image_prompt],
             )
             
-            logger.info(f"🔍 DEBUG: Response received, checking candidates...")
-            logger.info(f"🔍 DEBUG: Has candidates: {response.candidates is not None}")
+            logger.info(f"🔍 DEBUG: Response received from NEW SDK")
+            logger.info(f"🔍 DEBUG: Has parts: {hasattr(response, 'parts')}")
             
-            # Extract image from response
-            if response.candidates and len(response.candidates) > 0:
-                logger.info(f"🔍 DEBUG: Number of candidates: {len(response.candidates)}")
-                logger.info(f"🔍 DEBUG: Candidate parts: {len(response.candidates[0].content.parts)}")
+            # Extract image using NEW SDK response structure
+            if hasattr(response, 'parts') and response.parts:
+                logger.info(f"🔍 DEBUG: Number of parts: {len(response.parts)}")
                 
-                for i, part in enumerate(response.candidates[0].content.parts):
+                for i, part in enumerate(response.parts):
                     logger.info(f"🔍 DEBUG: Part {i}: has inline_data={hasattr(part, 'inline_data')}, has text={hasattr(part, 'text')}")
                     
-                    # Check if it's text response instead of image
+                    # Skip text parts
                     if hasattr(part, 'text') and part.text:
-                        logger.warning(f"⚠️ DEBUG: Part {i} contains TEXT, not image: {part.text[:100]}")
+                        logger.info(f"ℹ️ DEBUG: Part {i} contains text: {part.text[:100] if part.text else ''}")
+                        continue
                     
+                    # Process image part
                     if hasattr(part, 'inline_data') and part.inline_data:
-                        logger.info(f"🔍 DEBUG: Found inline_data! Data length: {len(part.inline_data.data) if part.inline_data.data else 0}")
-                        logger.info(f"🔍 DEBUG: MIME type: {part.inline_data.mime_type if hasattr(part.inline_data, 'mime_type') else 'unknown'}")
+                        logger.info(f"🔍 DEBUG: Found inline_data!")
                         
-                        # Decode base64 image
-                        image_data = base64.b64decode(part.inline_data.data)
-                        logger.info(f"🔍 DEBUG: Decoded image data size: {len(image_data)} bytes")
+                        # Get image data directly
+                        image_data = part.inline_data.data
+                        mime_type = part.inline_data.mime_type if hasattr(part.inline_data, 'mime_type') else 'image/png'
                         
-                        # Save temporarily or convert to URL (for now using data URL)
+                        logger.info(f"🔍 DEBUG: Image data size: {len(image_data)} bytes")
+                        logger.info(f"🔍 DEBUG: MIME type: {mime_type}")
+                        
+                        # Convert to base64 for data URL
                         image_base64 = base64.b64encode(image_data).decode('utf-8')
-                        image_url = f"data:image/png;base64,{image_base64}"
+                        image_url = f"data:{mime_type};base64,{image_base64}"
                         
-                        logger.info(f"✅ DEBUG: Image generated! Base64 length: {len(image_base64)}, Full URL length: {len(image_url)}")
+                        logger.info(f"✅ DEBUG: Real image generated! Size: {len(image_data)} bytes, Base64 length: {len(image_base64)}")
                         
                         # Sanity check - real image should be > 10KB
                         if len(image_data) < 10000:
                             logger.warning(f"⚠️ DEBUG: Image too small ({len(image_data)} bytes)! Using placeholder instead.")
-                            # Use beautiful placeholder instead
                             images.append(ImageVariation(
                                 url=f"https://placehold.co/{size_info['dimensions']}/6366f1/white?text=AI+Generated+Image&font=roboto",
                                 size=size_info['name'],
@@ -93,7 +97,7 @@ async def generate_images(
                 else:
                     logger.warning(f"⚠️ DEBUG: No inline_data found in any part!")
             else:
-                logger.warning(f"⚠️ DEBUG: No candidates in response!")
+                logger.warning(f"⚠️ DEBUG: No parts in response!")
             
         except Exception as e:
             logger.error(f"❌ Image generation error: {type(e).__name__}: {str(e)}")
