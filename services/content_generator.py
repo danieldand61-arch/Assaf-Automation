@@ -98,18 +98,25 @@ FOR EACH VARIATION CREATE:
 3. Strong call-to-action (CTA)
 4. Estimated engagement score (0-100)
 
-RESPONSE FORMAT (strict JSON):
+RESPONSE FORMAT - STRICT JSON (NO MARKDOWN, NO EXTRA TEXT):
 {{
   "variations": [
     {{
-      "text": "Full post text",
-      "hashtags": ["hashtag1", "hashtag2", ...],
-      "call_to_action": "Call to action",
+      "text": "Full post text here",
+      "hashtags": ["hashtag1", "hashtag2", "hashtag3"],
+      "call_to_action": "Shop Now",
       "engagement_score": 85
-    }},
-    ...
+    }}
   ]
 }}
+
+CRITICAL RULES:
+- Return ONLY valid JSON, nothing else
+- NO markdown code blocks (no ```json)
+- NO trailing commas in arrays
+- ALL hashtags MUST be inside the hashtags array
+- Engagement score must be a NUMBER not string
+- Create exactly 4 variations
 
 IMPORTANT:
 - {"For Instagram: more hashtags, visual focus" if "instagram" in platforms else ""}
@@ -130,6 +137,9 @@ def _parse_gemini_response(content: str, platforms: List[str]) -> List[PostVaria
     try:
         logger.info(f"🔍 DEBUG: Parsing response, content length: {len(content)}")
         
+        # Remove markdown code blocks if present
+        content = content.replace('```json', '').replace('```', '').strip()
+        
         # Extract JSON from response
         json_start = content.find('{')
         json_end = content.rfind('}') + 1
@@ -141,25 +151,58 @@ def _parse_gemini_response(content: str, platforms: List[str]) -> List[PostVaria
         
         json_str = content[json_start:json_end]
         logger.info(f"🔍 DEBUG: Extracted JSON string length: {len(json_str)}")
-        logger.info(f"🔍 DEBUG: JSON preview: {json_str[:200]}...")
+        logger.info(f"🔍 DEBUG: JSON preview: {json_str[:300]}...")
         
-        data = json.loads(json_str)
+        # Try to fix common JSON errors
+        # Fix: remove items after closing bracket in arrays
+        import re
+        # This regex tries to fix: ],  "item",  by removing the extra items
+        json_str = re.sub(r'(\])\s*,\s*"[^"]*"\s*,', r'\1,', json_str)
+        
+        try:
+            data = json.loads(json_str)
+        except json.JSONDecodeError as e:
+            logger.error(f"❌ JSON decode failed: {e}")
+            logger.error(f"🔍 Trying to save the first valid variation...")
+            
+            # Try to extract at least the first variation
+            match = re.search(r'"variations"\s*:\s*\[\s*(\{[^}]*"text"[^}]*\})', json_str, re.DOTALL)
+            if match:
+                first_var = match.group(1)
+                json_str = f'{{"variations": [{first_var}]}}'
+                data = json.loads(json_str)
+                logger.info(f"✅ Recovered at least 1 variation!")
+            else:
+                raise
+        
         logger.info(f"🔍 DEBUG: JSON parsed successfully!")
         logger.info(f"🔍 DEBUG: Variations in data: {len(data.get('variations', []))}")
         
         variations = []
         for i, var in enumerate(data.get('variations', [])):
             logger.info(f"🔍 DEBUG: Processing variation {i+1}...")
-            text = var['text']
+            text = var.get('text', '')
+            if not text:
+                continue
+                
+            # Clean hashtags - remove any that are not strings
+            hashtags = var.get('hashtags', [])
+            if isinstance(hashtags, list):
+                hashtags = [h for h in hashtags if isinstance(h, str)]
+            else:
+                hashtags = []
+                
             variations.append(PostVariation(
                 text=text,
-                hashtags=var.get('hashtags', []),
+                hashtags=hashtags[:12],  # Limit to 12
                 char_count=len(text),
-                engagement_score=var.get('engagement_score', 70) / 100.0,
+                engagement_score=float(var.get('engagement_score', 70)) / 100.0,
                 call_to_action=var.get('call_to_action', 'Learn more!')
             ))
         
         logger.info(f"✅ DEBUG: Successfully parsed {len(variations)} variations!")
+        if not variations:
+            raise ValueError("No valid variations found")
         return variations
         
     except Exception as e:
