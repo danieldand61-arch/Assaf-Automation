@@ -24,8 +24,8 @@ async def generate_posts(
         target_audience, industry, include_emojis
     )
     
-    # Use Gemini Pro (FREE tier for testing)
-    model_name = 'gemini-pro'
+    # Use Gemini 2.5 Flash (as requested)
+    model_name = 'gemini-2.5-flash'
     logger.info(f"🔍 DEBUG: Using model: {model_name}")
     
     try:
