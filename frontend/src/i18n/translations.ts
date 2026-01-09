@@ -60,11 +60,13 @@ export const translations = {
     generatedImages: "Generated Images",
     newGeneration: "New Generation",
     downloadAll: "Download All",
+    downloadPost: "Download Post",
     active: "Active",
     
     // Errors
     fillRequired: "Please fill in URL and keywords!",
     generationError: "Generation error. Check backend and API key.",
+    downloadError: "Error creating ZIP file. Please try again.",
     downloadTodo: "Download ZIP with content (TODO: implement)"
   },
   
@@ -129,11 +131,13 @@ export const translations = {
     generatedImages: "תמונות שנוצרו",
     newGeneration: "ייצור חדש",
     downloadAll: "הורד הכל",
+    downloadPost: "הורד פוסט",
     active: "פעיל",
     
     // Errors
     fillRequired: "אנא מלא כתובת אתר ומילות מפתח!",
     generationError: "שגיאת ייצור. בדוק את השרת ומפתח API.",
+    downloadError: "שגיאה ביצירת קובץ ZIP. נסה שוב.",
     downloadTodo: "הורד ZIP עם תוכן (TODO: ליישם)"
   }
 }

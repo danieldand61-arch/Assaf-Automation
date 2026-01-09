@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Download, RefreshCw, Edit, Smartphone, Monitor } from 'lucide-react'
 import { useContentStore } from '../store/contentStore'
 import { useApp } from '../contexts/AppContext'
+import JSZip from 'jszip'
+import { saveAs } from 'file-saver'
 
 interface PreviewSectionProps {
   onReset: () => void
@@ -24,8 +26,40 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
   console.log('🖼️ DEBUG: Total images:', generatedContent.images.length)
   console.log('🖼️ DEBUG: Current image:', image)
 
-  const handleDownloadAll = () => {
-    alert(t('downloadTodo'))
+  const handleDownloadPost = async () => {
+    try {
+      const zip = new JSZip()
+      
+      // Add post text as TXT file
+      const postText = `${variation.text}\n\n${variation.hashtags.map(tag => `#${tag}`).join(' ')}\n\n${variation.call_to_action}`
+      zip.file('post.txt', postText)
+      
+      // Add image
+      if (image && image.url) {
+        // Convert data URL to blob
+        const base64Data = image.url.split(',')[1]
+        const mimeType = image.url.match(/data:(.*?);/)?.[1] || 'image/jpeg'
+        const extension = mimeType.split('/')[1] || 'jpg'
+        
+        // Decode base64 to binary
+        const binaryString = atob(base64Data)
+        const bytes = new Uint8Array(binaryString.length)
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i)
+        }
+        
+        zip.file(`image.${extension}`, bytes, { binary: true })
+      }
+      
+      // Generate ZIP and download
+      const content = await zip.generateAsync({ type: 'blob' })
+      saveAs(content, `post-variation-${selectedVariation + 1}.zip`)
+      
+      console.log('✅ ZIP downloaded successfully!')
+    } catch (error) {
+      console.error('❌ Download error:', error)
+      alert(t('downloadError'))
+    }
   }
 
   return (
@@ -42,11 +76,11 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
             {t('newGeneration')}
           </button>
           <button
-            onClick={handleDownloadAll}
+            onClick={handleDownloadPost}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
-            {t('downloadAll')}
+            {t('downloadPost')}
           </button>
         </div>
         
