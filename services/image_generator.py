@@ -76,13 +76,19 @@ async def generate_images(
                         
                         # Sanity check - real image should be > 10KB
                         if len(image_data) < 10000:
-                            logger.warning(f"⚠️ DEBUG: Image too small ({len(image_data)} bytes)! This might be a placeholder!")
-                        
-                        images.append(ImageVariation(
-                            url=image_url,
-                            size=size_info['name'],
-                            dimensions=size_info['dimensions']
-                        ))
+                            logger.warning(f"⚠️ DEBUG: Image too small ({len(image_data)} bytes)! Using placeholder instead.")
+                            # Use beautiful placeholder instead
+                            images.append(ImageVariation(
+                                url=f"https://placehold.co/{size_info['dimensions']}/6366f1/white?text=AI+Generated+Image&font=roboto",
+                                size=size_info['name'],
+                                dimensions=size_info['dimensions']
+                            ))
+                        else:
+                            images.append(ImageVariation(
+                                url=image_url,
+                                size=size_info['name'],
+                                dimensions=size_info['dimensions']
+                            ))
                         break
                 else:
                     logger.warning(f"⚠️ DEBUG: No inline_data found in any part!")
@@ -92,9 +98,9 @@ async def generate_images(
         except Exception as e:
             logger.error(f"❌ Image generation error: {type(e).__name__}: {str(e)}")
             logger.exception("Full traceback:")
-            # Fallback to placeholder
+            # Fallback to beautiful placeholder
             images.append(ImageVariation(
-                url=f"https://via.placeholder.com/{size_info['dimensions'].replace('x', 'x')}/1877f2/ffffff?text=Generated+Image",
+                url=f"https://placehold.co/{size_info['dimensions']}/6366f1/white?text=AI+Generated+Image&font=roboto",
                 size=size_info['name'],
                 dimensions=size_info['dimensions']
             ))
@@ -165,10 +171,10 @@ Mood: Inspiring, trustworthy, modern
 
 
 def _get_placeholder_images(sizes_needed: List[Dict]) -> List[ImageVariation]:
-    """Returns placeholder images if generation fails"""
+    """Returns beautiful placeholder images if generation fails"""
     return [
         ImageVariation(
-            url=f"https://via.placeholder.com/{size['dimensions']}/4285f4/ffffff?text=Social+Media+Post",
+            url=f"https://placehold.co/{size['dimensions']}/6366f1/white?text=Generated+Image&font=roboto",
             size=size['name'],
             dimensions=size['dimensions']
         )
