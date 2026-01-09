@@ -96,8 +96,24 @@ async def generate_images(
                 
                 # ПРАВИЛЬНАЯ ОБРАБОТКА: извлекаем байты из inline_data
                 if hasattr(part, 'inline_data') and part.inline_data:
-                    image_bytes = part.inline_data.data
+                    raw_data = part.inline_data.data
                     mime_type = getattr(part.inline_data, 'mime_type', 'image/png')
+                    
+                    # Check if data is bytes or string (base64)
+                    logger.info(f"🔍 Raw data type: {type(raw_data)}")
+                    
+                    if isinstance(raw_data, str):
+                        # Data is base64 string - decode it
+                        logger.info(f"📝 Data is string, decoding from base64...")
+                        image_bytes = base64.b64decode(raw_data)
+                    elif isinstance(raw_data, bytes):
+                        # Data is already bytes
+                        logger.info(f"✅ Data is already bytes")
+                        image_bytes = raw_data
+                    else:
+                        logger.error(f"❌ Unknown data type: {type(raw_data)}")
+                        continue
+                    
                     logger.info(f"✅ Found image! Size: {len(image_bytes)} bytes, MIME: {mime_type}")
                     break
                 elif hasattr(part, 'text') and part.text:
@@ -112,10 +128,19 @@ async def generate_images(
                 logger.warning(f"⚠️ Image too small ({len(image_bytes)} bytes)!")
                 raise Exception(f"Generated image too small: {len(image_bytes)} bytes")
             
+            # Debug: check first bytes to identify format
+            magic_bytes = image_bytes[:8]
+            logger.info(f"🔍 Magic bytes (hex): {magic_bytes.hex()}")
+            
             # COMPRESS image to reduce size for data URL (browsers have ~2MB limit)
             # Open image
-            img = Image.open(io.BytesIO(image_bytes))
-            logger.info(f"🔍 Original image: {img.size}, format: {img.format}, mode: {img.mode}")
+            try:
+                img = Image.open(io.BytesIO(image_bytes))
+                logger.info(f"🔍 Original image: {img.size}, format: {img.format}, mode: {img.mode}")
+            except Exception as e:
+                logger.error(f"❌ PIL cannot open image: {e}")
+                logger.error(f"🔍 First 100 bytes: {image_bytes[:100]}")
+                raise
             
             # Convert to RGB if needed (for JPEG compatibility)
             if img.mode in ('RGBA', 'LA', 'P'):
