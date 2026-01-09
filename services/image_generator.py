@@ -54,17 +54,30 @@ async def generate_images(
                 logger.info(f"🔍 DEBUG: Candidate parts: {len(response.candidates[0].content.parts)}")
                 
                 for i, part in enumerate(response.candidates[0].content.parts):
-                    logger.info(f"🔍 DEBUG: Part {i}: has inline_data={hasattr(part, 'inline_data')}")
+                    logger.info(f"🔍 DEBUG: Part {i}: has inline_data={hasattr(part, 'inline_data')}, has text={hasattr(part, 'text')}")
+                    
+                    # Check if it's text response instead of image
+                    if hasattr(part, 'text') and part.text:
+                        logger.warning(f"⚠️ DEBUG: Part {i} contains TEXT, not image: {part.text[:100]}")
+                    
                     if hasattr(part, 'inline_data') and part.inline_data:
-                        logger.info(f"🔍 DEBUG: Found inline_data! Decoding...")
+                        logger.info(f"🔍 DEBUG: Found inline_data! Data length: {len(part.inline_data.data) if part.inline_data.data else 0}")
+                        logger.info(f"🔍 DEBUG: MIME type: {part.inline_data.mime_type if hasattr(part.inline_data, 'mime_type') else 'unknown'}")
+                        
                         # Decode base64 image
                         image_data = base64.b64decode(part.inline_data.data)
+                        logger.info(f"🔍 DEBUG: Decoded image data size: {len(image_data)} bytes")
                         
                         # Save temporarily or convert to URL (for now using data URL)
                         image_base64 = base64.b64encode(image_data).decode('utf-8')
                         image_url = f"data:image/png;base64,{image_base64}"
                         
-                        logger.info(f"✅ DEBUG: Image generated successfully! URL length: {len(image_url)}")
+                        logger.info(f"✅ DEBUG: Image generated! Base64 length: {len(image_base64)}, Full URL length: {len(image_url)}")
+                        
+                        # Sanity check - real image should be > 10KB
+                        if len(image_data) < 10000:
+                            logger.warning(f"⚠️ DEBUG: Image too small ({len(image_data)} bytes)! This might be a placeholder!")
+                        
                         images.append(ImageVariation(
                             url=image_url,
                             size=size_info['name'],
