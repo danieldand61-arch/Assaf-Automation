@@ -60,6 +60,7 @@ export const translations = {
     generatedImages: "Generated Images",
     newGeneration: "New Generation",
     downloadAll: "Download All",
+    active: "Active",
     
     // Errors
     fillRequired: "Please fill in URL and keywords!",
@@ -128,6 +129,7 @@ export const translations = {
     generatedImages: "תמונות שנוצרו",
     newGeneration: "ייצור חדש",
     downloadAll: "הורד הכל",
+    active: "פעיל",
     
     // Errors
     fillRequired: "אנא מלא כתובת אתר ומילות מפתח!",

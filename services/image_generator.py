@@ -22,37 +22,35 @@ async def generate_images(
 ) -> List[ImageVariation]:
     """Generates images for posts using Gemini 2.5 Flash Image"""
     
-    logger.info(f"🖼️ Generating image with size: {image_size}")
+    logger.info(f"🖼️ Generating {len(variations)} unique images with size: {image_size}")
     
     images = []
     
     # Use user-selected size
-    sizes_needed = [{
+    size_info = {
         "name": f"custom_{image_size}",
         "dimensions": image_size,
         "aspect_ratio": _get_aspect_ratio(image_size)
-    }]
-    
-    # Take first post variation for image generation
-    main_variation = variations[0] if variations else None
-    
-    # Create prompt
-    image_prompt = _build_image_prompt(website_data, main_variation)
+    }
     
     # Initialize client
     api_key = os.getenv("GOOGLE_AI_API_KEY")
     if not api_key:
         logger.error("❌ GOOGLE_AI_API_KEY not found!")
-        return _get_placeholder_images(sizes_needed)
+        return [_get_placeholder_image(size_info) for _ in variations]
     
     client = genai.Client(api_key=api_key)
     model_name = 'gemini-2.5-flash-image'
     
     logger.info(f"🔍 Using model: {model_name}")
     
-    for size_info in sizes_needed:
+    # Generate unique image for each variation
+    for idx, variation in enumerate(variations):
         try:
-            logger.info(f"🔍 Generating image for {size_info['name']}...")
+            logger.info(f"🔍 Generating image {idx + 1}/{len(variations)} for variation: {variation.text[:50]}...")
+            
+            # Create unique prompt for this variation
+            image_prompt = _build_image_prompt(website_data, variation)
             
             # Calculate aspect ratio for config
             w, h = map(int, image_size.split('x'))
@@ -185,15 +183,15 @@ async def generate_images(
             ))
             
         except Exception as e:
-            logger.error(f"❌ Image generation error: {type(e).__name__}: {str(e)}")
-            # Fallback to placeholder
-            images.append(ImageVariation(
-                url=f"https://placehold.co/{size_info['dimensions']}/6366f1/white?text=AI+Generated+Image&font=roboto",
-                size=size_info['name'],
-                dimensions=size_info['dimensions']
-            ))
+            logger.error(f"❌ Image {idx + 1} generation error: {type(e).__name__}: {str(e)}")
+            # Fallback to placeholder for this variation
+            images.append(_get_placeholder_image(size_info))
     
-    return images if images else _get_placeholder_images(sizes_needed)
+    # Ensure we have the same number of images as variations
+    while len(images) < len(variations):
+        images.append(_get_placeholder_image(size_info))
+    
+    return images
 
 
 def _get_aspect_ratio(dimensions: str) -> str:
@@ -239,13 +237,10 @@ Mood: Inspiring, trustworthy, modern
     return prompt.strip()
 
 
-def _get_placeholder_images(sizes_needed: List[Dict]) -> List[ImageVariation]:
-    """Returns beautiful placeholder images if generation fails"""
-    return [
-        ImageVariation(
-            url=f"https://placehold.co/{size['dimensions']}/6366f1/white?text=Generated+Image&font=roboto",
-            size=size['name'],
-            dimensions=size['dimensions']
-        )
-        for size in sizes_needed
-    ]
+def _get_placeholder_image(size_info: Dict) -> ImageVariation:
+    """Returns a beautiful placeholder image if generation fails"""
+    return ImageVariation(
+        url=f"https://placehold.co/{size_info['dimensions']}/6366f1/white?text=AI+Generated+Image&font=roboto",
+        size=size_info['name'],
+        dimensions=size_info['dimensions']
+    )

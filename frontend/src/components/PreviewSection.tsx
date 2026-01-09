@@ -16,15 +16,13 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
   if (!generatedContent) return null
 
   const variation = generatedContent.variations[selectedVariation]
-  const image = generatedContent.images[0]
+  // Get image for current variation (same index)
+  const image = generatedContent.images[selectedVariation] || generatedContent.images[0]
   
   // DEBUG: Log image data
-  console.log('🖼️ DEBUG: Images array:', generatedContent.images)
-  console.log('🖼️ DEBUG: First image:', image)
-  if (image) {
-    console.log('🖼️ DEBUG: Image URL length:', image.url?.length)
-    console.log('🖼️ DEBUG: Image URL preview:', image.url?.substring(0, 100))
-  }
+  console.log('🖼️ DEBUG: Selected variation:', selectedVariation)
+  console.log('🖼️ DEBUG: Total images:', generatedContent.images.length)
+  console.log('🖼️ DEBUG: Current image:', image)
 
   const handleDownloadAll = () => {
     alert(t('downloadTodo'))
@@ -194,21 +192,32 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
 
           {/* Images Gallery */}
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-md">
-            <h4 className="font-bold text-gray-800 dark:text-white mb-3">{t('generatedImages')}</h4>
+            <h4 className="font-bold text-gray-800 dark:text-white mb-3">{t('generatedImages')} ({generatedContent.images.length})</h4>
             <div className="grid grid-cols-2 gap-3">
               {generatedContent.images.map((img, idx) => (
-                <div key={idx} className="relative group">
+                <div 
+                  key={idx} 
+                  className={`relative group cursor-pointer border-2 rounded-lg ${
+                    idx === selectedVariation ? 'border-blue-500' : 'border-transparent'
+                  }`}
+                  onClick={() => setSelectedVariation(idx)}
+                >
                   <img
                     src={img.url}
-                    alt={img.size}
+                    alt={`Variation ${idx + 1}`}
                     className="w-full h-32 object-cover rounded-lg"
                   />
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition rounded-lg flex items-center justify-center">
                     <div className="text-white text-xs text-center">
-                      <div className="font-bold">{img.size}</div>
+                      <div className="font-bold">{t('variation')} {idx + 1}</div>
                       <div>{img.dimensions}</div>
                     </div>
                   </div>
+                  {idx === selectedVariation && (
+                    <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded">
+                      {t('active')}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
