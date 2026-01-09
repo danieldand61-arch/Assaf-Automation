@@ -15,6 +15,9 @@ async def generate_posts(
 ) -> List[PostVariation]:
     """Generates social media post variations using Gemini 2.5 Pro"""
     
+    import logging
+    logger = logging.getLogger(__name__)
+    
     # Build prompt for Gemini
     prompt = _build_prompt(
         website_data, keywords, platforms, style, 
@@ -22,17 +25,28 @@ async def generate_posts(
     )
     
     # Use Gemini Pro (FREE tier for testing)
-    model = genai.GenerativeModel('gemini-pro')
+    model_name = 'gemini-pro'
+    logger.info(f"🔍 DEBUG: Using model: {model_name}")
     
-    response = model.generate_content(
-        prompt,
-        generation_config={
-            "temperature": 0.8,
-            "top_p": 0.95,
-            "top_k": 40,
-            "max_output_tokens": 2048,
-        }
-    )
+    try:
+        model = genai.GenerativeModel(model_name)
+        logger.info(f"🔍 DEBUG: Model object created successfully")
+        
+        logger.info(f"🔍 DEBUG: Calling generate_content...")
+        response = model.generate_content(
+            prompt,
+            generation_config={
+                "temperature": 0.8,
+                "top_p": 0.95,
+                "top_k": 40,
+                "max_output_tokens": 2048,
+            }
+        )
+        logger.info(f"🔍 DEBUG: generate_content returned successfully")
+    except Exception as e:
+        logger.error(f"❌ DEBUG: Error in generate_content: {type(e).__name__}")
+        logger.error(f"❌ DEBUG: Error message: {str(e)}")
+        raise
     
     content = response.text
     
