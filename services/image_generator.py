@@ -5,6 +5,7 @@ from main import ImageVariation, PostVariation
 import base64
 import os
 import logging
+import asyncio
 
 # Initialize logger at module level
 logger = logging.getLogger(__name__)
@@ -55,8 +56,9 @@ async def generate_images(
             w, h = map(int, image_size.split('x'))
             aspect = "1:1" if w == h else ("16:9" if w > h else "9:16")
             
-            # Generate image with proper config
-            response = client.models.generate_content(
+            # Generate image with proper config (run sync call in thread)
+            response = await asyncio.to_thread(
+                client.models.generate_content,
                 model=model_name,
                 contents=[image_prompt],
                 config=types.GenerateContentConfig(
