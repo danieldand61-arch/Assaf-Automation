@@ -26,8 +26,8 @@ async def generate_images(
     # Create prompt for Nano Banana
     image_prompt = _build_image_prompt(website_data, main_variation)
     
-    # Use Gemini 1.5 Flash for image generation (available with billing)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    # Use Gemini 2.0 Flash Image for image generation (available with billing)
+    model = genai.GenerativeModel('gemini-2.0-flash-preview-image-generation')
     
     for size_info in sizes_needed:
         try:
