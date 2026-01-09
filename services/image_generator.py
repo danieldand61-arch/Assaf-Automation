@@ -149,11 +149,65 @@ async def generate_images(
             # Open image
             try:
                 img = Image.open(io.BytesIO(image_bytes))
-                logger.info(f"🔍 Original image: {img.size}, format: {img.format}, mode: {img.mode}")
+                logger.info(f"🔍 Original image from API: {img.size}, format: {img.format}, mode: {img.mode}")
             except Exception as e:
                 logger.error(f"❌ PIL cannot open image: {e}")
                 logger.error(f"🔍 First 100 bytes: {image_bytes[:100]}")
                 raise
+            
+            # SMART FALLBACK: Fix aspect ratio if API ignored it
+            api_width, api_height = img.size
+            api_ratio = api_width / api_height
+            
+            # Target ratios and dimensions
+            target_ratios = {
+                "16:9": 16/9,
+                "9:16": 9/16,
+                "1:1": 1.0
+            }
+            target_dims = {
+                "16:9": (1920, 1080),
+                "9:16": (1080, 1920),
+                "1:1": (1024, 1024)
+            }
+            
+            # Calculate target based on user's image_size
+            w, h = map(int, image_size.split('x'))
+            if w == h:
+                target_aspect = "1:1"
+            elif w > h:
+                target_aspect = "16:9"
+            else:
+                target_aspect = "9:16"
+            
+            target_ratio = target_ratios[target_aspect]
+            target_width, target_height = target_dims[target_aspect]
+            
+            logger.info(f"🎯 Target: {target_aspect} ({target_width}x{target_height}), API gave: {api_ratio:.2f}")
+            
+            # If API ignored aspectRatio (tolerance 0.1)
+            if abs(api_ratio - target_ratio) > 0.1:
+                logger.warning(f"⚠️ API ignored aspectRatio! Fixing {api_width}x{api_height} → {target_width}x{target_height}")
+                
+                # STEP 1: Center crop to correct aspect ratio
+                if api_ratio > target_ratio:
+                    # Too wide - crop width
+                    new_width = int(api_height * target_ratio)
+                    left = (api_width - new_width) // 2
+                    img = img.crop((left, 0, left + new_width, api_height))
+                    logger.info(f"🔧 Cropped width: {api_width} → {new_width}")
+                else:
+                    # Too tall - crop height
+                    new_height = int(api_width / target_ratio)
+                    top = (api_height - new_height) // 2
+                    img = img.crop((0, top, api_width, top + new_height))
+                    logger.info(f"🔧 Cropped height: {api_height} → {new_height}")
+                
+                # STEP 2: Resize to final dimensions (LANCZOS = best quality)
+                img = img.resize((target_width, target_height), Image.Resampling.LANCZOS)
+                logger.info(f"✅ Fixed! Final size: {img.size}")
+            else:
+                logger.info(f"✅ API respected aspectRatio! Size: {img.size}")
             
             # Convert to RGB if needed (for JPEG compatibility)
             if img.mode in ('RGBA', 'LA', 'P'):
