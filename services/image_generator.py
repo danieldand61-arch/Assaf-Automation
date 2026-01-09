@@ -6,6 +6,8 @@ import base64
 import os
 import logging
 import asyncio
+from PIL import Image
+import io
 
 # Initialize logger at module level
 logger = logging.getLogger(__name__)
@@ -110,11 +112,31 @@ async def generate_images(
                 logger.warning(f"⚠️ Image too small ({len(image_bytes)} bytes)!")
                 raise Exception(f"Generated image too small: {len(image_bytes)} bytes")
             
-            # Convert to base64 data URL
-            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
-            image_url = f"data:{mime_type};base64,{image_base64}"
+            # COMPRESS image to reduce size for data URL (browsers have ~2MB limit)
+            # Open image
+            img = Image.open(io.BytesIO(image_bytes))
+            logger.info(f"🔍 Original image: {img.size}, format: {img.format}, mode: {img.mode}")
             
-            logger.info(f"✅ Image generated successfully! Size: {len(image_bytes)} bytes")
+            # Convert to RGB if needed (for JPEG compatibility)
+            if img.mode in ('RGBA', 'LA', 'P'):
+                background = Image.new('RGB', img.size, (255, 255, 255))
+                if img.mode == 'P':
+                    img = img.convert('RGBA')
+                background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                img = background
+            
+            # Compress to JPEG with quality 85 (good balance)
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=85, optimize=True)
+            compressed_bytes = output.getvalue()
+            
+            logger.info(f"🗜️ Compressed: {len(image_bytes)} → {len(compressed_bytes)} bytes ({len(compressed_bytes)/len(image_bytes)*100:.1f}%)")
+            
+            # Convert to base64 data URL
+            image_base64 = base64.b64encode(compressed_bytes).decode('utf-8')
+            image_url = f"data:image/jpeg;base64,{image_base64}"
+            
+            logger.info(f"✅ Image ready! Base64 size: {len(image_base64)} chars")
             
             images.append(ImageVariation(
                 url=image_url,
