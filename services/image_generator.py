@@ -35,7 +35,8 @@ async def generate_images(
     
     for size_info in sizes_needed:
         try:
-            # Generate with Nano Banana
+            logger.info(f"🔍 DEBUG: Generating image for {size_info['name']}...")
+            # Generate with Gemini 2.5 Flash Image
             response = model.generate_content(
                 image_prompt,
                 generation_config={
@@ -44,10 +45,18 @@ async def generate_images(
                 }
             )
             
+            logger.info(f"🔍 DEBUG: Response received, checking candidates...")
+            logger.info(f"🔍 DEBUG: Has candidates: {response.candidates is not None}")
+            
             # Extract image from response
             if response.candidates and len(response.candidates) > 0:
-                for part in response.candidates[0].content.parts:
+                logger.info(f"🔍 DEBUG: Number of candidates: {len(response.candidates)}")
+                logger.info(f"🔍 DEBUG: Candidate parts: {len(response.candidates[0].content.parts)}")
+                
+                for i, part in enumerate(response.candidates[0].content.parts):
+                    logger.info(f"🔍 DEBUG: Part {i}: has inline_data={hasattr(part, 'inline_data')}")
                     if hasattr(part, 'inline_data') and part.inline_data:
+                        logger.info(f"🔍 DEBUG: Found inline_data! Decoding...")
                         # Decode base64 image
                         image_data = base64.b64decode(part.inline_data.data)
                         
@@ -55,15 +64,21 @@ async def generate_images(
                         image_base64 = base64.b64encode(image_data).decode('utf-8')
                         image_url = f"data:image/png;base64,{image_base64}"
                         
+                        logger.info(f"✅ DEBUG: Image generated successfully! URL length: {len(image_url)}")
                         images.append(ImageVariation(
                             url=image_url,
                             size=size_info['name'],
                             dimensions=size_info['dimensions']
                         ))
                         break
+                else:
+                    logger.warning(f"⚠️ DEBUG: No inline_data found in any part!")
+            else:
+                logger.warning(f"⚠️ DEBUG: No candidates in response!")
             
         except Exception as e:
-            print(f"Image generation error: {e}")
+            logger.error(f"❌ Image generation error: {type(e).__name__}: {str(e)}")
+            logger.exception("Full traceback:")
             # Fallback to placeholder
             images.append(ImageVariation(
                 url=f"https://via.placeholder.com/{size_info['dimensions'].replace('x', 'x')}/1877f2/ffffff?text=Generated+Image",

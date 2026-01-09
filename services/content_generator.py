@@ -49,9 +49,12 @@ async def generate_posts(
         raise
     
     content = response.text
+    logger.info(f"🔍 DEBUG: Received response text length: {len(content)}")
+    logger.info(f"🔍 DEBUG: First 200 chars: {content[:200]}")
     
     # Parse response
     variations = _parse_gemini_response(content, platforms)
+    logger.info(f"🔍 DEBUG: Parsed {len(variations)} variations")
     
     return variations
 
