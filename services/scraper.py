@@ -6,23 +6,54 @@ from urllib.parse import urljoin, urlparse
 import colorthief
 import io
 import base64
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 async def scrape_website(url: str) -> Dict:
     """Analyzes website and extracts brand information"""
     
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        response = await client.get(url)
+    # Headers to bypass bot detection
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1'
+    }
+    
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+        response = await client.get(url, headers=headers)
         html = response.text
+    
+    logger.info(f"🔍 Scraped {url} → Status: {response.status_code}, Size: {len(html)} bytes")
+    
+    # Check if we got valid content
+    if response.status_code != 200:
+        raise ValueError(f"Failed to fetch website: HTTP {response.status_code}")
+    
+    if len(html) < 500:
+        raise ValueError(f"Website returned too little content ({len(html)} bytes)")
     
     soup = BeautifulSoup(html, 'html.parser')
     
     # Extract main information
+    title = _extract_title(soup)
+    description = _extract_description(soup)
+    content = _extract_main_content(soup)
+    
+    logger.info(f"📄 Extracted - Title: '{title[:80]}'")
+    logger.info(f"📄 Description: '{description[:100]}'")
+    logger.info(f"📄 Content preview: '{content[:150]}...'")
+    
     data = {
         "url": url,
-        "title": _extract_title(soup),
-        "description": _extract_description(soup),
-        "content": _extract_main_content(soup),
+        "title": title,
+        "description": description,
+        "content": content,
         "colors": await _extract_colors(soup, url),
         "logo_url": _extract_logo(soup, url),
         "brand_voice": _analyze_brand_voice(soup),
