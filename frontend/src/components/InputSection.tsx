@@ -14,7 +14,6 @@ export function InputSection({ onGenerate }: InputSectionProps) {
   const [imageSize, setImageSize] = useState('1080x1080')
   const [style, setStyle] = useState('professional')
   const [targetAudience, setTargetAudience] = useState('b2c')
-  const [industry, setIndustry] = useState('business')
   const [includeEmojis, setIncludeEmojis] = useState(true)
   const [includeLogo, setIncludeLogo] = useState(false)
 
@@ -33,7 +32,6 @@ export function InputSection({ onGenerate }: InputSectionProps) {
       image_size: imageSize,
       style,
       target_audience: targetAudience,
-      industry,
       include_emojis: includeEmojis,
       include_logo: includeLogo
     })
@@ -164,20 +162,6 @@ export function InputSection({ onGenerate }: InputSectionProps) {
             <option value="business_owners">{t('businessOwners')}</option>
             <option value="tech_enthusiasts">{t('techEnthusiasts')}</option>
           </select>
-        </div>
-
-        {/* Industry */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            {t('industry')}
-          </label>
-          <input
-            type="text"
-            value={industry}
-            onChange={(e) => setIndustry(e.target.value)}
-            placeholder={t('industryPlaceholder')}
-            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition"
-          />
         </div>
 
         {/* Options */}

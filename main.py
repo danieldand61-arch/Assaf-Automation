@@ -64,7 +64,6 @@ class GenerateRequest(BaseModel):
     image_size: str = "1080x1080"  # Image dimensions
     style: str
     target_audience: str
-    industry: str
     include_emojis: bool = True
     include_logo: bool = False
 
@@ -134,7 +133,6 @@ async def generate_content(request: GenerateRequest):
             platforms=request.platforms,
             style=request.style,
             target_audience=request.target_audience,
-            industry=request.industry,
             include_emojis=request.include_emojis
         )
         logger.info(f"✅ Generated {len(variations)} post variations")

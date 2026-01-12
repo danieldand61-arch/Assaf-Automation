@@ -10,7 +10,6 @@ async def generate_posts(
     platforms: List[str],
     style: str,
     target_audience: str,
-    industry: str,
     include_emojis: bool
 ) -> List[PostVariation]:
     """Generates social media post variations using Gemini 2.5 Pro"""
@@ -21,7 +20,7 @@ async def generate_posts(
     # Build prompt for Gemini
     prompt = _build_prompt(
         website_data, keywords, platforms, style, 
-        target_audience, industry, include_emojis
+        target_audience, include_emojis
     )
     
     # Use Gemini 2.5 Flash (as requested)
@@ -65,7 +64,6 @@ def _build_prompt(
     platforms: List[str],
     style: str,
     target_audience: str,
-    industry: str,
     include_emojis: bool
 ) -> str:
     """Builds prompt for Gemini 2.5 Pro"""
@@ -89,7 +87,6 @@ POST REQUIREMENTS:
 - Keywords: {keywords}
 - Style: {style}
 - Target audience: {target_audience}
-- Industry: {industry}
 - {emoji_instruction}
 
 FOR EACH VARIATION CREATE:
