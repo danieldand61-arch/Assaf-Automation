@@ -8,6 +8,7 @@ import logging
 import asyncio
 from PIL import Image
 import io
+import httpx
 
 # Initialize logger at module level
 logger = logging.getLogger(__name__)
@@ -209,6 +210,20 @@ async def generate_images(
             else:
                 logger.info(f"✅ API respected aspectRatio! Size: {img.size}")
             
+            # OVERLAY LOGO if requested
+            if include_logo:
+                logo_url = website_data.get('logo_url', '')
+                if logo_url:
+                    try:
+                        logger.info(f"🎨 Overlaying logo from: {logo_url}")
+                        img = await _overlay_logo(img, logo_url)
+                        logger.info(f"✅ Logo overlayed successfully!")
+                    except Exception as e:
+                        logger.warning(f"⚠️ Failed to overlay logo: {e}")
+                        # Continue without logo
+                else:
+                    logger.warning(f"⚠️ Include logo requested but no logo_url found")
+            
             # Convert to RGB if needed (for JPEG compatibility)
             if img.mode in ('RGBA', 'LA', 'P'):
                 background = Image.new('RGB', img.size, (255, 255, 255))
@@ -289,6 +304,58 @@ Mood: Inspiring, trustworthy, modern
 """
     
     return prompt.strip()
+
+
+async def _overlay_logo(main_image: Image.Image, logo_url: str) -> Image.Image:
+    """Downloads and overlays logo on the main image"""
+    
+    # Download logo
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        response = await client.get(logo_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0'
+        })
+        logo_bytes = response.content
+    
+    # Open logo
+    logo = Image.open(io.BytesIO(logo_bytes))
+    
+    # Convert to RGBA for transparency
+    if logo.mode != 'RGBA':
+        logo = logo.convert('RGBA')
+    
+    # Calculate logo size (10% of main image width, max 150px)
+    main_width, main_height = main_image.size
+    max_logo_width = min(int(main_width * 0.1), 150)
+    
+    # Resize logo maintaining aspect ratio
+    logo_aspect = logo.width / logo.height
+    new_logo_width = max_logo_width
+    new_logo_height = int(new_logo_width / logo_aspect)
+    
+    logo = logo.resize((new_logo_width, new_logo_height), Image.Resampling.LANCZOS)
+    
+    # Convert main image to RGBA for compositing
+    if main_image.mode != 'RGBA':
+        main_image = main_image.convert('RGBA')
+    
+    # Create a new transparent layer
+    overlay = Image.new('RGBA', main_image.size, (0, 0, 0, 0))
+    
+    # Calculate position (bottom-right corner with 20px padding)
+    position = (
+        main_width - new_logo_width - 20,
+        main_height - new_logo_height - 20
+    )
+    
+    # Paste logo onto overlay
+    overlay.paste(logo, position, logo)
+    
+    # Composite overlay onto main image
+    result = Image.alpha_composite(main_image, overlay)
+    
+    logger.info(f"🎨 Logo size: {new_logo_width}x{new_logo_height}, position: {position}")
+    
+    return result
 
 
 def _get_placeholder_image(size_info: Dict) -> ImageVariation:
