@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, HttpUrl
 from typing import List, Optional
@@ -7,13 +7,21 @@ import os
 import logging
 from dotenv import load_dotenv
 
+# Import routers
+from routers import auth, accounts, content, scheduling, products, persons, designs, image_editor, team
+from middleware.auth import get_optional_user
+
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
 
-app = FastAPI(title="Social Media Automation API")
+app = FastAPI(
+    title="Social Media Automation API",
+    version="2.0",
+    description="AI-powered social media content generation with multi-account support"
+)
 
 # CORS must be FIRST!
 app.add_middleware(
@@ -23,6 +31,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Include routers
+app.include_router(auth.router)
+app.include_router(accounts.router)
+app.include_router(content.router)
+app.include_router(scheduling.router)
+app.include_router(products.router)
+app.include_router(persons.router)
+app.include_router(designs.router)
+app.include_router(image_editor.router)
+app.include_router(team.router)
 
 # Log all requests middleware (after CORS)
 @app.middleware("http")
@@ -64,8 +83,10 @@ class GenerateRequest(BaseModel):
     image_size: str = "1080x1080"  # Image dimensions
     style: str
     target_audience: str
+    language: str = "en"  # Language: "en", "he", "es", "pt"
     include_emojis: bool = True
     include_logo: bool = False
+    account_id: Optional[str] = None  # For authenticated users
 
 
 class PostVariation(BaseModel):
@@ -111,11 +132,16 @@ def health_check():
 
 
 @app.post("/api/generate", response_model=GeneratedContent)
-async def generate_content(request: GenerateRequest):
-    """Main endpoint for content generation"""
+async def generate_content(
+    request: GenerateRequest,
+    current_user: Optional[dict] = Depends(get_optional_user)
+):
+    """Main endpoint for content generation (works both authenticated and anonymous)"""
     logger.info(f"🚀 Starting content generation for URL: {request.url}")
     logger.info(f"   Keywords: {request.keywords}")
     logger.info(f"   Platforms: {request.platforms}")
+    logger.info(f"   Language: {request.language}")
+    logger.info(f"   User: {current_user['email'] if current_user else 'Anonymous'}")
     
     try:
         # 1. Scrape website
@@ -133,6 +159,7 @@ async def generate_content(request: GenerateRequest):
             platforms=request.platforms,
             style=request.style,
             target_audience=request.target_audience,
+            language=request.language,  # Pass language
             include_emojis=request.include_emojis
         )
         logger.info(f"✅ Generated {len(variations)} post variations")
@@ -163,6 +190,28 @@ async def generate_content(request: GenerateRequest):
         logger.exception("Full traceback:")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background scheduler on app startup"""
+    logger.info("🚀 Application starting up...")
+    try:
+        from services.scheduler import start_scheduler
+        start_scheduler()
+        logger.info("✅ Background scheduler started")
+    except Exception as e:
+        logger.error(f"❌ Failed to start scheduler: {str(e)}")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Stop background scheduler on app shutdown"""
+    logger.info("🛑 Application shutting down...")
+    try:
+        from services.scheduler import stop_scheduler
+        stop_scheduler()
+        logger.info("✅ Background scheduler stopped")
+    except Exception as e:
+        logger.error(f"❌ Error stopping scheduler: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

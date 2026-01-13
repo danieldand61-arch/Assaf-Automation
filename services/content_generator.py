@@ -10,7 +10,8 @@ async def generate_posts(
     platforms: List[str],
     style: str,
     target_audience: str,
-    include_emojis: bool
+    language: str = "en",
+    include_emojis: bool = True
 ) -> List[PostVariation]:
     """Generates social media post variations using Gemini 2.5 Pro"""
     
@@ -20,7 +21,7 @@ async def generate_posts(
     # Build prompt for Gemini
     prompt = _build_prompt(
         website_data, keywords, platforms, style, 
-        target_audience, include_emojis
+        target_audience, language, include_emojis
     )
     
     # Use Gemini 2.5 Flash (as requested)
@@ -64,16 +65,26 @@ def _build_prompt(
     platforms: List[str],
     style: str,
     target_audience: str,
+    language: str,
     include_emojis: bool
 ) -> str:
-    """Builds prompt for Gemini 2.5 Pro"""
+    """Builds prompt for Gemini 2.5 Pro with multi-language support"""
+    
+    # Language names for prompt
+    language_names = {
+        "en": "English",
+        "he": "Hebrew",
+        "es": "Spanish",
+        "pt": "Portuguese"
+    }
+    language_name = language_names.get(language, "English")
     
     emoji_instruction = "Use emojis for more emotional impact." if include_emojis else "Don't use emojis."
     
     platforms_str = " and ".join(platforms)
     
     prompt = f"""
-Create 4 post variations for {platforms_str} based on the following information:
+Create 4 post variations for {platforms_str} IN {language_name.upper()} based on the following information:
 
 BRAND INFORMATION:
 - Name: {website_data.get('title', 'N/A')}
@@ -84,6 +95,7 @@ BRAND INFORMATION:
 - Key features: {', '.join(website_data.get('key_features', []))}
 
 POST REQUIREMENTS:
+- Language: {language_name} (ALL TEXT MUST BE IN {language_name.upper()})
 - Keywords: {keywords}
 - Style: {style}
 - Target audience: {target_audience}
