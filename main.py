@@ -12,12 +12,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Import content router for editing features (after logger init)
+CONTENT_ROUTER_AVAILABLE = False
 try:
+    logger.info("🔄 Attempting to import content router...")
     from routers import content
     CONTENT_ROUTER_AVAILABLE = True
     logger.info("✅ Content router imported successfully")
 except Exception as e:
-    logger.warning(f"⚠️ Content router failed to load: {str(e)}")
+    logger.error(f"❌ Content router failed to load: {str(e)}")
+    logger.exception("Full import traceback:")
     CONTENT_ROUTER_AVAILABLE = False
 
 load_dotenv()
@@ -40,11 +43,17 @@ app.add_middleware(
 # Include content router for editing features
 if CONTENT_ROUTER_AVAILABLE:
     try:
+        logger.info("🔄 Including content router in app...")
         app.include_router(content.router)
-        logger.info("✅ Content router loaded (text/image editing available)")
+        logger.info("✅ Content router registered:")
+        logger.info("   - /api/content/edit-text")
+        logger.info("   - /api/content/regenerate-text")
+        logger.info("   - /api/content/regenerate-image")
     except Exception as e:
-        logger.error(f"❌ Error loading content router: {str(e)}")
+        logger.error(f"❌ Error including content router: {str(e)}")
+        logger.exception("Full traceback:")
 else:
+    logger.warning("⚠️ Content router NOT available - editing features disabled")
     logger.info("ℹ️ Running in basic mode (only /api/generate available)")
 
 # Log all requests middleware (after CORS)
