@@ -13,6 +13,7 @@ export function InputSection({ onGenerate }: InputSectionProps) {
   const [platforms, setPlatforms] = useState<string[]>(['facebook', 'instagram'])
   const [imageSize, setImageSize] = useState('1080x1080')
   const [style, setStyle] = useState('professional')
+  const [postLanguage, setPostLanguage] = useState('en')
   const [targetAudience, setTargetAudience] = useState('b2c')
   const [includeEmojis, setIncludeEmojis] = useState(true)
   const [includeLogo, setIncludeLogo] = useState(false)
@@ -31,6 +32,7 @@ export function InputSection({ onGenerate }: InputSectionProps) {
       platforms,
       image_size: imageSize,
       style,
+      language: postLanguage,
       target_audience: targetAudience,
       include_emojis: includeEmojis,
       include_logo: includeLogo
@@ -142,6 +144,23 @@ export function InputSection({ onGenerate }: InputSectionProps) {
             <option value="inspirational">{t('inspirational')}</option>
             <option value="educational">{t('educational')}</option>
             <option value="sales">{t('salesFocused')}</option>
+          </select>
+        </div>
+
+        {/* Post Language */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+            {t('postLanguage')}
+          </label>
+          <select
+            value={postLanguage}
+            onChange={(e) => setPostLanguage(e.target.value)}
+            className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition"
+          >
+            <option value="en">{t('languageEnglish')}</option>
+            <option value="he">{t('languageHebrew')}</option>
+            <option value="es">{t('languageSpanish')}</option>
+            <option value="pt">{t('languagePortuguese')}</option>
           </select>
         </div>
 

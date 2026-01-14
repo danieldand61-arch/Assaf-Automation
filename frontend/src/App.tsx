@@ -43,7 +43,12 @@ function App() {
         throw new Error('No content generated')
       }
       
-      setGeneratedContent(data)
+      // Store website_data and request params for editing
+      setGeneratedContent({
+        ...data,
+        website_data: data.website_data,
+        request_params: formData
+      })
     } catch (error) {
       console.error('❌ Generation error:', error)
       alert(`${t('generationError')}\n\nDetails: ${error instanceof Error ? error.message : String(error)}`)

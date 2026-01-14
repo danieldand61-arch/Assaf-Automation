@@ -19,15 +19,50 @@ interface GeneratedContent {
   images: ImageVariation[]
   brand_colors: string[]
   brand_voice: string
+  website_data?: any
+  request_params?: any
 }
 
 interface ContentStore {
   generatedContent: GeneratedContent | null
   setGeneratedContent: (content: GeneratedContent | null) => void
+  updateVariation: (index: number, text: string, hashtags: string[], cta: string) => void
+  updateImage: (index: number, imageUrl: string) => void
 }
 
 export const useContentStore = create<ContentStore>((set) => ({
   generatedContent: null,
-  setGeneratedContent: (content) => set({ generatedContent: content })
+  setGeneratedContent: (content) => set({ generatedContent: content }),
+  updateVariation: (index, text, hashtags, cta) => set((state) => {
+    if (!state.generatedContent) return state
+    const newVariations = [...state.generatedContent.variations]
+    newVariations[index] = {
+      ...newVariations[index],
+      text,
+      hashtags,
+      call_to_action: cta,
+      char_count: text.length
+    }
+    return {
+      generatedContent: {
+        ...state.generatedContent,
+        variations: newVariations
+      }
+    }
+  }),
+  updateImage: (index, imageUrl) => set((state) => {
+    if (!state.generatedContent) return state
+    const newImages = [...state.generatedContent.images]
+    newImages[index] = {
+      ...newImages[index],
+      url: imageUrl
+    }
+    return {
+      generatedContent: {
+        ...state.generatedContent,
+        images: newImages
+      }
+    }
+  })
 }))
 

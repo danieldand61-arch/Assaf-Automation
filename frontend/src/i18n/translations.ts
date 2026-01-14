@@ -15,6 +15,7 @@ export const translations = {
     platforms: "Platforms",
     imageSize: "Image Size",
     style: "Style",
+    postLanguage: "Post Language",
     targetAudience: "Target Audience",
     industry: "Industry",
     industryPlaceholder: "E-commerce, SaaS, Healthcare...",
@@ -29,6 +30,12 @@ export const translations = {
     inspirational: "Inspirational",
     educational: "Educational",
     salesFocused: "Sales-focused",
+    
+    // Languages
+    languageEnglish: "🇺🇸 English",
+    languageHebrew: "🇮🇱 Hebrew",
+    languageSpanish: "🇪🇸 Spanish",
+    languagePortuguese: "🇧🇷 Portuguese",
     
     // Audiences
     b2b: "B2B",
@@ -62,6 +69,7 @@ export const translations = {
     downloadAll: "Download All",
     downloadPost: "Download Post",
     active: "Active",
+    editText: "Edit Text",
     
     // Errors
     fillRequired: "Please fill in URL and keywords!",
@@ -86,6 +94,7 @@ export const translations = {
     platforms: "פלטפורמות",
     imageSize: "גודל תמונה",
     style: "סגנון",
+    postLanguage: "שפת הפוסט",
     targetAudience: "קהל יעד",
     industry: "תעשייה",
     industryPlaceholder: "מסחר אלקטרוני, SaaS, רפואה...",
@@ -100,6 +109,12 @@ export const translations = {
     inspirational: "מעורר השראה",
     educational: "חינוכי",
     salesFocused: "ממוקד מכירות",
+    
+    // Languages
+    languageEnglish: "🇺🇸 אנגלית",
+    languageHebrew: "🇮🇱 עברית",
+    languageSpanish: "🇪🇸 ספרדית",
+    languagePortuguese: "🇧🇷 פורטוגזית",
     
     // Audiences
     b2b: "עסק לעסק",
@@ -133,6 +148,7 @@ export const translations = {
     downloadAll: "הורד הכל",
     downloadPost: "הורד פוסט",
     active: "פעיל",
+    editText: "ערוך טקסט",
     
     // Errors
     fillRequired: "אנא מלא כתובת אתר ומילות מפתח!",

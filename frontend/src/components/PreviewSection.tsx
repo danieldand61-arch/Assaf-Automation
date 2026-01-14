@@ -1,19 +1,23 @@
 import { useState } from 'react'
-import { Download, RefreshCw, Edit, Smartphone, Monitor } from 'lucide-react'
+import { Download, RefreshCw, Edit, Smartphone, Monitor, Edit3 } from 'lucide-react'
 import { useContentStore } from '../store/contentStore'
 import { useApp } from '../contexts/AppContext'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
+import { PostEditModal } from './PostEditModal'
+import { ImageEditModal } from './ImageEditModal'
 
 interface PreviewSectionProps {
   onReset: () => void
 }
 
 export function PreviewSection({ onReset }: PreviewSectionProps) {
-  const { generatedContent } = useContentStore()
+  const { generatedContent, updateVariation, updateImage } = useContentStore()
   const { t } = useApp()
   const [selectedVariation, setSelectedVariation] = useState(0)
   const [viewMode, setViewMode] = useState<'mobile' | 'desktop'>('mobile')
+  const [isEditingText, setIsEditingText] = useState(false)
+  const [isEditingImage, setIsEditingImage] = useState(false)
 
   if (!generatedContent) return null
 
@@ -60,6 +64,14 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
       console.error('❌ Download error:', error)
       alert(t('downloadError'))
     }
+  }
+
+  const handleTextSave = (text: string, hashtags: string[], cta: string) => {
+    updateVariation(selectedVariation, text, hashtags, cta)
+  }
+
+  const handleImageUpdate = (newImageUrl: string) => {
+    updateImage(selectedVariation, newImageUrl)
   }
 
   return (
@@ -130,6 +142,16 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
               
               <p className="text-gray-800 dark:text-gray-200 whitespace-pre-wrap mb-3">{v.text}</p>
               
+              {selectedVariation === idx && (
+                <button
+                  onClick={() => setIsEditingText(true)}
+                  className="mb-3 px-3 py-1 bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium transition flex items-center gap-1"
+                >
+                  <Edit3 className="w-3 h-3" />
+                  Edit Text
+                </button>
+              )}
+              
               <div className="flex flex-wrap gap-1 mb-3">
                 {v.hashtags.slice(0, 5).map((tag, i) => (
                   <span key={i} className="text-xs bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-2 py-1 rounded">
@@ -188,7 +210,10 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
                   alt="Generated post"
                   className="w-full h-auto"
                 />
-                <button className="absolute top-4 right-4 ltr:right-4 rtl:left-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur p-2 rounded-full hover:bg-white dark:hover:bg-gray-700 transition">
+                <button 
+                  onClick={() => setIsEditingImage(true)}
+                  className="absolute top-4 right-4 ltr:right-4 rtl:left-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur p-2 rounded-full hover:bg-white dark:hover:bg-gray-700 transition"
+                >
                   <Edit className="w-4 h-4 text-gray-700 dark:text-gray-300" />
                 </button>
               </div>
@@ -258,6 +283,29 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
           </div>
         </div>
       </div>
+
+      {/* Modals */}
+      <PostEditModal
+        isOpen={isEditingText}
+        onClose={() => setIsEditingText(false)}
+        initialText={variation.text}
+        initialHashtags={variation.hashtags}
+        initialCTA={variation.call_to_action}
+        onSave={handleTextSave}
+        language={generatedContent.request_params?.language || 'en'}
+      />
+
+      <ImageEditModal
+        isOpen={isEditingImage}
+        onClose={() => setIsEditingImage(false)}
+        currentImage={image.url}
+        websiteData={generatedContent.website_data || {}}
+        postText={variation.text}
+        platform={generatedContent.request_params?.platforms?.[0] || 'instagram'}
+        imageSize={generatedContent.request_params?.image_size || '1080x1080'}
+        includeLogo={generatedContent.request_params?.include_logo || false}
+        onImageUpdate={handleImageUpdate}
+      />
     </div>
   )
 }

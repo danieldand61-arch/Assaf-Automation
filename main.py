@@ -131,7 +131,7 @@ def health_check():
     }
 
 
-@app.post("/api/generate", response_model=GeneratedContent)
+@app.post("/api/generate")
 async def generate_content(
     request: GenerateRequest,
     current_user: Optional[dict] = Depends(get_optional_user)
@@ -178,12 +178,13 @@ async def generate_content(
         
         logger.info("🎉 Content generation completed successfully!")
         
-        return GeneratedContent(
-            variations=variations,
-            images=images,
-            brand_colors=website_data.get("colors", []),
-            brand_voice=website_data.get("brand_voice", "professional")
-        )
+        return {
+            "variations": [v.dict() for v in variations],
+            "images": [i.dict() for i in images],
+            "brand_colors": website_data.get("colors", []),
+            "brand_voice": website_data.get("brand_voice", "professional"),
+            "website_data": website_data  # Include for editing
+        }
         
     except Exception as e:
         logger.error(f"❌ Error during content generation: {str(e)}")
