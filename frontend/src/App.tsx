@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Header from './components/Header'
+import { LandingPage } from './components/LandingPage'
 import { InputSection } from './components/InputSection'
 import { PreviewSection } from './components/PreviewSection'
 import { LoadingState } from './components/LoadingState'
@@ -13,6 +14,7 @@ function App() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const [isGenerating, setIsGenerating] = useState(false)
+  const [showInputForm, setShowInputForm] = useState(false)
   const { generatedContent, setGeneratedContent } = useContentStore()
   const { t } = useApp()
 
@@ -67,29 +69,32 @@ function App() {
     }
   }
 
+  const handleReset = () => {
+    setGeneratedContent(null)
+    setShowInputForm(false)
+  }
+
+  const handleGetStarted = () => {
+    if (!user) {
+      navigate('/login')
+      return
+    }
+    setShowInputForm(true)
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 transition-colors">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       <Header />
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {!generatedContent && !isGenerating && (
-          <div className="mb-8 text-center">
-            <h2 className="text-3xl font-bold text-gray-800 dark:text-white mb-2">
-              {t('heroTitle')}
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400">
-              {t('heroSubtitle')}
-            </p>
-          </div>
-        )}
-
+      
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {isGenerating ? (
           <LoadingState />
         ) : generatedContent ? (
-          <PreviewSection onReset={() => setGeneratedContent(null)} />
-        ) : (
+          <PreviewSection onReset={handleReset} />
+        ) : showInputForm ? (
           <InputSection onGenerate={handleGenerate} />
+        ) : (
+          <LandingPage onGetStarted={handleGetStarted} />
         )}
       </main>
     </div>

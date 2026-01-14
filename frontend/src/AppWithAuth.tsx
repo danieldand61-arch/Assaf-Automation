@@ -7,24 +7,6 @@ import { AuthCallback } from './pages/AuthCallback'
 import App from './App'
 import { Loader2 } from 'lucide-react'
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
-      </div>
-    )
-  }
-
-  if (!user) {
-    return <Navigate to="/login" replace />
-  }
-
-  return <>{children}</>
-}
-
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
 
