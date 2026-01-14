@@ -46,7 +46,25 @@ except Exception as e:
     logger.error(f"❌ Content router failed to load: {str(e)}")
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Editing features will NOT be available!")
-    logger.info("ℹ️ Running in basic mode (only /api/generate works)")
+
+# Try to load scheduling router
+logger.info("🔄 Attempting to import scheduling router...")
+try:
+    from routers import scheduling
+    logger.info("✅ Scheduling router imported successfully")
+    
+    logger.info("🔄 Registering scheduling router endpoints...")
+    app.include_router(scheduling.router)
+    logger.info("✅ Scheduling router registered:")
+    logger.info("   📅 POST /api/scheduling/schedule")
+    logger.info("   📅 GET /api/scheduling/scheduled")
+    logger.info("   📅 DELETE /api/scheduling/scheduled/{post_id}")
+except Exception as e:
+    logger.error(f"❌ Scheduling router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Scheduling features will NOT be available!")
+
+logger.info("ℹ️ Running in basic mode (only /api/generate works)")
 
 # Log all requests middleware (after CORS)
 @app.middleware("http")
