@@ -1,46 +1,81 @@
 """
 Authentication middleware for FastAPI
-Handles Supabase JWT token verification
 """
-from fastapi import Request, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, Header
 from typing import Optional
+import jwt
+import os
 import logging
-
-from database.supabase_client import verify_auth_token
 
 logger = logging.getLogger(__name__)
 
-security = HTTPBearer()
+JWT_SECRET = os.getenv("JWT_SECRET")
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials) -> dict:
+async def get_current_user(authorization: Optional[str] = Header(None)):
     """
-    Dependency to get current authenticated user from JWT token
-    Usage in endpoints:
-        @app.get("/protected")
-        async def protected_route(user: dict = Depends(get_current_user)):
-            ...
+    Extract user from JWT token in Authorization header
+    Required for protected routes
     """
-    token = credentials.credentials
-    user = verify_auth_token(token)
+    if not authorization:
+        raise HTTPException(status_code=401, detail="Authorization header missing")
     
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    return user
+    try:
+        # Extract token from "Bearer <token>"
+        scheme, token = authorization.split()
+        if scheme.lower() != "bearer":
+            raise HTTPException(status_code=401, detail="Invalid authentication scheme")
+        
+        # Decode JWT
+        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        user_id = payload.get("sub")
+        
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+        
+        return {
+            "user_id": user_id,
+            "email": payload.get("email"),
+            "role": payload.get("role", "user")
+        }
+        
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    except Exception as e:
+        logger.error(f"Auth error: {str(e)}")
+        raise HTTPException(status_code=401, detail="Authentication failed")
 
-async def get_optional_user(request: Request) -> Optional[dict]:
+
+async def get_optional_user(authorization: Optional[str] = Header(None)):
     """
-    Get user if authenticated, otherwise None
-    For endpoints that work both authenticated and unauthenticated
+    Extract user from JWT token (optional)
+    Returns None if no token provided
     """
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
+    if not authorization:
         return None
     
-    token = auth_header.replace("Bearer ", "")
-    return verify_auth_token(token)
+    try:
+        return await get_current_user(authorization)
+    except:
+        return None
+
+
+async def get_account_id(authorization: Optional[str] = Header(None), 
+                         x_account_id: Optional[str] = Header(None)):
+    """
+    Get active account ID from header
+    For multi-account support
+    """
+    user = await get_current_user(authorization)
+    
+    if not x_account_id:
+        raise HTTPException(status_code=400, detail="X-Account-ID header required")
+    
+    # TODO: Verify user has access to this account
+    # (check team_members table or accounts.user_id)
+    
+    return {
+        "user": user,
+        "account_id": x_account_id
+    }

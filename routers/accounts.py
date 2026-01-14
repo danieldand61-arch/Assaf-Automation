@@ -1,140 +1,226 @@
 """
-Account management routes
+Business accounts management routes
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 import logging
-from uuid import UUID
-
-from database.supabase_client import get_supabase_client, get_user_accounts, get_account_by_id
+from database.supabase_client import get_supabase
 from middleware.auth import get_current_user
 
-logger = logging.getLogger(__name__)
-
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
+logger = logging.getLogger(__name__)
 
 class CreateAccountRequest(BaseModel):
     name: str
+    description: Optional[str] = None
+    industry: Optional[str] = None
+    target_audience: Optional[str] = None
+    brand_voice: str = "professional"
     logo_url: Optional[str] = None
-    brand_colors: Optional[List[str]] = None
-    brand_voice: Optional[str] = "professional"
+    brand_colors: List[str] = []
 
 class UpdateAccountRequest(BaseModel):
     name: Optional[str] = None
+    description: Optional[str] = None
+    industry: Optional[str] = None
+    target_audience: Optional[str] = None
+    brand_voice: Optional[str] = None
     logo_url: Optional[str] = None
     brand_colors: Optional[List[str]] = None
-    brand_voice: Optional[str] = None
+    default_language: Optional[str] = None
+    default_include_emojis: Optional[bool] = None
+    default_include_logo: Optional[bool] = None
 
-class AccountResponse(BaseModel):
-    id: str
-    name: str
-    logo_url: Optional[str]
-    brand_colors: List[str]
-    brand_voice: str
-    created_at: str
-    is_active: bool
-
-@router.get("", response_model=List[AccountResponse])
-async def list_accounts(user: dict = Depends(get_current_user)):
-    """Get all accounts for current user"""
-    accounts = await get_user_accounts(user["id"])
-    return accounts
-
-@router.post("", response_model=AccountResponse)
-async def create_account(
-    request: CreateAccountRequest,
-    user: dict = Depends(get_current_user)
-):
-    """Create new account"""
+@router.get("/")
+async def get_accounts(user = Depends(get_current_user)):
+    """
+    Get all accounts for current user
+    """
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         
-        response = supabase.table("accounts").insert({
-            "user_id": user["id"],
-            "name": request.name,
-            "logo_url": request.logo_url,
-            "brand_colors": request.brand_colors or [],
-            "brand_voice": request.brand_voice
-        }).execute()
+        # Get accounts owned by user
+        owned_accounts = supabase.table("accounts").select("*").eq("user_id", user["user_id"]).eq("is_active", True).execute()
         
-        logger.info(f"✅ Account created: {request.name} for user {user['email']}")
-        return response.data[0]
+        # Get accounts where user is a team member
+        team_accounts = supabase.table("team_members").select("account_id, role, accounts(*)").eq("user_id", user["user_id"]).execute()
+        
+        accounts = owned_accounts.data
+        
+        # Add team accounts
+        for team_member in team_accounts.data:
+            if team_member.get("accounts"):
+                account = team_member["accounts"]
+                account["role"] = team_member["role"]  # Add user's role
+                accounts.append(account)
+        
+        return {
+            "accounts": accounts,
+            "total": len(accounts)
+        }
         
     except Exception as e:
-        logger.error(f"❌ Create account error: {str(e)}")
+        logger.error(f"❌ Error fetching accounts: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/{account_id}", response_model=AccountResponse)
-async def get_account(
-    account_id: str,
-    user: dict = Depends(get_current_user)
-):
-    """Get account by ID"""
-    account = await get_account_by_id(account_id, user["id"])
-    
-    if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
-    
-    return account
 
-@router.patch("/{account_id}", response_model=AccountResponse)
-async def update_account(
-    account_id: str,
-    request: UpdateAccountRequest,
-    user: dict = Depends(get_current_user)
-):
-    """Update account"""
+@router.get("/{account_id}")
+async def get_account(account_id: str, user = Depends(get_current_user)):
+    """
+    Get specific account details
+    """
     try:
-        # Verify ownership
-        account = await get_account_by_id(account_id, user["id"])
-        if not account:
+        supabase = get_supabase()
+        
+        response = supabase.table("accounts").select("*").eq("id", account_id).single().execute()
+        
+        if not response.data:
             raise HTTPException(status_code=404, detail="Account not found")
         
-        supabase = get_supabase_client()
+        # Verify user has access
+        if response.data["user_id"] != user["user_id"]:
+            # Check if user is team member
+            team_check = supabase.table("team_members").select("role").eq("account_id", account_id).eq("user_id", user["user_id"]).execute()
+            if not team_check.data:
+                raise HTTPException(status_code=403, detail="Access denied")
         
-        # Build update data (only fields that were provided)
-        update_data = {}
-        if request.name is not None:
-            update_data["name"] = request.name
-        if request.logo_url is not None:
-            update_data["logo_url"] = request.logo_url
-        if request.brand_colors is not None:
-            update_data["brand_colors"] = request.brand_colors
-        if request.brand_voice is not None:
-            update_data["brand_voice"] = request.brand_voice
+        return response.data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error fetching account: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/")
+async def create_account(request: CreateAccountRequest, user = Depends(get_current_user)):
+    """
+    Create a new business account
+    """
+    try:
+        supabase = get_supabase()
+        
+        response = supabase.table("accounts").insert({
+            "user_id": user["user_id"],
+            "name": request.name,
+            "description": request.description,
+            "industry": request.industry,
+            "target_audience": request.target_audience,
+            "brand_voice": request.brand_voice,
+            "logo_url": request.logo_url,
+            "brand_colors": request.brand_colors
+        }).execute()
+        
+        logger.info(f"✅ Account created: {request.name} by {user['email']}")
+        
+        return {
+            "success": True,
+            "account": response.data[0]
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error creating account: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{account_id}")
+async def update_account(account_id: str, request: UpdateAccountRequest, user = Depends(get_current_user)):
+    """
+    Update account details
+    """
+    try:
+        supabase = get_supabase()
+        
+        # Verify ownership
+        account = supabase.table("accounts").select("user_id").eq("id", account_id).single().execute()
+        if not account.data or account.data["user_id"] != user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Build update dict (only include provided fields)
+        update_data = {k: v for k, v in request.dict().items() if v is not None}
+        
+        if not update_data:
+            raise HTTPException(status_code=400, detail="No fields to update")
         
         response = supabase.table("accounts").update(update_data).eq("id", account_id).execute()
         
         logger.info(f"✅ Account updated: {account_id}")
-        return response.data[0]
+        
+        return {
+            "success": True,
+            "account": response.data[0]
+        }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Update account error: {str(e)}")
+        logger.error(f"❌ Error updating account: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.delete("/{account_id}")
-async def delete_account(
-    account_id: str,
-    user: dict = Depends(get_current_user)
-):
-    """Delete account (soft delete - set is_active=false)"""
+async def delete_account(account_id: str, user = Depends(get_current_user)):
+    """
+    Delete (deactivate) account
+    """
     try:
-        # Verify ownership
-        account = await get_account_by_id(account_id, user["id"])
-        if not account:
-            raise HTTPException(status_code=404, detail="Account not found")
+        supabase = get_supabase()
         
-        supabase = get_supabase_client()
+        # Verify ownership
+        account = supabase.table("accounts").select("user_id").eq("id", account_id).single().execute()
+        if not account.data or account.data["user_id"] != user["user_id"]:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Soft delete (set is_active = false)
         supabase.table("accounts").update({"is_active": False}).eq("id", account_id).execute()
         
-        logger.info(f"✅ Account deleted: {account_id}")
-        return {"message": "Account deleted successfully"}
+        logger.info(f"🗑️ Account deleted: {account_id}")
+        
+        return {
+            "success": True,
+            "message": "Account deleted successfully"
+        }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Delete account error: {str(e)}")
+        logger.error(f"❌ Error deleting account: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{account_id}/switch")
+async def switch_active_account(account_id: str, user = Depends(get_current_user)):
+    """
+    Switch active account for user
+    """
+    try:
+        supabase = get_supabase()
+        
+        # Verify user has access to this account
+        account_check = supabase.table("accounts").select("id").eq("id", account_id).eq("user_id", user["user_id"]).execute()
+        
+        if not account_check.data:
+            # Check team membership
+            team_check = supabase.table("team_members").select("account_id").eq("account_id", account_id).eq("user_id", user["user_id"]).execute()
+            if not team_check.data:
+                raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Update user settings
+        supabase.table("user_settings").update({
+            "active_account_id": account_id
+        }).eq("user_id", user["user_id"]).execute()
+        
+        logger.info(f"🔄 User {user['email']} switched to account {account_id}")
+        
+        return {
+            "success": True,
+            "active_account_id": account_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error switching account: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

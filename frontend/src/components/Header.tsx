@@ -1,7 +1,13 @@
 import { useApp } from '../contexts/AppContext'
+import { useAuth } from '../contexts/AuthContext'
+import { useAccount } from '../contexts/AccountContext'
+import { AccountSwitcher } from './AccountSwitcher'
+import { UserMenu } from './UserMenu'
 
 export default function Header() {
   const { theme, toggleTheme, language, setLanguage, t } = useApp()
+  const { user } = useAuth()
+  const { activeAccount } = useAccount()
 
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm">
@@ -24,8 +30,10 @@ export default function Header() {
             </div>
           </div>
 
-          {/* Theme & Language Toggles */}
+          {/* Account Switcher, Theme & Language Toggles, User Menu */}
           <div className="flex items-center gap-3">
+            {/* Account Switcher (only if logged in) */}
+            {user && activeAccount && <AccountSwitcher />}
             {/* Language Toggle */}
             <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
               <button
@@ -66,6 +74,9 @@ export default function Header() {
                 </svg>
               )}
             </button>
+
+            {/* User Menu (only if logged in) */}
+            {user && <UserMenu />}
           </div>
         </div>
       </div>

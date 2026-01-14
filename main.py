@@ -55,16 +55,41 @@ try:
     
     logger.info("🔄 Registering scheduling router endpoints...")
     app.include_router(scheduling.router)
-    logger.info("✅ Scheduling router registered:")
-    logger.info("   📅 POST /api/scheduling/schedule")
-    logger.info("   📅 GET /api/scheduling/scheduled")
-    logger.info("   📅 DELETE /api/scheduling/scheduled/{post_id}")
+    logger.info("✅ Scheduling router registered")
 except Exception as e:
     logger.error(f"❌ Scheduling router failed to load: {str(e)}")
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Scheduling features will NOT be available!")
 
-logger.info("ℹ️ Running in basic mode (only /api/generate works)")
+# Try to load auth router
+logger.info("🔄 Attempting to import auth router...")
+try:
+    from routers import auth
+    logger.info("✅ Auth router imported successfully")
+    
+    logger.info("🔄 Registering auth router endpoints...")
+    app.include_router(auth.router)
+    logger.info("✅ Auth router registered")
+except Exception as e:
+    logger.error(f"❌ Auth router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Auth features will NOT be available!")
+
+# Try to load accounts router
+logger.info("🔄 Attempting to import accounts router...")
+try:
+    from routers import accounts
+    logger.info("✅ Accounts router imported successfully")
+    
+    logger.info("🔄 Registering accounts router endpoints...")
+    app.include_router(accounts.router)
+    logger.info("✅ Accounts router registered")
+except Exception as e:
+    logger.error(f"❌ Accounts router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Accounts features will NOT be available!")
+
+logger.info("ℹ️ All routers loaded successfully!")
 
 # Log all requests middleware (after CORS)
 @app.middleware("http")

@@ -1,147 +1,127 @@
--- ============================================
--- SUPABASE DATABASE SCHEMA
--- Social Media Automation Tool
--- ============================================
+-- =============================================
+-- SOCIAL MEDIA AUTOMATION - DATABASE SCHEMA
+-- =============================================
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- ============================================
--- 1. ACCOUNTS (Business Accounts)
--- ============================================
+-- =============================================
+-- 1. USERS & ACCOUNTS
+-- =============================================
+
+-- Users table (managed by Supabase Auth)
+-- auth.users is built-in, we just add our custom fields via user_settings
+
+-- Business Accounts (each user can have multiple business accounts)
 CREATE TABLE accounts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    -- Brand settings (optional)
-    logo_url TEXT,
-    brand_colors JSONB DEFAULT '[]'::jsonb,
+    description TEXT,
+    industry VARCHAR(100),
+    target_audience VARCHAR(255),
     brand_voice VARCHAR(100) DEFAULT 'professional',
     
+    -- Brand Assets
+    logo_url TEXT,
+    brand_colors JSONB DEFAULT '[]'::jsonb, -- ["#FF5733", "#33FF57"]
+    
+    -- Settings
+    default_language VARCHAR(10) DEFAULT 'en',
+    default_include_emojis BOOLEAN DEFAULT true,
+    default_include_logo BOOLEAN DEFAULT false,
+    
     -- Metadata
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
     is_active BOOLEAN DEFAULT true
 );
 
--- RLS for accounts
-ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+-- User Settings (preferences, active account)
+CREATE TABLE user_settings (
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    active_account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
+    theme VARCHAR(20) DEFAULT 'light', -- 'light', 'dark', 'auto'
+    notifications_enabled BOOLEAN DEFAULT true,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
-CREATE POLICY "Users can view own accounts"
-    ON accounts FOR SELECT
-    USING (auth.uid() = user_id);
+-- =============================================
+-- 2. SOCIAL MEDIA API CONNECTIONS
+-- =============================================
 
-CREATE POLICY "Users can create own accounts"
-    ON accounts FOR INSERT
-    WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own accounts"
-    ON accounts FOR UPDATE
-    USING (auth.uid() = user_id);
-
--- ============================================
--- 2. SOCIAL MEDIA CONNECTIONS
--- ============================================
-CREATE TABLE social_connections (
+CREATE TABLE account_connections (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     platform VARCHAR(50) NOT NULL, -- 'instagram', 'facebook', 'linkedin', 'twitter', 'tiktok'
-    platform_account_id VARCHAR(255), -- e.g., Facebook Page ID
-    platform_account_name VARCHAR(255),
+    
+    -- OAuth tokens (encrypted in production!)
     access_token TEXT,
     refresh_token TEXT,
-    expires_at TIMESTAMP WITH TIME ZONE,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    token_expires_at TIMESTAMPTZ,
     
-    UNIQUE(account_id, platform, platform_account_id)
+    -- Platform-specific data
+    platform_user_id VARCHAR(255),
+    platform_username VARCHAR(255),
+    platform_profile_url TEXT,
+    
+    -- Connection status
+    is_connected BOOLEAN DEFAULT false,
+    last_connected_at TIMESTAMPTZ,
+    connection_error TEXT,
+    
+    -- Metadata
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    
+    UNIQUE(account_id, platform)
 );
 
--- RLS for social_connections
-ALTER TABLE social_connections ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage own social connections"
-    ON social_connections FOR ALL
-    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
-
--- ============================================
+-- =============================================
 -- 3. SCHEDULED POSTS
--- ============================================
+-- =============================================
+
 CREATE TABLE scheduled_posts (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     
-    -- Content
-    platforms TEXT[] NOT NULL, -- ['facebook', 'instagram']
-    content TEXT NOT NULL,
-    hashtags TEXT[] DEFAULT '{}',
+    -- Post Content
+    text TEXT NOT NULL,
+    hashtags JSONB DEFAULT '[]'::jsonb, -- ["coffee", "morning"]
+    call_to_action TEXT,
+    
+    -- Image
     image_url TEXT,
+    image_storage_path TEXT, -- Path in Supabase Storage
     
     -- Scheduling
-    scheduled_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    scheduled_time TIMESTAMPTZ NOT NULL,
     timezone VARCHAR(50) DEFAULT 'UTC',
-    is_recurring BOOLEAN DEFAULT false,
-    recurring_pattern VARCHAR(50), -- 'weekly', 'monthly'
+    platforms JSONB NOT NULL, -- ["instagram", "facebook"]
     
     -- Status
-    status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'published', 'failed', 'cancelled'
-    published_at TIMESTAMP WITH TIME ZONE,
+    status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'publishing', 'published', 'failed', 'cancelled'
+    published_at TIMESTAMPTZ,
     error_message TEXT,
     
+    -- Publishing results per platform
+    publish_results JSONB DEFAULT '{}'::jsonb, -- {"instagram": {"success": true, "post_id": "123"}}
+    
     -- Metadata
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS for scheduled_posts
-ALTER TABLE scheduled_posts ENABLE ROW LEVEL SECURITY;
+-- Index for scheduler to find pending posts
+CREATE INDEX idx_scheduled_posts_pending ON scheduled_posts(scheduled_time, status) 
+WHERE status = 'pending';
 
-CREATE POLICY "Users can manage own scheduled posts"
-    ON scheduled_posts FOR ALL
-    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
+-- =============================================
+-- 4. PRODUCT LIBRARY (OPTIONAL)
+-- =============================================
 
--- Index for querying pending posts
-CREATE INDEX idx_scheduled_posts_status_time 
-    ON scheduled_posts(status, scheduled_at) 
-    WHERE status = 'pending';
-
--- ============================================
--- 4. POST HISTORY (Published Posts Archive)
--- ============================================
-CREATE TABLE post_history (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    scheduled_post_id UUID REFERENCES scheduled_posts(id) ON DELETE SET NULL,
-    
-    platform VARCHAR(50) NOT NULL,
-    platform_post_id VARCHAR(255), -- ID from Facebook/Instagram/etc
-    platform_post_url TEXT,
-    
-    content TEXT NOT NULL,
-    image_url TEXT,
-    
-    -- Analytics (can be updated later)
-    likes_count INTEGER DEFAULT 0,
-    comments_count INTEGER DEFAULT 0,
-    shares_count INTEGER DEFAULT 0,
-    reach INTEGER DEFAULT 0,
-    
-    published_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- RLS for post_history
-ALTER TABLE post_history ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can view own post history"
-    ON post_history FOR SELECT
-    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
-
--- ============================================
--- 5. PRODUCT LIBRARY (Optional Feature)
--- ============================================
 CREATE TABLE products (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -149,175 +129,197 @@ CREATE TABLE products (
     name VARCHAR(255) NOT NULL,
     description TEXT,
     category VARCHAR(100),
-    tags TEXT[] DEFAULT '{}',
+    tags JSONB DEFAULT '[]'::jsonb,
     
-    -- Images stored in Supabase Storage
-    image_url TEXT NOT NULL,
-    thumbnail_url TEXT,
+    -- Images
+    images JSONB DEFAULT '[]'::jsonb, -- [{"url": "...", "storage_path": "..."}]
     
     -- Metadata
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS for products
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+-- =============================================
+-- 5. PERSON-SPECIFIC IMAGES (OPTIONAL)
+-- =============================================
 
-CREATE POLICY "Users can manage own products"
-    ON products FOR ALL
-    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
-
--- Index for search
-CREATE INDEX idx_products_search 
-    ON products USING gin(to_tsvector('english', name || ' ' || COALESCE(description, '')));
-
--- ============================================
--- 6. PERSON IMAGES (Optional Feature)
--- ============================================
-CREATE TABLE person_images (
+CREATE TABLE persons (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     
     name VARCHAR(255) NOT NULL,
+    role VARCHAR(100), -- 'brand_ambassador', 'owner', 'spokesperson'
     description TEXT,
     
-    -- Images stored in Supabase Storage
-    image_urls TEXT[] NOT NULL, -- Multiple reference images
+    -- Reference photos
+    photos JSONB DEFAULT '[]'::jsonb, -- [{"url": "...", "storage_path": "..."}]
     
-    -- AI model training status (for future fine-tuning)
-    model_status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'training', 'ready', 'failed'
-    model_id VARCHAR(255), -- e.g., fine-tuned model ID from AI service
-    
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    -- Metadata
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS for person_images
-ALTER TABLE person_images ENABLE ROW LEVEL SECURITY;
+-- =============================================
+-- 6. DESIGN REFERENCES (OPTIONAL)
+-- =============================================
 
-CREATE POLICY "Users can manage own person images"
-    ON person_images FOR ALL
-    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
-
--- ============================================
--- 7. DESIGN REFERENCES (Optional Feature)
--- ============================================
 CREATE TABLE design_references (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     
     name VARCHAR(255) NOT NULL,
     description TEXT,
-    style_prompt TEXT, -- Extracted style description for AI
+    style_type VARCHAR(100), -- 'modern', 'minimalist', 'vintage', etc.
     
-    -- Reference images stored in Supabase Storage
-    image_urls TEXT[] NOT NULL,
+    -- Reference images
+    images JSONB DEFAULT '[]'::jsonb,
     
-    -- Usage count
-    times_used INTEGER DEFAULT 0,
+    -- Is this a saved template?
+    is_template BOOLEAN DEFAULT false,
     
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    -- Metadata
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS for design_references
-ALTER TABLE design_references ENABLE ROW LEVEL SECURITY;
+-- =============================================
+-- 7. TEAM PERMISSIONS (OPTIONAL)
+-- =============================================
 
-CREATE POLICY "Users can manage own design references"
-    ON design_references FOR ALL
-    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
-
--- ============================================
--- 8. CONTENT TEMPLATES (Optional Feature)
--- ============================================
-CREATE TABLE content_templates (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    
-    name VARCHAR(255) NOT NULL,
-    language VARCHAR(10) NOT NULL, -- 'en', 'he', 'es', 'pt'
-    
-    -- Template content
-    template_text TEXT NOT NULL,
-    variables JSONB DEFAULT '[]'::jsonb, -- e.g., [{"name": "product_name", "type": "string"}]
-    
-    platforms TEXT[] DEFAULT '{}',
-    category VARCHAR(100),
-    
-    times_used INTEGER DEFAULT 0,
-    
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- RLS for content_templates
-ALTER TABLE content_templates ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage own content templates"
-    ON content_templates FOR ALL
-    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
-
--- ============================================
--- 9. TEAM MEMBERS (Optional Feature)
--- ============================================
 CREATE TABLE team_members (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     
-    role VARCHAR(20) NOT NULL CHECK (role IN ('admin', 'manager', 'creator')),
+    role VARCHAR(50) NOT NULL, -- 'admin', 'manager', 'creator'
+    permissions JSONB DEFAULT '{}'::jsonb, -- {"can_publish": true, "can_schedule": true}
     
-    -- Permissions
-    can_publish BOOLEAN DEFAULT false,
-    can_schedule BOOLEAN DEFAULT true,
-    can_edit_brand BOOLEAN DEFAULT false,
-    
-    invited_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    accepted_at TIMESTAMP WITH TIME ZONE,
+    -- Metadata
+    invited_by UUID REFERENCES auth.users(id),
+    invited_at TIMESTAMPTZ DEFAULT NOW(),
+    accepted_at TIMESTAMPTZ,
     
     UNIQUE(account_id, user_id)
 );
 
--- RLS for team_members
+-- Team Invitations
+CREATE TABLE team_invitations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    email VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL,
+    
+    invited_by UUID NOT NULL REFERENCES auth.users(id),
+    invited_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    
+    status VARCHAR(50) DEFAULT 'pending', -- 'pending', 'accepted', 'expired', 'cancelled'
+    
+    UNIQUE(account_id, email)
+);
+
+-- =============================================
+-- 8. POST HISTORY & ANALYTICS (OPTIONAL)
+-- =============================================
+
+CREATE TABLE post_history (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+    scheduled_post_id UUID REFERENCES scheduled_posts(id) ON DELETE SET NULL,
+    
+    -- Post data snapshot
+    text TEXT,
+    image_url TEXT,
+    platforms JSONB,
+    published_at TIMESTAMPTZ,
+    
+    -- Analytics (can be updated via webhook from platforms)
+    likes INTEGER DEFAULT 0,
+    comments INTEGER DEFAULT 0,
+    shares INTEGER DEFAULT 0,
+    reach INTEGER DEFAULT 0,
+    
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- =============================================
+-- ROW LEVEL SECURITY (RLS)
+-- =============================================
+
+-- Enable RLS on all tables
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE account_connections ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scheduled_posts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE persons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE design_references ENABLE ROW LEVEL SECURITY;
 ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_invitations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE post_history ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Account owners can manage team"
-    ON team_members FOR ALL
-    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
+-- Accounts: Users can only see their own accounts or accounts they're team members of
+CREATE POLICY "Users can view their own accounts"
+    ON accounts FOR SELECT
+    USING (
+        user_id = auth.uid() 
+        OR id IN (
+            SELECT account_id FROM team_members WHERE user_id = auth.uid()
+        )
+    );
 
-CREATE POLICY "Team members can view their memberships"
-    ON team_members FOR SELECT
+CREATE POLICY "Users can create their own accounts"
+    ON accounts FOR INSERT
+    WITH CHECK (user_id = auth.uid());
+
+CREATE POLICY "Users can update their own accounts"
+    ON accounts FOR UPDATE
     USING (user_id = auth.uid());
 
--- ============================================
--- 10. STORAGE BUCKETS (Run in Supabase Dashboard)
--- ============================================
--- Run these commands in Supabase SQL Editor after creating tables:
-/*
--- Create storage buckets
-INSERT INTO storage.buckets (id, name, public) VALUES ('products', 'products', true);
-INSERT INTO storage.buckets (id, name, public) VALUES ('persons', 'persons', false);
-INSERT INTO storage.buckets (id, name, public) VALUES ('designs', 'designs', false);
-INSERT INTO storage.buckets (id, name, public) VALUES ('generated-images', 'generated-images', true);
+CREATE POLICY "Users can delete their own accounts"
+    ON accounts FOR DELETE
+    USING (user_id = auth.uid());
 
--- Storage policies for products bucket
-CREATE POLICY "Users can upload product images"
-    ON storage.objects FOR INSERT
-    WITH CHECK (bucket_id = 'products' AND auth.role() = 'authenticated');
+-- User Settings: Users can only manage their own settings
+CREATE POLICY "Users can manage their own settings"
+    ON user_settings FOR ALL
+    USING (user_id = auth.uid());
 
-CREATE POLICY "Public can view product images"
-    ON storage.objects FOR SELECT
-    USING (bucket_id = 'products');
+-- Account Connections: Users can manage connections for their accounts
+CREATE POLICY "Users can manage their account connections"
+    ON account_connections FOR ALL
+    USING (
+        account_id IN (
+            SELECT id FROM accounts WHERE user_id = auth.uid()
+        )
+    );
 
--- Similar policies for other buckets...
-*/
+-- Scheduled Posts: Users can manage posts for their accounts
+CREATE POLICY "Users can manage scheduled posts"
+    ON scheduled_posts FOR ALL
+    USING (
+        account_id IN (
+            SELECT id FROM accounts WHERE user_id = auth.uid()
+            UNION
+            SELECT account_id FROM team_members WHERE user_id = auth.uid()
+        )
+    );
 
--- ============================================
--- 11. FUNCTIONS & TRIGGERS
--- ============================================
+-- Similar policies for other tables...
+CREATE POLICY "Users can manage products" ON products FOR ALL
+    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
 
--- Auto-update updated_at timestamp
+CREATE POLICY "Users can manage persons" ON persons FOR ALL
+    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
+
+CREATE POLICY "Users can manage design references" ON design_references FOR ALL
+    USING (account_id IN (SELECT id FROM accounts WHERE user_id = auth.uid()));
+
+-- =============================================
+-- FUNCTIONS & TRIGGERS
+-- =============================================
+
+-- Update updated_at timestamp automatically
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -330,7 +332,10 @@ $$ language 'plpgsql';
 CREATE TRIGGER update_accounts_updated_at BEFORE UPDATE ON accounts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_social_connections_updated_at BEFORE UPDATE ON social_connections
+CREATE TRIGGER update_user_settings_updated_at BEFORE UPDATE ON user_settings
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_account_connections_updated_at BEFORE UPDATE ON account_connections
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_scheduled_posts_updated_at BEFORE UPDATE ON scheduled_posts
@@ -339,11 +344,22 @@ CREATE TRIGGER update_scheduled_posts_updated_at BEFORE UPDATE ON scheduled_post
 CREATE TRIGGER update_products_updated_at BEFORE UPDATE ON products
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_person_images_updated_at BEFORE UPDATE ON person_images
+CREATE TRIGGER update_persons_updated_at BEFORE UPDATE ON persons
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_design_references_updated_at BEFORE UPDATE ON design_references
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_content_templates_updated_at BEFORE UPDATE ON content_templates
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+-- =============================================
+-- INDEXES FOR PERFORMANCE
+-- =============================================
+
+CREATE INDEX idx_accounts_user_id ON accounts(user_id);
+CREATE INDEX idx_account_connections_account_id ON account_connections(account_id);
+CREATE INDEX idx_scheduled_posts_account_id ON scheduled_posts(account_id);
+CREATE INDEX idx_scheduled_posts_user_id ON scheduled_posts(user_id);
+CREATE INDEX idx_products_account_id ON products(account_id);
+CREATE INDEX idx_persons_account_id ON persons(account_id);
+CREATE INDEX idx_design_references_account_id ON design_references(account_id);
+CREATE INDEX idx_team_members_account_id ON team_members(account_id);
+CREATE INDEX idx_team_members_user_id ON team_members(user_id);

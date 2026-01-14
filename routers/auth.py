@@ -1,35 +1,34 @@
 """
-Authentication routes - Sign up, Login, Password reset
+Authentication routes (signup, login, logout)
 """
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
+from typing import Optional
 import logging
-
-from database.supabase_client import get_supabase_client
-
-logger = logging.getLogger(__name__)
+from database.supabase_client import get_supabase
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+logger = logging.getLogger(__name__)
 
-class SignUpRequest(BaseModel):
+class SignupRequest(BaseModel):
     email: EmailStr
     password: str
-    full_name: str
+    full_name: Optional[str] = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-class AuthResponse(BaseModel):
-    access_token: str
+class RefreshTokenRequest(BaseModel):
     refresh_token: str
-    user: dict
 
-@router.post("/signup", response_model=AuthResponse)
-async def sign_up(request: SignUpRequest):
-    """Register new user"""
+@router.post("/signup")
+async def signup(request: SignupRequest):
+    """
+    Register a new user
+    """
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         
         # Sign up user
         response = supabase.auth.sign_up({
@@ -42,84 +41,112 @@ async def sign_up(request: SignUpRequest):
             }
         })
         
-        if not response.user:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Failed to create user"
-            )
-        
-        logger.info(f"✅ New user registered: {request.email}")
-        
-        # Auto-create default account for new user
-        supabase.table("accounts").insert({
-            "user_id": response.user.id,
-            "name": f"{request.full_name}'s Account"
-        }).execute()
-        
-        return AuthResponse(
-            access_token=response.session.access_token,
-            refresh_token=response.session.refresh_token,
-            user=response.user.model_dump()
-        )
-        
+        if response.user:
+            logger.info(f"✅ User registered: {request.email}")
+            
+            # Create default account for user
+            account_response = supabase.table("accounts").insert({
+                "user_id": response.user.id,
+                "name": f"{request.full_name or request.email}'s Account",
+                "description": "Default account"
+            }).execute()
+            
+            # Set as active account
+            supabase.table("user_settings").insert({
+                "user_id": response.user.id,
+                "active_account_id": account_response.data[0]["id"]
+            }).execute()
+            
+            return {
+                "success": True,
+                "user": {
+                    "id": response.user.id,
+                    "email": response.user.email
+                },
+                "session": {
+                    "access_token": response.session.access_token,
+                    "refresh_token": response.session.refresh_token
+                }
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Signup failed")
+            
     except Exception as e:
-        logger.error(f"❌ Sign up error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        logger.error(f"❌ Signup error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/login", response_model=AuthResponse)
+
+@router.post("/login")
 async def login(request: LoginRequest):
-    """Login user"""
+    """
+    Login existing user
+    """
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         
         response = supabase.auth.sign_in_with_password({
             "email": request.email,
             "password": request.password
         })
         
-        if not response.user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid credentials"
-            )
-        
-        logger.info(f"✅ User logged in: {request.email}")
-        
-        return AuthResponse(
-            access_token=response.session.access_token,
-            refresh_token=response.session.refresh_token,
-            user=response.user.model_dump()
-        )
-        
+        if response.user:
+            logger.info(f"✅ User logged in: {request.email}")
+            
+            # Get active account
+            settings = supabase.table("user_settings").select("active_account_id").eq("user_id", response.user.id).single().execute()
+            
+            return {
+                "success": True,
+                "user": {
+                    "id": response.user.id,
+                    "email": response.user.email
+                },
+                "session": {
+                    "access_token": response.session.access_token,
+                    "refresh_token": response.session.refresh_token
+                },
+                "active_account_id": settings.data.get("active_account_id") if settings.data else None
+            }
+        else:
+            raise HTTPException(status_code=401, detail="Invalid credentials")
+            
     except Exception as e:
         logger.error(f"❌ Login error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials"
-        )
+        raise HTTPException(status_code=401, detail="Invalid email or password")
+
 
 @router.post("/logout")
 async def logout():
-    """Logout user (client-side token removal)"""
-    return {"message": "Logged out successfully"}
+    """
+    Logout user (client should delete tokens)
+    """
+    try:
+        supabase = get_supabase()
+        supabase.auth.sign_out()
+        
+        return {"success": True, "message": "Logged out successfully"}
+    except Exception as e:
+        logger.error(f"❌ Logout error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/refresh")
-async def refresh_token(refresh_token: str):
-    """Refresh access token"""
+async def refresh_token(request: RefreshTokenRequest):
+    """
+    Refresh access token using refresh token
+    """
     try:
-        supabase = get_supabase_client()
-        response = supabase.auth.refresh_session(refresh_token)
+        supabase = get_supabase()
+        
+        response = supabase.auth.refresh_session(request.refresh_token)
         
         return {
-            "access_token": response.session.access_token,
-            "refresh_token": response.session.refresh_token
+            "success": True,
+            "session": {
+                "access_token": response.session.access_token,
+                "refresh_token": response.session.refresh_token
+            }
         }
     except Exception as e:
         logger.error(f"❌ Token refresh error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token"
-        )
+        raise HTTPException(status_code=401, detail="Invalid refresh token")

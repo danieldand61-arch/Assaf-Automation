@@ -1,54 +1,37 @@
 """
-Supabase client initialization and helper functions
+Supabase client initialization
 """
 import os
 from supabase import create_client, Client
-from typing import Optional
+from dotenv import load_dotenv
 import logging
 
+load_dotenv()
 logger = logging.getLogger(__name__)
 
-# Supabase client instance
-_supabase_client: Optional[Client] = None
+# Supabase credentials
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
-def get_supabase_client() -> Optional[Client]:
-    """Get or create Supabase client instance"""
-    global _supabase_client
-    
-    if _supabase_client is None:
-        supabase_url = os.getenv("SUPABASE_URL")
-        supabase_key = os.getenv("SUPABASE_KEY")
-        
-        if not supabase_url or not supabase_key:
-            logger.warning("⚠️ SUPABASE_URL or SUPABASE_KEY not found - Supabase features disabled")
-            return None
-        
-        logger.info(f"✅ Initializing Supabase client: {supabase_url}")
-        _supabase_client = create_client(supabase_url, supabase_key)
-    
-    return _supabase_client
+# Initialize Supabase client
+supabase: Client = None
 
-def verify_auth_token(token: str) -> Optional[dict]:
-    """
-    Verify JWT token from Supabase Auth
-    Returns user data if valid, None if invalid
-    """
+if SUPABASE_URL and SUPABASE_SERVICE_KEY:
     try:
-        supabase = get_supabase_client()
-        user = supabase.auth.get_user(token)
-        return user.user.model_dump() if user else None
+        supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        logger.info("✅ Supabase client initialized successfully")
     except Exception as e:
-        logger.warning(f"⚠️ Token verification failed: {str(e)}")
-        return None
+        logger.error(f"❌ Failed to initialize Supabase client: {str(e)}")
+        supabase = None
+else:
+    logger.warning("⚠️ Supabase credentials not found. Running without database.")
+    supabase = None
 
-async def get_user_accounts(user_id: str) -> list:
-    """Get all accounts for a user"""
-    supabase = get_supabase_client()
-    response = supabase.table("accounts").select("*").eq("user_id", user_id).execute()
-    return response.data
 
-async def get_account_by_id(account_id: str, user_id: str) -> Optional[dict]:
-    """Get account by ID (with ownership check)"""
-    supabase = get_supabase_client()
-    response = supabase.table("accounts").select("*").eq("id", account_id).eq("user_id", user_id).single().execute()
-    return response.data if response.data else None
+def get_supabase() -> Client:
+    """
+    Get Supabase client instance
+    """
+    if supabase is None:
+        raise Exception("Supabase client not initialized. Check SUPABASE_URL and SUPABASE_SERVICE_KEY.")
+    return supabase
