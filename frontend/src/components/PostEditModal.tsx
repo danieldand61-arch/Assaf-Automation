@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { X, Wand2, Zap, Smile, SmilePlus, Type, Loader2 } from 'lucide-react'
-import { useApp } from '../contexts/AppContext'
 
 interface PostEditModalProps {
   isOpen: boolean
@@ -21,7 +20,6 @@ export function PostEditModal({
   onSave,
   language 
 }: PostEditModalProps) {
-  const { t } = useApp()
   const [text, setText] = useState(initialText)
   const [hashtags, setHashtags] = useState<string[]>(initialHashtags)
   const [cta, setCTA] = useState(initialCTA)

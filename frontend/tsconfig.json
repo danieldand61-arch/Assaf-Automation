@@ -17,6 +17,7 @@
     "noFallthroughCasesInSwitch": true
   },
   "include": ["src"],
+  "exclude": ["src/_temp_disabled"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
 

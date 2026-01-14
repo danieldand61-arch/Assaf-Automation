@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react'
 import { X, RefreshCw, Upload, History, Loader2, Image as ImageIcon } from 'lucide-react'
-import { useApp } from '../contexts/AppContext'
 
 interface ImageEditModalProps {
   isOpen: boolean
@@ -25,7 +24,6 @@ export function ImageEditModal({
   includeLogo,
   onImageUpdate
 }: ImageEditModalProps) {
-  const { t } = useApp()
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [variations, setVariations] = useState<string[]>([currentImage])
   const [selectedVariation, setSelectedVariation] = useState(0)
@@ -108,7 +106,7 @@ export function ImageEditModal({
     onClose()
   }
 
-  const handleHistorySelect = (imageUrl: string, index: number) => {
+  const handleHistorySelect = (imageUrl: string) => {
     setVariations([imageUrl])
     setSelectedVariation(0)
   }
@@ -233,7 +231,7 @@ export function ImageEditModal({
                   return (
                     <button
                       key={actualIndex}
-                      onClick={() => handleHistorySelect(img, actualIndex)}
+                      onClick={() => handleHistorySelect(img)}
                       className="w-full aspect-square rounded-lg overflow-hidden border-2 border-gray-300 dark:border-gray-600 hover:border-blue-500 dark:hover:border-blue-400 transition group relative"
                     >
                       <img
