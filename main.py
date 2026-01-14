@@ -7,8 +7,13 @@ import os
 import logging
 from dotenv import load_dotenv
 
-# No additional routers for now - only basic content generation
-ROUTERS_AVAILABLE = False
+# Import content router for editing features
+try:
+    from routers import content
+    CONTENT_ROUTER_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"⚠️ Content router failed to load: {str(e)}")
+    CONTENT_ROUTER_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -31,8 +36,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Running in basic mode - only /api/generate endpoint
-logger.info("ℹ️ Running in basic mode (only /api/generate available)")
+# Include content router for editing features
+if CONTENT_ROUTER_AVAILABLE:
+    try:
+        app.include_router(content.router)
+        logger.info("✅ Content router loaded (text/image editing available)")
+    except Exception as e:
+        logger.error(f"❌ Error loading content router: {str(e)}")
+else:
+    logger.info("ℹ️ Running in basic mode (only /api/generate available)")
 
 # Log all requests middleware (after CORS)
 @app.middleware("http")

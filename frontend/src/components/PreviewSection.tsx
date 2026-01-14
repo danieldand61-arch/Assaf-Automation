@@ -145,9 +145,9 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
               {selectedVariation === idx && (
                 <button
                   onClick={() => setIsEditingText(true)}
-                  className="mb-3 px-3 py-1 bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 rounded-lg text-xs font-medium transition flex items-center gap-1"
+                  className="mb-3 px-4 py-2 bg-blue-100 dark:bg-blue-900 hover:bg-blue-200 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 rounded-lg text-sm font-semibold transition flex items-center gap-2"
                 >
-                  <Edit3 className="w-3 h-3" />
+                  <Edit3 className="w-4 h-4" />
                   Edit Text
                 </button>
               )}
@@ -212,9 +212,10 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
                 />
                 <button 
                   onClick={() => setIsEditingImage(true)}
-                  className="absolute top-4 right-4 ltr:right-4 rtl:left-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur p-2 rounded-full hover:bg-white dark:hover:bg-gray-700 transition"
+                  className="absolute top-4 right-4 ltr:right-4 rtl:left-4 bg-white/90 dark:bg-gray-800/90 backdrop-blur px-4 py-2 rounded-lg hover:bg-white dark:hover:bg-gray-700 transition flex items-center gap-2 font-semibold text-gray-700 dark:text-gray-300"
                 >
-                  <Edit className="w-4 h-4 text-gray-700 dark:text-gray-300" />
+                  <Edit className="w-5 h-5" />
+                  Edit Image
                 </button>
               </div>
             )}
