@@ -7,17 +7,8 @@ import os
 import logging
 from dotenv import load_dotenv
 
-# Import middleware
-from middleware.auth import get_optional_user
-
-# Import routers (optional - will be loaded if available)
-try:
-    from routers import auth, accounts, content, scheduling, products, persons, designs, image_editor, team
-    ROUTERS_AVAILABLE = True
-except Exception as e:
-    logger.warning(f"⚠️ Some routers failed to load: {str(e)}")
-    logger.warning("⚠️ Advanced features (auth, accounts, scheduling) will be disabled")
-    ROUTERS_AVAILABLE = False
+# No additional routers for now - only basic content generation
+ROUTERS_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -40,23 +31,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers (if available)
-if ROUTERS_AVAILABLE:
-    try:
-        app.include_router(auth.router)
-        app.include_router(accounts.router)
-        app.include_router(content.router)
-        app.include_router(scheduling.router)
-        app.include_router(products.router)
-        app.include_router(persons.router)
-        app.include_router(designs.router)
-        app.include_router(image_editor.router)
-        app.include_router(team.router)
-        logger.info("✅ All routers loaded successfully")
-    except Exception as e:
-        logger.error(f"❌ Error loading routers: {str(e)}")
-else:
-    logger.info("ℹ️ Running in basic mode (only /api/generate available)")
+# Running in basic mode - only /api/generate endpoint
+logger.info("ℹ️ Running in basic mode (only /api/generate available)")
 
 # Log all requests middleware (after CORS)
 @app.middleware("http")
@@ -147,16 +123,12 @@ def health_check():
 
 
 @app.post("/api/generate")
-async def generate_content(
-    request: GenerateRequest,
-    current_user: Optional[dict] = Depends(get_optional_user)
-):
-    """Main endpoint for content generation (works both authenticated and anonymous)"""
+async def generate_content(request: GenerateRequest):
+    """Main endpoint for content generation"""
     logger.info(f"🚀 Starting content generation for URL: {request.url}")
     logger.info(f"   Keywords: {request.keywords}")
     logger.info(f"   Platforms: {request.platforms}")
     logger.info(f"   Language: {request.language}")
-    logger.info(f"   User: {current_user['email'] if current_user else 'Anonymous'}")
     
     try:
         # 1. Scrape website
@@ -219,28 +191,12 @@ async def startup_event():
     else:
         logger.warning("⚠️ GOOGLE_AI_API_KEY not set - generation will fail!")
     
-    # Start scheduler (optional)
-    if ROUTERS_AVAILABLE:
-        try:
-            from services.scheduler import start_scheduler
-            start_scheduler()
-            logger.info("✅ Background scheduler started")
-        except Exception as e:
-            logger.error(f"❌ Failed to start scheduler: {str(e)}")
-            logger.info("ℹ️ Scheduler is optional, continuing without it")
-    
     logger.info("✅ Application startup complete")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Stop background scheduler on app shutdown"""
+    """App shutdown"""
     logger.info("🛑 Application shutting down...")
-    try:
-        from services.scheduler import stop_scheduler
-        stop_scheduler()
-        logger.info("✅ Background scheduler stopped")
-    except Exception as e:
-        logger.error(f"❌ Error stopping scheduler: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn
