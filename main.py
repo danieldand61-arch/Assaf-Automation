@@ -11,18 +11,6 @@ from dotenv import load_dotenv
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import content router for editing features (after logger init)
-CONTENT_ROUTER_AVAILABLE = False
-try:
-    logger.info("🔄 Attempting to import content router...")
-    from routers import content
-    CONTENT_ROUTER_AVAILABLE = True
-    logger.info("✅ Content router imported successfully")
-except Exception as e:
-    logger.error(f"❌ Content router failed to load: {str(e)}")
-    logger.exception("Full import traceback:")
-    CONTENT_ROUTER_AVAILABLE = False
-
 load_dotenv()
 
 app = FastAPI(
@@ -40,21 +28,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include content router for editing features
-if CONTENT_ROUTER_AVAILABLE:
-    try:
-        logger.info("🔄 Including content router in app...")
-        app.include_router(content.router)
-        logger.info("✅ Content router registered:")
-        logger.info("   - /api/content/edit-text")
-        logger.info("   - /api/content/regenerate-text")
-        logger.info("   - /api/content/regenerate-image")
-    except Exception as e:
-        logger.error(f"❌ Error including content router: {str(e)}")
-        logger.exception("Full traceback:")
-else:
-    logger.warning("⚠️ Content router NOT available - editing features disabled")
-    logger.info("ℹ️ Running in basic mode (only /api/generate available)")
+# Import and include content router AFTER app creation
+logger.info("🔄 Attempting to import content router...")
+try:
+    from routers import content
+    logger.info("✅ Content router imported successfully")
+    
+    logger.info("🔄 Registering content router endpoints...")
+    app.include_router(content.router)
+    logger.info("✅ Content router registered:")
+    logger.info("   📝 POST /api/content/edit-text")
+    logger.info("   📝 POST /api/content/regenerate-text")
+    logger.info("   🖼️  POST /api/content/regenerate-image")
+except Exception as e:
+    logger.error(f"❌ Content router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Editing features will NOT be available!")
+    logger.info("ℹ️ Running in basic mode (only /api/generate works)")
 
 # Log all requests middleware (after CORS)
 @app.middleware("http")
