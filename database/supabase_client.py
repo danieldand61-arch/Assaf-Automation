@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 # Supabase client instance
 _supabase_client: Optional[Client] = None
 
-def get_supabase_client() -> Client:
+def get_supabase_client() -> Optional[Client]:
     """Get or create Supabase client instance"""
     global _supabase_client
     
@@ -20,8 +20,8 @@ def get_supabase_client() -> Client:
         supabase_key = os.getenv("SUPABASE_KEY")
         
         if not supabase_url or not supabase_key:
-            logger.error("❌ SUPABASE_URL or SUPABASE_KEY not found in environment!")
-            raise ValueError("Supabase credentials not configured")
+            logger.warning("⚠️ SUPABASE_URL or SUPABASE_KEY not found - Supabase features disabled")
+            return None
         
         logger.info(f"✅ Initializing Supabase client: {supabase_url}")
         _supabase_client = create_client(supabase_url, supabase_key)

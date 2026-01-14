@@ -7,9 +7,17 @@ import os
 import logging
 from dotenv import load_dotenv
 
-# Import routers
-from routers import auth, accounts, content, scheduling, products, persons, designs, image_editor, team
+# Import middleware
 from middleware.auth import get_optional_user
+
+# Import routers (optional - will be loaded if available)
+try:
+    from routers import auth, accounts, content, scheduling, products, persons, designs, image_editor, team
+    ROUTERS_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"⚠️ Some routers failed to load: {str(e)}")
+    logger.warning("⚠️ Advanced features (auth, accounts, scheduling) will be disabled")
+    ROUTERS_AVAILABLE = False
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,16 +40,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
-app.include_router(auth.router)
-app.include_router(accounts.router)
-app.include_router(content.router)
-app.include_router(scheduling.router)
-app.include_router(products.router)
-app.include_router(persons.router)
-app.include_router(designs.router)
-app.include_router(image_editor.router)
-app.include_router(team.router)
+# Include routers (if available)
+if ROUTERS_AVAILABLE:
+    try:
+        app.include_router(auth.router)
+        app.include_router(accounts.router)
+        app.include_router(content.router)
+        app.include_router(scheduling.router)
+        app.include_router(products.router)
+        app.include_router(persons.router)
+        app.include_router(designs.router)
+        app.include_router(image_editor.router)
+        app.include_router(team.router)
+        logger.info("✅ All routers loaded successfully")
+    except Exception as e:
+        logger.error(f"❌ Error loading routers: {str(e)}")
+else:
+    logger.info("ℹ️ Running in basic mode (only /api/generate available)")
 
 # Log all requests middleware (after CORS)
 @app.middleware("http")
@@ -196,12 +211,25 @@ async def generate_content(
 async def startup_event():
     """Start background scheduler on app startup"""
     logger.info("🚀 Application starting up...")
-    try:
-        from services.scheduler import start_scheduler
-        start_scheduler()
-        logger.info("✅ Background scheduler started")
-    except Exception as e:
-        logger.error(f"❌ Failed to start scheduler: {str(e)}")
+    
+    # Check API key
+    api_key = os.getenv("GOOGLE_AI_API_KEY")
+    if api_key:
+        logger.info("✅ Google AI API key found")
+    else:
+        logger.warning("⚠️ GOOGLE_AI_API_KEY not set - generation will fail!")
+    
+    # Start scheduler (optional)
+    if ROUTERS_AVAILABLE:
+        try:
+            from services.scheduler import start_scheduler
+            start_scheduler()
+            logger.info("✅ Background scheduler started")
+        except Exception as e:
+            logger.error(f"❌ Failed to start scheduler: {str(e)}")
+            logger.info("ℹ️ Scheduler is optional, continuing without it")
+    
+    logger.info("✅ Application startup complete")
 
 @app.on_event("shutdown")
 async def shutdown_event():
