@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { X, Calendar, Clock, Send, Loader2 } from 'lucide-react'
-import { useApp } from '../contexts/AppContext'
 
 interface SchedulePostModalProps {
   isOpen: boolean
@@ -20,7 +19,6 @@ export function SchedulePostModal({
   postData,
   platforms 
 }: SchedulePostModalProps) {
-  const { t } = useApp()
   const [scheduleType, setScheduleType] = useState<'now' | 'later'>('now')
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
@@ -68,7 +66,6 @@ export function SchedulePostModal({
 
   // Get minimum date (today)
   const today = new Date().toISOString().split('T')[0]
-  const now = new Date().toTimeString().slice(0, 5)
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
