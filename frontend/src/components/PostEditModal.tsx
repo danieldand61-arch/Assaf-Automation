@@ -38,7 +38,7 @@ export function PostEditModal({
   const platformLimits = {
     'Instagram': 2200,
     'Facebook': 63206,
-    'Twitter/X': 25000,  // Twitter Blue увеличил лимит до 25000
+    'Twitter/X': 280,  // Базовый лимит (Premium: 25000)
     'LinkedIn': 3000
   }
 
