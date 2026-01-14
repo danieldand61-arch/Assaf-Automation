@@ -7,17 +7,18 @@ import os
 import logging
 from dotenv import load_dotenv
 
-# Import content router for editing features
+# Configure logging FIRST
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Import content router for editing features (after logger init)
 try:
     from routers import content
     CONTENT_ROUTER_AVAILABLE = True
+    logger.info("✅ Content router imported successfully")
 except Exception as e:
     logger.warning(f"⚠️ Content router failed to load: {str(e)}")
     CONTENT_ROUTER_AVAILABLE = False
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 load_dotenv()
 

@@ -1,12 +1,11 @@
 """
 Content generation and editing routes
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, HttpUrl
 from typing import List, Optional
 import logging
 
-from middleware.auth import get_optional_user
 from services.content_generator import generate_posts
 from services.image_generator import generate_images
 from services.scraper import scrape_website
@@ -40,10 +39,7 @@ class EditTextRequest(BaseModel):
     language: str = "en"
 
 @router.post("/regenerate-text")
-async def regenerate_text(
-    request: RegenerateTextRequest,
-    current_user: Optional[dict] = Depends(get_optional_user)
-):
+async def regenerate_text(request: RegenerateTextRequest):
     """
     Regenerate a single post variation
     """
@@ -74,10 +70,7 @@ async def regenerate_text(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/regenerate-image")
-async def regenerate_image(
-    request: RegenerateImageRequest,
-    current_user: Optional[dict] = Depends(get_optional_user)
-):
+async def regenerate_image(request: RegenerateImageRequest):
     """
     Regenerate image for a post
     """
@@ -114,10 +107,7 @@ async def regenerate_image(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/edit-text")
-async def edit_text(
-    request: EditTextRequest,
-    current_user: Optional[dict] = Depends(get_optional_user)
-):
+async def edit_text(request: EditTextRequest):
     """
     Edit existing text with AI assistance
     Actions: shorten, lengthen, add_emojis, remove_emojis, change_tone
