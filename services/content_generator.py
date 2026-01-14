@@ -1,7 +1,7 @@
 from typing import List, Dict
 import google.generativeai as genai
 import json
-from main import PostVariation
+from models import PostVariation
 
 
 async def generate_posts(

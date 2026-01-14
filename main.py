@@ -1,11 +1,13 @@
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, HttpUrl
 from typing import List, Optional
 import google.generativeai as genai
 import os
 import logging
 from dotenv import load_dotenv
+
+# Import models from separate file (avoid circular imports)
+from models import GenerateRequest, GeneratedContent, PostVariation, ImageVariation
 
 # Configure logging FIRST
 logging.basicConfig(level=logging.INFO)
@@ -77,40 +79,6 @@ if api_key:
 else:
     logger.error("❌ GOOGLE_AI_API_KEY not found in environment variables!")
     logger.info("🔍 DEBUG: Available env vars: " + ", ".join([k for k in os.environ.keys() if 'KEY' in k or 'API' in k]))
-
-
-class GenerateRequest(BaseModel):
-    url: HttpUrl
-    keywords: str
-    platforms: List[str]  # ["facebook", "instagram"]
-    image_size: str = "1080x1080"  # Image dimensions
-    style: str
-    target_audience: str
-    language: str = "en"  # Language: "en", "he", "es", "pt"
-    include_emojis: bool = True
-    include_logo: bool = False
-    account_id: Optional[str] = None  # For authenticated users
-
-
-class PostVariation(BaseModel):
-    text: str
-    hashtags: List[str]
-    char_count: int
-    engagement_score: float
-    call_to_action: str
-
-
-class ImageVariation(BaseModel):
-    url: str
-    size: str  # "square", "landscape", "story"
-    dimensions: str  # "1080x1080"
-
-
-class GeneratedContent(BaseModel):
-    variations: List[PostVariation]
-    images: List[ImageVariation]
-    brand_colors: List[str]
-    brand_voice: str
 
 
 @app.get("/")

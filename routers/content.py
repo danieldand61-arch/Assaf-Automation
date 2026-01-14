@@ -6,6 +6,7 @@ from pydantic import BaseModel, HttpUrl
 from typing import List, Optional
 import logging
 
+from models import PostVariation
 from services.content_generator import generate_posts
 from services.image_generator import generate_images
 from services.scraper import scrape_website

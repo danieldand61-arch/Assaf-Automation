@@ -1,7 +1,7 @@
 from typing import List, Dict
 from google import genai
 from google.genai import types
-from main import ImageVariation, PostVariation
+from models import ImageVariation, PostVariation
 import base64
 import os
 import logging
