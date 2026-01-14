@@ -5,4 +5,4 @@ nixPkgs = ["python311", "gcc", "libffi", "libjpeg", "zlib", "freetype", "libwebp
 cmds = ["python -m venv --copies /opt/venv", ". /opt/venv/bin/activate && pip install --upgrade pip", ". /opt/venv/bin/activate && pip install -r requirements.txt"]
 
 [start]
-cmd = ". /opt/venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8080"
+cmd = ". /opt/venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"
