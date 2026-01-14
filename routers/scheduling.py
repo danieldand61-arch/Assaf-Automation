@@ -1,276 +1,99 @@
 """
-Post scheduling routes
+Post scheduling routes (in-memory version for testing without Supabase)
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 import logging
 
-from database.supabase_client import get_supabase_client
-from middleware.auth import get_current_user
-
+router = APIRouter(prefix="/api/scheduling", tags=["scheduling"])
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/scheduling", tags=["scheduling"])
+# In-memory storage for scheduled posts (will be lost on server restart)
+scheduled_posts_db = []
 
 class SchedulePostRequest(BaseModel):
-    account_id: str
+    post_data: dict
     platforms: List[str]
-    content: str
-    hashtags: List[str] = []
-    image_url: Optional[str] = None
-    scheduled_at: datetime
-    timezone: str = "UTC"
-    is_recurring: bool = False
-    recurring_pattern: Optional[str] = None
+    scheduled_time: str  # ISO format
 
-class UpdateScheduledPostRequest(BaseModel):
-    content: Optional[str] = None
-    image_url: Optional[str] = None
-    scheduled_at: Optional[datetime] = None
-    status: Optional[str] = None
+class ScheduledPost(BaseModel):
+    id: str
+    post_data: dict
+    platforms: List[str]
+    scheduled_time: str
+    status: str  # "pending", "published", "failed"
+    created_at: str
 
 @router.post("/schedule")
-async def schedule_post(
-    request: SchedulePostRequest,
-    current_user: dict = Depends(get_current_user)
-):
+async def schedule_post(request: SchedulePostRequest):
     """
-    Schedule a post for future publication
+    Schedule a post for later publication
     """
     try:
-        supabase = get_supabase_client()
+        # Generate simple ID
+        post_id = f"post_{len(scheduled_posts_db) + 1}_{datetime.now().strftime('%Y%m%d%H%M%S')}"
         
-        # Verify account ownership
-        account = supabase.table("accounts")\
-            .select("*")\
-            .eq("id", request.account_id)\
-            .eq("user_id", current_user["id"])\
-            .single()\
-            .execute()
-        
-        if not account.data:
-            raise HTTPException(status_code=404, detail="Account not found")
+        # Validate scheduled time is in future
+        scheduled_dt = datetime.fromisoformat(request.scheduled_time.replace('Z', '+00:00'))
+        if scheduled_dt <= datetime.now():
+            raise HTTPException(status_code=400, detail="Scheduled time must be in the future")
         
         # Create scheduled post
-        response = supabase.table("scheduled_posts").insert({
-            "account_id": request.account_id,
+        scheduled_post = {
+            "id": post_id,
+            "post_data": request.post_data,
             "platforms": request.platforms,
-            "content": request.content,
-            "hashtags": request.hashtags,
-            "image_url": request.image_url,
-            "scheduled_at": request.scheduled_at.isoformat(),
-            "timezone": request.timezone,
-            "is_recurring": request.is_recurring,
-            "recurring_pattern": request.recurring_pattern,
-            "status": "pending"
-        }).execute()
+            "scheduled_time": request.scheduled_time,
+            "status": "pending",
+            "created_at": datetime.now().isoformat()
+        }
         
-        logger.info(f"✅ Post scheduled for {request.scheduled_at}")
-        return response.data[0]
+        scheduled_posts_db.append(scheduled_post)
         
-    except HTTPException:
-        raise
+        logger.info(f"📅 Scheduled post {post_id} for {request.scheduled_time}")
+        
+        return {
+            "success": True,
+            "post_id": post_id,
+            "scheduled_time": request.scheduled_time,
+            "message": "Post scheduled successfully"
+        }
+        
     except Exception as e:
-        logger.error(f"❌ Error scheduling post: {str(e)}")
+        logger.error(f"❌ Scheduling error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/posts")
-async def get_scheduled_posts(
-    account_id: str,
-    status: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get all scheduled posts for an account
-    """
-    try:
-        supabase = get_supabase_client()
-        
-        # Verify account ownership
-        account = supabase.table("accounts")\
-            .select("*")\
-            .eq("id", account_id)\
-            .eq("user_id", current_user["id"])\
-            .single()\
-            .execute()
-        
-        if not account.data:
-            raise HTTPException(status_code=404, detail="Account not found")
-        
-        # Query scheduled posts
-        query = supabase.table("scheduled_posts")\
-            .select("*")\
-            .eq("account_id", account_id)\
-            .order("scheduled_at", desc=False)
-        
-        if status:
-            query = query.eq("status", status)
-        
-        response = query.execute()
-        
-        return response.data
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error fetching scheduled posts: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/posts/{post_id}")
-async def get_scheduled_post(
-    post_id: str,
-    current_user: dict = Depends(get_current_user)
-):
+@router.get("/scheduled")
+async def get_scheduled_posts():
     """
-    Get a single scheduled post by ID
+    Get all scheduled posts
     """
-    try:
-        supabase = get_supabase_client()
-        
-        # Get post with account check
-        response = supabase.table("scheduled_posts")\
-            .select("*, accounts!inner(user_id)")\
-            .eq("id", post_id)\
-            .eq("accounts.user_id", current_user["id"])\
-            .single()\
-            .execute()
-        
-        if not response.data:
-            raise HTTPException(status_code=404, detail="Post not found")
-        
-        return response.data
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error fetching post: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    return {
+        "scheduled_posts": scheduled_posts_db,
+        "total": len(scheduled_posts_db)
+    }
 
-@router.patch("/posts/{post_id}")
-async def update_scheduled_post(
-    post_id: str,
-    request: UpdateScheduledPostRequest,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Update a scheduled post
-    """
-    try:
-        supabase = get_supabase_client()
-        
-        # Verify ownership
-        post = supabase.table("scheduled_posts")\
-            .select("*, accounts!inner(user_id)")\
-            .eq("id", post_id)\
-            .eq("accounts.user_id", current_user["id"])\
-            .single()\
-            .execute()
-        
-        if not post.data:
-            raise HTTPException(status_code=404, detail="Post not found")
-        
-        # Build update data
-        update_data = {}
-        if request.content is not None:
-            update_data["content"] = request.content
-        if request.image_url is not None:
-            update_data["image_url"] = request.image_url
-        if request.scheduled_at is not None:
-            update_data["scheduled_at"] = request.scheduled_at.isoformat()
-        if request.status is not None:
-            update_data["status"] = request.status
-        
-        response = supabase.table("scheduled_posts")\
-            .update(update_data)\
-            .eq("id", post_id)\
-            .execute()
-        
-        logger.info(f"✅ Post {post_id} updated")
-        return response.data[0]
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error updating post: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/posts/{post_id}")
-async def delete_scheduled_post(
-    post_id: str,
-    current_user: dict = Depends(get_current_user)
-):
+@router.delete("/scheduled/{post_id}")
+async def cancel_scheduled_post(post_id: str):
     """
-    Cancel/delete a scheduled post
+    Cancel a scheduled post
     """
-    try:
-        supabase = get_supabase_client()
-        
-        # Verify ownership and update status to cancelled
-        post = supabase.table("scheduled_posts")\
-            .select("*, accounts!inner(user_id)")\
-            .eq("id", post_id)\
-            .eq("accounts.user_id", current_user["id"])\
-            .single()\
-            .execute()
-        
-        if not post.data:
-            raise HTTPException(status_code=404, detail="Post not found")
-        
-        # Soft delete - set status to cancelled
-        supabase.table("scheduled_posts")\
-            .update({"status": "cancelled"})\
-            .eq("id", post_id)\
-            .execute()
-        
-        logger.info(f"✅ Post {post_id} cancelled")
-        return {"message": "Post cancelled successfully"}
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error deleting post: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/calendar")
-async def get_calendar_view(
-    account_id: str,
-    start_date: datetime,
-    end_date: datetime,
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Get posts for calendar view (date range)
-    """
-    try:
-        supabase = get_supabase_client()
-        
-        # Verify account ownership
-        account = supabase.table("accounts")\
-            .select("*")\
-            .eq("id", account_id)\
-            .eq("user_id", current_user["id"])\
-            .single()\
-            .execute()
-        
-        if not account.data:
-            raise HTTPException(status_code=404, detail="Account not found")
-        
-        # Get posts in date range
-        response = supabase.table("scheduled_posts")\
-            .select("*")\
-            .eq("account_id", account_id)\
-            .gte("scheduled_at", start_date.isoformat())\
-            .lte("scheduled_at", end_date.isoformat())\
-            .neq("status", "cancelled")\
-            .order("scheduled_at")\
-            .execute()
-        
-        return response.data
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error fetching calendar: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    global scheduled_posts_db
+    
+    # Find and remove post
+    original_count = len(scheduled_posts_db)
+    scheduled_posts_db = [p for p in scheduled_posts_db if p["id"] != post_id]
+    
+    if len(scheduled_posts_db) == original_count:
+        raise HTTPException(status_code=404, detail="Scheduled post not found")
+    
+    logger.info(f"🗑️ Cancelled scheduled post {post_id}")
+    
+    return {
+        "success": True,
+        "message": "Scheduled post cancelled"
+    }
