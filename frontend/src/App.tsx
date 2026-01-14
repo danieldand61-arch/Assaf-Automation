@@ -1,18 +1,28 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Header from './components/Header'
 import { InputSection } from './components/InputSection'
 import { PreviewSection } from './components/PreviewSection'
 import { LoadingState } from './components/LoadingState'
 import { useContentStore } from './store/contentStore'
 import { useApp } from './contexts/AppContext'
+import { useAuth } from './contexts/AuthContext'
 import './App.css'
 
 function App() {
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [isGenerating, setIsGenerating] = useState(false)
   const { generatedContent, setGeneratedContent } = useContentStore()
   const { t } = useApp()
 
   const handleGenerate = async (formData: any) => {
+    // Check if user is logged in
+    if (!user) {
+      alert('Please sign in to generate content')
+      navigate('/login')
+      return
+    }
     setIsGenerating(true)
     
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'

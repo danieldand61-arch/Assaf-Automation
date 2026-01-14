@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AccountProvider } from './contexts/AccountContext'
 import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
+import { AuthCallback } from './pages/AuthCallback'
 import App from './App'
 import { Loader2 } from 'lucide-react'
 
@@ -49,6 +50,9 @@ export function AppWithAuth() {
         <AccountProvider>
           <Routes>
             {/* Public Routes */}
+            <Route path="/" element={<App />} />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            
             <Route
               path="/login"
               element={
@@ -63,16 +67,6 @@ export function AppWithAuth() {
                 <PublicRoute>
                   <Signup />
                 </PublicRoute>
-              }
-            />
-
-            {/* Protected Routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <App />
-                </ProtectedRoute>
               }
             />
           </Routes>
