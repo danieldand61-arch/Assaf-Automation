@@ -136,6 +136,11 @@ async def edit_text(request: EditTextRequest):
         
         edited_text = response.text.strip()
         
+        # Clean markdown formatting (remove ** for bold, __ for italic, etc.)
+        edited_text = edited_text.replace('**', '')  # Remove bold
+        edited_text = edited_text.replace('__', '')  # Remove italic
+        edited_text = edited_text.replace('~~', '')  # Remove strikethrough
+        
         return {
             "original": request.text,
             "edited": edited_text,
