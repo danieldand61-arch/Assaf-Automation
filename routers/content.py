@@ -31,6 +31,7 @@ class RegenerateImageRequest(BaseModel):
     platform: str
     image_size: str = "1080x1080"
     include_logo: bool = False
+    custom_prompt: Optional[str] = None
 
 class EditTextRequest(BaseModel):
     text: str
@@ -100,7 +101,8 @@ async def regenerate_image(
             variations=[temp_variation],
             platforms=[request.platform],
             image_size=request.image_size,
-            include_logo=request.include_logo
+            include_logo=request.include_logo,
+            custom_prompt=request.custom_prompt
         )
         
         return {

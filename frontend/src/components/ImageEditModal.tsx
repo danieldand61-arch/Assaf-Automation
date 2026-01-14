@@ -28,6 +28,8 @@ export function ImageEditModal({
   const [variations, setVariations] = useState<string[]>([currentImage])
   const [selectedVariation, setSelectedVariation] = useState(0)
   const [history, setHistory] = useState<string[]>([currentImage])
+  const [customPrompt, setCustomPrompt] = useState('')
+  const [useCustomPrompt, setUseCustomPrompt] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   if (!isOpen) return null
@@ -50,7 +52,8 @@ export function ImageEditModal({
             post_text: postText,
             platform,
             image_size: imageSize,
-            include_logo: includeLogo
+            include_logo: includeLogo,
+            custom_prompt: useCustomPrompt && customPrompt ? customPrompt : null
           })
         })
         
@@ -127,6 +130,36 @@ export function ImageEditModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          
+          {/* Custom Prompt Section */}
+          <div className="bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <RefreshCw className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <h3 className="font-semibold text-gray-800 dark:text-white">AI Image Prompt</h3>
+            </div>
+            
+            <label className="flex items-center gap-2 mb-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={useCustomPrompt}
+                onChange={(e) => setUseCustomPrompt(e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded"
+              />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                Use custom prompt
+              </span>
+            </label>
+
+            {useCustomPrompt && (
+              <textarea
+                value={customPrompt}
+                onChange={(e) => setCustomPrompt(e.target.value)}
+                placeholder="Describe what you want in the image... (e.g., 'Modern office with laptop, coffee cup, sunrise through window, professional atmosphere')"
+                className="w-full px-4 py-3 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 dark:focus:border-blue-400 focus:outline-none transition resize-none text-sm"
+                rows={3}
+              />
+            )}
+          </div>
           
           {/* Action Buttons */}
           <div className="flex flex-wrap gap-3">

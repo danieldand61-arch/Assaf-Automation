@@ -19,7 +19,8 @@ async def generate_images(
     variations: List[PostVariation],
     platforms: List[str],
     image_size: str = "1080x1080",
-    include_logo: bool = False
+    include_logo: bool = False,
+    custom_prompt: str = None
 ) -> List[ImageVariation]:
     """Generates images for posts using Gemini 2.5 Flash Image"""
     
@@ -50,8 +51,8 @@ async def generate_images(
         try:
             logger.info(f"🔍 Generating image {idx + 1}/{len(variations)} for variation: {variation.text[:50]}...")
             
-            # Create unique prompt for this variation
-            image_prompt = _build_image_prompt(website_data, variation)
+            # Create unique prompt for this variation (use custom prompt if provided)
+            image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt)
             
             # Calculate aspect ratio for config
             w, h = map(int, image_size.split('x'))
@@ -274,9 +275,15 @@ def _get_aspect_ratio(dimensions: str) -> str:
         return "1:1"
 
 
-def _build_image_prompt(website_data: Dict, variation: PostVariation) -> str:
+def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_prompt: str = None) -> str:
     """Creates prompt for image generation"""
     
+    # If custom prompt is provided, use it instead
+    if custom_prompt:
+        logger.info(f"🎨 Using custom prompt: {custom_prompt[:100]}...")
+        return custom_prompt.strip()
+    
+    # Otherwise, build automatic prompt
     brand_colors = website_data.get('colors', [])
     colors_str = f"using brand colors: {', '.join(brand_colors[:3])}" if brand_colors else ""
     
