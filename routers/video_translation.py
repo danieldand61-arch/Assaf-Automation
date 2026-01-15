@@ -7,10 +7,17 @@ from typing import List, Optional
 from pydantic import BaseModel
 import logging
 import os
-import httpx
 import json
 from datetime import datetime
 from io import BytesIO
+
+# Use official ElevenLabs SDK
+try:
+    from elevenlabs.client import ElevenLabs
+    ELEVENLABS_SDK_AVAILABLE = True
+except ImportError:
+    ELEVENLABS_SDK_AVAILABLE = False
+    import httpx
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/video", tags=["video-translation"])
@@ -48,127 +55,149 @@ def get_elevenlabs_api_key() -> str:
         )
     return api_key
 
-async def upload_video_to_elevenlabs(video_content: bytes, filename: str) -> str:
+async def create_dubbing_for_language(video_content: bytes, filename: str, target_lang: str) -> str:
     """
-    Upload video to ElevenLabs for translation
-    Returns: video_id
+    Create a dubbing project for a specific target language using ElevenLabs SDK
+    Returns: dubbing_id
     """
     api_key = get_elevenlabs_api_key()
     
+    # Map our language codes to ElevenLabs format
+    language_map = {
+        "he": "heb",  # Hebrew (ISO 639-2 code)
+        "en": "eng",  # English
+        "es": "spa",  # Spanish
+        "fr": "fra",  # French
+        "pt": "por"   # Portuguese
+    }
+    
+    elevenlabs_lang = language_map.get(target_lang, target_lang)
+    
     try:
-        # Large video uploads can take 3-5 minutes (500MB max)
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            # Upload video to ElevenLabs (wrap bytes in BytesIO for httpx)
-            files = {"video": (filename, BytesIO(video_content), "video/mp4")}
-            headers = {"xi-api-key": api_key}
+        logger.info(f"🚀 Creating dubbing: {filename} → {target_lang} ({elevenlabs_lang})")
+        
+        if ELEVENLABS_SDK_AVAILABLE:
+            # Use official SDK
+            client = ElevenLabs(api_key=api_key)
             
-            logger.info(f"📤 Uploading video to ElevenLabs: {filename}")
-            logger.info(f"🔍 API URL: {ELEVENLABS_API_URL}/video-translation/upload")
-            logger.info(f"🔍 Video size: {len(video_content)} bytes")
-            
-            response = await client.post(
-                f"{ELEVENLABS_API_URL}/video-translation/upload",
-                headers=headers,
-                files=files
+            # Create dubbing project with target language
+            dubbing = client.dubbing.dub_a_video_or_an_audio_file(
+                file=(filename, BytesIO(video_content)),
+                target_lang=elevenlabs_lang,
+                mode="automatic",
+                source_lang="auto"  # Auto-detect source language
             )
             
-            logger.info(f"🔍 Response status: {response.status_code}")
-            logger.info(f"🔍 Response text: {response.text[:500]}")  # First 500 chars
+            dubbing_id = dubbing.dubbing_id
+            logger.info(f"✅ Dubbing created: {dubbing_id} for {target_lang}")
+            return dubbing_id
             
-            if response.status_code != 200:
-                error_detail = response.text
-                logger.error(f"❌ Upload failed (status {response.status_code}): {error_detail}")
-                raise HTTPException(status_code=response.status_code, detail=f"ElevenLabs upload failed: {error_detail}")
+        else:
+            # Fallback to httpx
+            import httpx
+            async with httpx.AsyncClient(timeout=300.0) as http_client:
+                files = {
+                    "file": (filename, BytesIO(video_content), "video/mp4")
+                }
+                
+                data = {
+                    "target_lang": elevenlabs_lang,
+                    "mode": "automatic",
+                    "source_lang": "auto"
+                }
+                
+                headers = {"xi-api-key": api_key}
+                
+                response = await http_client.post(
+                    f"{ELEVENLABS_API_URL}/dubbing",
+                    headers=headers,
+                    files=files,
+                    data=data
+                )
+                
+                if response.status_code not in [200, 201]:
+                    error_detail = response.text
+                    logger.error(f"❌ Dubbing creation failed: {error_detail}")
+                    raise HTTPException(
+                        status_code=response.status_code,
+                        detail=f"Dubbing failed: {error_detail}"
+                    )
+                
+                result = response.json()
+                dubbing_id = result.get("dubbing_id")
+                logger.info(f"✅ Dubbing created: {dubbing_id} for {target_lang}")
+                return dubbing_id
             
-            data = response.json()
-            video_id = data.get("video_id")
-            logger.info(f"✅ Video uploaded: {video_id}")
-            return video_id
-            
-    except httpx.TimeoutException as e:
-        logger.error(f"❌ Upload timeout: {str(e)}")
-        raise HTTPException(status_code=504, detail="Upload timeout - video too large")
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Upload error: {type(e).__name__}: {str(e)}")
+        logger.error(f"❌ Dubbing error for {target_lang}: {str(e)}")
         logger.exception("Full traceback:")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {type(e).__name__}: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Dubbing failed for {target_lang}: {str(e)}"
+        )
 
-async def start_video_translation(video_id: str, target_languages: List[str]) -> str:
+async def check_dubbing_status(dubbing_id: str) -> dict:
     """
-    Start video translation job on ElevenLabs
-    Returns: job_id
-    """
-    api_key = get_elevenlabs_api_key()
-    
-    # Map language codes to ElevenLabs format
-    language_map = {
-        "he": "Hebrew",      # Hebrew (Alpha - API only)
-        "en": "English",     # English
-        "es": "Spanish",     # Spanish
-        "fr": "French",      # French
-        "pt": "Portuguese"   # Portuguese
-    }
-    
-    elevenlabs_languages = [language_map.get(lang, lang) for lang in target_languages]
-    
-    try:
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            headers = {
-                "xi-api-key": api_key,
-                "Content-Type": "application/json"
-            }
-            
-            payload = {
-                "video_id": video_id,
-                "target_languages": elevenlabs_languages
-            }
-            
-            logger.info(f"🚀 Starting translation: {video_id} → {elevenlabs_languages}")
-            response = await client.post(
-                f"{ELEVENLABS_API_URL}/video-translation/translate",
-                headers=headers,
-                json=payload
-            )
-            
-            if response.status_code != 200:
-                error_detail = response.text
-                logger.error(f"❌ Translation failed: {error_detail}")
-                raise HTTPException(status_code=response.status_code, detail=f"Translation start failed: {error_detail}")
-            
-            data = response.json()
-            job_id = data.get("job_id")
-            logger.info(f"✅ Translation started: {job_id}")
-            return job_id
-            
-    except Exception as e:
-        logger.error(f"❌ Translation error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Translation failed: {str(e)}")
-
-async def check_translation_status(job_id: str) -> dict:
-    """
-    Check translation job status
-    Returns: {status, translated_videos: {lang: url}}
+    Check dubbing job status using ElevenLabs SDK
+    Returns: {status, download_url (if completed)}
     """
     api_key = get_elevenlabs_api_key()
     
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            headers = {"xi-api-key": api_key}
+        if ELEVENLABS_SDK_AVAILABLE:
+            # Use official SDK
+            client = ElevenLabs(api_key=api_key)
             
-            response = await client.get(
-                f"{ELEVENLABS_API_URL}/video-translation/status/{job_id}",
-                headers=headers
-            )
+            # Get dubbing metadata
+            metadata = client.dubbing.get_dubbing_project_metadata(dubbing_id=dubbing_id)
             
-            if response.status_code != 200:
-                error_detail = response.text
-                logger.error(f"❌ Status check failed: {error_detail}")
-                return {"status": "failed", "error": error_detail}
+            status_map = {
+                "dubbing": "processing",
+                "dubbed": "completed",
+                "failed": "failed"
+            }
             
-            data = response.json()
-            return data
+            status = status_map.get(metadata.status, "processing")
+            
+            result = {
+                "status": status,
+                "dubbing_id": dubbing_id
+            }
+            
+            # If completed, get download URL
+            if status == "completed":
+                try:
+                    # Get the dubbed audio/video file URL
+                    audio_url = client.dubbing.get_dubbed_file(
+                        dubbing_id=dubbing_id,
+                        language_code=metadata.target_lang
+                    )
+                    result["download_url"] = audio_url
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not get download URL: {str(e)}")
+            
+            return result
+            
+        else:
+            # Fallback to httpx
+            import httpx
+            async with httpx.AsyncClient(timeout=30.0) as http_client:
+                headers = {"xi-api-key": api_key}
+                
+                response = await http_client.get(
+                    f"{ELEVENLABS_API_URL}/dubbing/{dubbing_id}",
+                    headers=headers
+                )
+                
+                if response.status_code != 200:
+                    error_detail = response.text
+                    logger.error(f"❌ Status check failed: {error_detail}")
+                    return {"status": "failed", "error": error_detail}
+                
+                data = response.json()
+                return data
             
     except Exception as e:
         logger.error(f"❌ Status check error: {str(e)}")
@@ -182,13 +211,16 @@ async def translate_video(
     target_languages: str = Form(...)  # Comma-separated: "he,es,pt"
 ):
     """
-    Upload video and start translation to multiple languages
+    Upload video and start dubbing to multiple languages using ElevenLabs
     
     Priority languages:
     - he: Hebrew (Alpha - API access only)
+    - en: English
     - es: Spanish
     - fr: French
     - pt: Portuguese
+    
+    Note: ElevenLabs creates one dubbing project per target language
     """
     try:
         # Parse target languages
@@ -197,75 +229,129 @@ async def translate_video(
         if not langs:
             raise HTTPException(status_code=400, detail="No target languages specified")
         
-        logger.info(f"🎬 New translation request: {video.filename}")
+        logger.info(f"🎬 New dubbing request: {video.filename}")
         logger.info(f"   Target languages: {langs}")
         
-        # Read video file
+        # Read video file once (will be reused for each language)
         video_content = await video.read()
         video_size_mb = len(video_content) / (1024 * 1024)
         logger.info(f"   Video size: {video_size_mb:.2f} MB")
         
-        if video_size_mb > 500:  # 500MB limit
+        if video_size_mb > 500:  # 500MB limit for ElevenLabs
             raise HTTPException(status_code=400, detail="Video too large (max 500MB)")
         
-        # Step 1: Upload to ElevenLabs
-        video_id = await upload_video_to_elevenlabs(video_content, video.filename)
+        # Create a parent job ID to track all dubbing projects
+        import uuid
+        parent_job_id = str(uuid.uuid4())
         
-        # Step 2: Start translation
-        job_id = await start_video_translation(video_id, langs)
+        # Create separate dubbing project for each target language
+        dubbing_ids = {}
+        for lang in langs:
+            try:
+                dubbing_id = await create_dubbing_for_language(
+                    video_content, 
+                    video.filename, 
+                    lang
+                )
+                dubbing_ids[lang] = dubbing_id
+            except Exception as e:
+                logger.error(f"❌ Failed to create dubbing for {lang}: {str(e)}")
+                # Continue with other languages even if one fails
+                dubbing_ids[lang] = None
         
-        # Store job info
+        # Store job info with all dubbing IDs
         job = TranslationJob(
-            job_id=job_id,
+            job_id=parent_job_id,
             status="processing",
             original_video=video.filename,
             target_languages=langs,
-            translated_videos={},
+            translated_videos=dubbing_ids,  # Store dubbing IDs here
             created_at=datetime.now().isoformat()
         )
         
-        translation_jobs[job_id] = job.dict()
+        translation_jobs[parent_job_id] = job.dict()
         
-        logger.info(f"✅ Translation job created: {job_id}")
+        successful_count = sum(1 for did in dubbing_ids.values() if did is not None)
+        logger.info(f"✅ Dubbing jobs created: {successful_count}/{len(langs)} successful")
         
         return {
             "success": True,
-            "job_id": job_id,
-            "message": f"Translation started for {len(langs)} languages",
-            "estimated_time": f"{len(langs) * 5} minutes"  # Rough estimate
+            "job_id": parent_job_id,
+            "dubbing_ids": dubbing_ids,
+            "message": f"Dubbing started for {successful_count}/{len(langs)} languages",
+            "estimated_time": f"{successful_count * 10} minutes"  # ~10 min per language
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Translation error: {str(e)}")
+        logger.error(f"❌ Dubbing error: {str(e)}")
         logger.exception("Full traceback:")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status/{job_id}")
 async def get_translation_status(job_id: str):
     """
-    Check translation job status and get download URLs
+    Check dubbing job status and get download URLs for all languages
     """
     if job_id not in translation_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     
-    # Get current status from ElevenLabs
-    elevenlabs_status = await check_translation_status(job_id)
-    
-    # Update local storage
     job = translation_jobs[job_id]
-    job["status"] = elevenlabs_status.get("status", "processing")
+    dubbing_ids = job.get("translated_videos", {})
     
-    if elevenlabs_status.get("status") == "completed":
-        job["translated_videos"] = elevenlabs_status.get("videos", {})
+    # Check status for each language's dubbing project
+    completed_count = 0
+    failed_count = 0
+    download_urls = {}
+    
+    for lang, dubbing_id in dubbing_ids.items():
+        if dubbing_id is None:
+            failed_count += 1
+            continue
+            
+        try:
+            status_info = await check_dubbing_status(dubbing_id)
+            
+            if status_info.get("status") == "completed":
+                completed_count += 1
+                download_urls[lang] = status_info.get("download_url", "")
+            elif status_info.get("status") == "failed":
+                failed_count += 1
+                
+        except Exception as e:
+            logger.error(f"❌ Error checking status for {lang}: {str(e)}")
+            failed_count += 1
+    
+    total_count = len(dubbing_ids)
+    
+    # Determine overall job status
+    if completed_count == total_count:
+        job["status"] = "completed"
         job["completed_at"] = datetime.now().isoformat()
-    elif elevenlabs_status.get("status") == "failed":
-        job["error"] = elevenlabs_status.get("error", "Unknown error")
+    elif failed_count == total_count:
+        job["status"] = "failed"
+        job["error"] = "All dubbing jobs failed"
+    elif failed_count > 0 or completed_count > 0:
+        job["status"] = "partial"  # Some completed, some failed/processing
+    else:
+        job["status"] = "processing"
+    
+    # Store download URLs
+    if download_urls:
+        job["download_urls"] = download_urls
     
     translation_jobs[job_id] = job
     
-    return job
+    return {
+        **job,
+        "progress": {
+            "completed": completed_count,
+            "failed": failed_count,
+            "processing": total_count - completed_count - failed_count,
+            "total": total_count
+        }
+    }
 
 @router.get("/jobs")
 async def list_translation_jobs():
