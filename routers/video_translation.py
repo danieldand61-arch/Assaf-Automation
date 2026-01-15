@@ -398,6 +398,19 @@ async def download_dubbed_video(dubbing_id: str, language: str):
     try:
         logger.info(f"📥 Downloading dubbed file: {dubbing_id} / {language} ({elevenlabs_lang})")
         
+        # First, check if dubbing is completed
+        try:
+            status_info = await check_dubbing_status(dubbing_id, language)
+            logger.info(f"🔍 Dubbing status: {status_info.get('status')}")
+            
+            if status_info.get('status') != 'completed':
+                raise HTTPException(
+                    status_code=400, 
+                    detail=f"Dubbing not ready yet. Status: {status_info.get('status')}"
+                )
+        except Exception as e:
+            logger.warning(f"⚠️ Could not check status: {str(e)}")
+        
         # Use direct HTTP request to get proper headers and content type
         import httpx
         async with httpx.AsyncClient(timeout=300.0) as http_client:
@@ -406,25 +419,43 @@ async def download_dubbed_video(dubbing_id: str, language: str):
             # ElevenLabs endpoint for getting dubbed file
             url = f"{ELEVENLABS_API_URL}/dubbing/{dubbing_id}/audio/{elevenlabs_lang}"
             logger.info(f"🔍 Downloading from: {url}")
+            logger.info(f"🔑 Using API key: {api_key[:10]}...{api_key[-4:]}")
             
             response = await http_client.get(url, headers=headers)
             
+            logger.info(f"📊 Response status: {response.status_code}")
+            logger.info(f"📊 Response headers: {dict(response.headers)}")
+            
             if response.status_code != 200:
                 error_detail = response.text
-                logger.error(f"❌ Download failed: {error_detail}")
+                logger.error(f"❌ Download failed (status {response.status_code}): {error_detail}")
                 raise HTTPException(
                     status_code=response.status_code,
-                    detail=f"Download failed: {error_detail}"
+                    detail=f"ElevenLabs API error ({response.status_code}): {error_detail}"
                 )
             
             # Log response headers for debugging
             content_type = response.headers.get("content-type", "unknown")
             content_length = response.headers.get("content-length", "unknown")
-            logger.info(f"📊 Response: type={content_type}, length={content_length} bytes")
+            logger.info(f"📊 Content-Type: {content_type}")
+            logger.info(f"📊 Content-Length: {content_length} bytes")
             
             # Get the full content
             file_content = response.content
-            logger.info(f"✅ Downloaded {len(file_content)} bytes")
+            actual_size = len(file_content)
+            logger.info(f"✅ Downloaded {actual_size} bytes")
+            
+            # Check if file is empty
+            if actual_size == 0:
+                logger.error(f"❌ Downloaded file is empty!")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Downloaded file is empty. Dubbing may not be ready."
+                )
+            
+            if actual_size < 1000:  # Less than 1KB
+                logger.warning(f"⚠️ File is suspiciously small: {actual_size} bytes")
+                logger.warning(f"⚠️ Content preview: {file_content[:500]}")
             
             # Determine media type from response or default to video/mp4
             media_type = content_type if content_type != "unknown" else "video/mp4"
