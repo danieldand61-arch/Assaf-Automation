@@ -9,6 +9,7 @@ import { VideoTranslation } from './components/VideoTranslation'
 import { useContentStore } from './store/contentStore'
 import { useApp } from './contexts/AppContext'
 import { useAuth } from './contexts/AuthContext'
+import { getApiUrl } from './lib/api'
 import './App.css'
 
 type ActiveTab = 'landing' | 'content' | 'video'
@@ -32,11 +33,7 @@ function App() {
     }
     setIsGenerating(true)
     
-    // Production API URL (HTTPS required)
-    const apiUrl = import.meta.env.VITE_API_URL || 
-      (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
-        ? 'http://localhost:8000' 
-        : 'https://assaf-automation-production.up.railway.app')
+    const apiUrl = getApiUrl()
     
     console.log('🚀 Starting generation...')
     console.log('📍 API URL:', apiUrl)

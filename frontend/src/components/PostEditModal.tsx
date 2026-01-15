@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { getApiUrl } from '../lib/api'
 import { X, Wand2, Zap, Smile, SmilePlus, Type, Loader2 } from 'lucide-react'
 
 interface PostEditModalProps {
@@ -47,7 +48,7 @@ export function PostEditModal({
     setProcessingAction(action)
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://assaf-automation-production.up.railway.app')
+      const apiUrl = getApiUrl()
       const response = await fetch(`${apiUrl}/api/content/edit-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

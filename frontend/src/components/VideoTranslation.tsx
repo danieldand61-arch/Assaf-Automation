@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getApiUrl } from '../lib/api'
 
 interface TranslationJob {
   job_id: string
@@ -64,7 +65,7 @@ export function VideoTranslation() {
       formData.append('video', selectedFile)
       formData.append('target_languages', selectedLanguages.join(','))
 
-      const apiUrl = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://assaf-automation-production.up.railway.app')
+      const apiUrl = getApiUrl()
       
       // For large videos, we need a longer timeout (5 minutes)
       const controller = new AbortController()
@@ -96,7 +97,7 @@ export function VideoTranslation() {
   }
 
   const pollJobStatus = async (jobId: string) => {
-    const apiUrl = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://assaf-automation-production.up.railway.app')
+    const apiUrl = getApiUrl()
     
     const poll = async () => {
       try {

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { getApiUrl } from '../lib/api'
 import { X, Calendar, Clock, Send, Loader2 } from 'lucide-react'
 
 interface SchedulePostModalProps {
@@ -30,7 +31,7 @@ export function SchedulePostModal({
     setIsPosting(true)
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://assaf-automation-production.up.railway.app')
+      const apiUrl = getApiUrl()
       
       if (scheduleType === 'now') {
         // Post immediately (mock for now)
