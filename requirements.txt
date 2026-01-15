@@ -20,3 +20,6 @@ python-multipart==0.0.6
 
 # Scheduling
 apscheduler==3.10.4
+
+# Video Translation
+elevenlabs==1.9.0

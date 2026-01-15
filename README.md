@@ -16,6 +16,7 @@ AI-powered tool for generating and scheduling social media content with multi-ac
 ✅ **Image Overlay Editor** (add text, shapes, arrows for real estate/promo)  
 ✅ **Design References** (save & reuse styles)  
 ✅ **Team Permissions** (admin/manager/creator roles)  
+✅ **Video Translation** (auto-dub videos into multiple languages via ElevenLabs)  
 
 ---
 
@@ -119,7 +120,40 @@ For auto-posting you need:
 
 ---
 
-### STEP 5: LinkedIn / Twitter / TikTok (Optional)
+### STEP 5: ElevenLabs Video Translation (Optional)
+
+🎬 **New Feature:** Automatically dub videos into multiple languages!
+
+**Why Priority:**
+- 🇮🇱 **Hebrew (Alpha)** - API-only access (not in ElevenLabs UI!)
+- One video → multiple markets automatically
+- Competitive advantage
+
+**Setup:**
+1. Go to [elevenlabs.io](https://elevenlabs.io) → Sign up
+2. Settings → API Keys → Generate API Key
+3. Add to Railway environment variables:
+   ```
+   ELEVENLABS_API_KEY=your_elevenlabs_api_key
+   ```
+
+**Supported Languages:**
+- Hebrew (עברית) - **Alpha API access**
+- Spanish (Español)
+- French (Français)
+- Portuguese (Português)
+
+**How to Use:**
+1. Click "🎬 Video Translation" tab
+2. Upload video (max 500MB)
+3. Select target languages
+4. Click "Start Translation"
+5. Wait ~5 minutes per language
+6. Download dubbed videos
+
+---
+
+### STEP 6: LinkedIn / Twitter / TikTok (Optional)
 
 - **LinkedIn**: [linkedin.com/developers](https://www.linkedin.com/developers/) → Create app
 - **Twitter**: [developer.twitter.com](https://developer.twitter.com/) → Apply for access
@@ -196,6 +230,13 @@ After running `database/schema.sql` in Supabase, these tables are created:
 - `GET /api/team/{account_id}/members` - list team
 - `PATCH /api/team/{account_id}/members/{id}` - change permissions
 
+**Video Translation:**
+- `POST /api/video/translate` - upload & translate video
+- `GET /api/video/status/{job_id}` - check translation status
+- `GET /api/video/jobs` - list all translation jobs
+- `DELETE /api/video/job/{job_id}` - cancel job
+- `GET /api/video/health` - check ElevenLabs API status
+
 ---
 
 ## 🎯 What's Already Working
@@ -245,8 +286,10 @@ But **basic content generation already works!**
 - Railway: ~$5-20 (traffic-based)
 - Vercel: Free for hobby
 - Google Gemini API: ~$0.01-0.10 per post
+- ElevenLabs: ~$0.50-2 per minute of video (optional)
 
-**Total: $5-30/month**
+**Total: $5-30/month** (without video translation)  
+**With video: +$10-50/month** (depending on usage)
 
 ---
 
@@ -280,6 +323,7 @@ python main.py
 - **Supabase docs**: https://supabase.com/docs
 - **Gemini API**: https://ai.google.dev/docs
 - **Meta API**: https://developers.facebook.com/docs
+- **ElevenLabs API**: https://elevenlabs.io/docs
 - **Railway**: https://docs.railway.app
 
 ---
@@ -302,8 +346,8 @@ python main.py
 
 ## 🎉 Summary
 
-**Backend:** 11 routers, 10 database tables, full API  
-**Frontend:** Auth, multi-account, content generation  
+**Backend:** 12 routers (including Video Translation), 10 database tables, full API  
+**Frontend:** Auth, multi-account, content generation, video translation  
 **Status:** Ready to use! 🚀
 
-Deploy and start generating social media content in 4 languages!
+Deploy and start generating social media content in 4 languages + auto-dub videos into Hebrew, Spanish, French, Portuguese!

@@ -89,6 +89,20 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Accounts features will NOT be available!")
 
+# Try to load video translation router
+logger.info("🔄 Attempting to import video translation router...")
+try:
+    from routers import video_translation
+    logger.info("✅ Video translation router imported successfully")
+    
+    logger.info("🔄 Registering video translation router endpoints...")
+    app.include_router(video_translation.router)
+    logger.info("✅ Video translation router registered")
+except Exception as e:
+    logger.error(f"❌ Video translation router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Video translation features will NOT be available!")
+
 logger.info("ℹ️ All routers loaded successfully!")
 
 # Log all requests middleware (after CORS)
