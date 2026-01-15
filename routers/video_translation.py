@@ -47,7 +47,7 @@ def get_elevenlabs_api_key() -> str:
         )
     return api_key
 
-async def upload_video_to_elevenlabs(video: UploadFile) -> str:
+async def upload_video_to_elevenlabs(video_content: bytes, filename: str) -> str:
     """
     Upload video to ElevenLabs for translation
     Returns: video_id
@@ -58,11 +58,10 @@ async def upload_video_to_elevenlabs(video: UploadFile) -> str:
         # Large video uploads can take 3-5 minutes (500MB max)
         async with httpx.AsyncClient(timeout=300.0) as client:
             # Upload video to ElevenLabs
-            await video.seek(0)
-            files = {"video": (video.filename, video.file, video.content_type or "video/mp4")}
+            files = {"video": (filename, video_content, "video/mp4")}
             headers = {"xi-api-key": api_key}
             
-            logger.info(f"📤 Uploading video to ElevenLabs: {video.filename}")
+            logger.info(f"📤 Uploading video to ElevenLabs: {filename}")
             response = await client.post(
                 f"{ELEVENLABS_API_URL}/video-translation/upload",
                 headers=headers,
