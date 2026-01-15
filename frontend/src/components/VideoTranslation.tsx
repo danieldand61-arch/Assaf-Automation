@@ -13,6 +13,7 @@ interface TranslationJob {
 
 const LANGUAGE_OPTIONS = [
   { code: 'he', name: 'Hebrew (עברית)', flag: '🇮🇱', alpha: true },
+  { code: 'en', name: 'English (English)', flag: '🇺🇸', alpha: false },
   { code: 'es', name: 'Spanish (Español)', flag: '🇪🇸', alpha: false },
   { code: 'fr', name: 'French (Français)', flag: '🇫🇷', alpha: false },
   { code: 'pt', name: 'Portuguese (Português)', flag: '🇵🇹', alpha: false },

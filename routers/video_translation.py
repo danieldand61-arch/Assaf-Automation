@@ -93,11 +93,11 @@ async def start_video_translation(video_id: str, target_languages: List[str]) ->
     
     # Map language codes to ElevenLabs format
     language_map = {
-        "he": "Hebrew",  # Hebrew (Alpha - API only)
-        "es": "Spanish",
-        "fr": "French",
-        "pt": "Portuguese",
-        "en": "English"
+        "he": "Hebrew",      # Hebrew (Alpha - API only)
+        "en": "English",     # English
+        "es": "Spanish",     # Spanish
+        "fr": "French",      # French
+        "pt": "Portuguese"   # Portuguese
     }
     
     elevenlabs_languages = [language_map.get(lang, lang) for lang in target_languages]
@@ -288,5 +288,5 @@ async def video_health():
     return {
         "status": "healthy",
         "elevenlabs_configured": bool(api_key),
-        "supported_languages": ["Hebrew (he)", "Spanish (es)", "French (fr)", "Portuguese (pt)"]
+        "supported_languages": ["Hebrew (he)", "English (en)", "Spanish (es)", "French (fr)", "Portuguese (pt)"]
     }
