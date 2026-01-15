@@ -10,6 +10,7 @@ import os
 import httpx
 import json
 from datetime import datetime
+from io import BytesIO
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/video", tags=["video-translation"])
@@ -57,8 +58,8 @@ async def upload_video_to_elevenlabs(video_content: bytes, filename: str) -> str
     try:
         # Large video uploads can take 3-5 minutes (500MB max)
         async with httpx.AsyncClient(timeout=300.0) as client:
-            # Upload video to ElevenLabs
-            files = {"video": (filename, video_content, "video/mp4")}
+            # Upload video to ElevenLabs (wrap bytes in BytesIO for httpx)
+            files = {"video": (filename, BytesIO(video_content), "video/mp4")}
             headers = {"xi-api-key": api_key}
             
             logger.info(f"📤 Uploading video to ElevenLabs: {filename}")
