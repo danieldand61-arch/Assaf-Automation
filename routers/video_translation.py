@@ -62,9 +62,9 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
     """
     api_key = get_elevenlabs_api_key()
     
-    # Map our language codes to ElevenLabs format
+    # Map our language codes to ElevenLabs format (ISO 639-3 codes)
     language_map = {
-        "he": "heb",  # Hebrew (ISO 639-2 code)
+        "he": "heb",  # Hebrew
         "en": "eng",  # English
         "es": "spa",  # Spanish
         "fr": "fra",  # French
@@ -77,36 +77,47 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
         logger.info(f"🚀 Creating dubbing: {filename} → {target_lang} ({elevenlabs_lang})")
         
         if ELEVENLABS_SDK_AVAILABLE:
-            # Use official SDK
+            # Use official SDK (simplified parameters)
             client = ElevenLabs(api_key=api_key)
             
-            # Create dubbing project with target language
+            # Prepare file-like object with name attribute
+            file_obj = BytesIO(video_content)
+            file_obj.name = filename  # SDK needs .name attribute
+            
+            # Create dubbing project with minimal required parameters
+            # SDK method signature: dub_a_video_or_an_audio_file(file, target_lang, source_lang=None, ...)
             dubbing = client.dubbing.dub_a_video_or_an_audio_file(
-                file=(filename, BytesIO(video_content)),
+                file=file_obj,
                 target_lang=elevenlabs_lang,
-                mode="automatic",
-                source_lang="auto"  # Auto-detect source language
+                source_lang="eng"  # Assume English source (can be made dynamic later)
             )
             
             dubbing_id = dubbing.dubbing_id
-            logger.info(f"✅ Dubbing created: {dubbing_id} for {target_lang}")
+            logger.info(f"✅ Dubbing created via SDK: {dubbing_id} for {target_lang}")
             return dubbing_id
             
         else:
-            # Fallback to httpx
+            # Fallback to httpx (if SDK not available)
             import httpx
+            logger.warning("⚠️ ElevenLabs SDK not available, using httpx fallback")
+            
             async with httpx.AsyncClient(timeout=300.0) as http_client:
+                # Prepare file-like object
+                file_obj = BytesIO(video_content)
+                file_obj.name = filename
+                
                 files = {
-                    "file": (filename, BytesIO(video_content), "video/mp4")
+                    "file": (filename, file_obj, "video/mp4")
                 }
                 
                 data = {
                     "target_lang": elevenlabs_lang,
-                    "mode": "automatic",
-                    "source_lang": "auto"
+                    "source_lang": "eng"  # Assume English source
                 }
                 
                 headers = {"xi-api-key": api_key}
+                
+                logger.info(f"🔍 API URL: {ELEVENLABS_API_URL}/dubbing")
                 
                 response = await http_client.post(
                     f"{ELEVENLABS_API_URL}/dubbing",
@@ -114,6 +125,8 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
                     files=files,
                     data=data
                 )
+                
+                logger.info(f"🔍 Response status: {response.status_code}")
                 
                 if response.status_code not in [200, 201]:
                     error_detail = response.text
@@ -125,7 +138,7 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
                 
                 result = response.json()
                 dubbing_id = result.get("dubbing_id")
-                logger.info(f"✅ Dubbing created: {dubbing_id} for {target_lang}")
+                logger.info(f"✅ Dubbing created via httpx: {dubbing_id} for {target_lang}")
                 return dubbing_id
             
     except HTTPException:
