@@ -25,12 +25,6 @@ function App() {
   // Force rebuild to clear Vercel cache
 
   const handleGenerate = async (formData: any) => {
-    // Check if user is logged in
-    if (!user) {
-      alert('Please sign in to generate content')
-      navigate('/login')
-      return
-    }
     setIsGenerating(true)
     
     const apiUrl = getApiUrl()
@@ -81,15 +75,11 @@ function App() {
   }
 
   const handleGetStarted = () => {
-    if (!user) {
-      navigate('/login')
-      return
-    }
     setActiveTab('content')
   }
 
   const handleTabChange = (tab: ActiveTab) => {
-    if (!user && tab !== 'landing') {
+    if (!user && tab === 'video') {
       alert('Please sign in to access this feature')
       navigate('/login')
       return
