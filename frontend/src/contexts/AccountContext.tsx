@@ -32,7 +32,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const [activeAccount, setActiveAccount] = useState<Account | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  const apiUrl = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://assaf-automation-production.up.railway.app')
 
   const getAuthHeaders = () => ({
     Authorization: `Bearer ${session?.access_token}`,

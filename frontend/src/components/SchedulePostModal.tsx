@@ -30,7 +30,7 @@ export function SchedulePostModal({
     setIsPosting(true)
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      const apiUrl = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://assaf-automation-production.up.railway.app')
       
       if (scheduleType === 'now') {
         // Post immediately (mock for now)

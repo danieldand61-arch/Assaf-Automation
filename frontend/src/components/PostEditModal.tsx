@@ -47,7 +47,7 @@ export function PostEditModal({
     setProcessingAction(action)
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      const apiUrl = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://assaf-automation-production.up.railway.app')
       const response = await fetch(`${apiUrl}/api/content/edit-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
