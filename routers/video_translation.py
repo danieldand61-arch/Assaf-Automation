@@ -62,15 +62,21 @@ async def upload_video_to_elevenlabs(video_content: bytes, filename: str) -> str
             headers = {"xi-api-key": api_key}
             
             logger.info(f"📤 Uploading video to ElevenLabs: {filename}")
+            logger.info(f"🔍 API URL: {ELEVENLABS_API_URL}/video-translation/upload")
+            logger.info(f"🔍 Video size: {len(video_content)} bytes")
+            
             response = await client.post(
                 f"{ELEVENLABS_API_URL}/video-translation/upload",
                 headers=headers,
                 files=files
             )
             
+            logger.info(f"🔍 Response status: {response.status_code}")
+            logger.info(f"🔍 Response text: {response.text[:500]}")  # First 500 chars
+            
             if response.status_code != 200:
                 error_detail = response.text
-                logger.error(f"❌ Upload failed: {error_detail}")
+                logger.error(f"❌ Upload failed (status {response.status_code}): {error_detail}")
                 raise HTTPException(status_code=response.status_code, detail=f"ElevenLabs upload failed: {error_detail}")
             
             data = response.json()
@@ -78,11 +84,15 @@ async def upload_video_to_elevenlabs(video_content: bytes, filename: str) -> str
             logger.info(f"✅ Video uploaded: {video_id}")
             return video_id
             
-    except httpx.TimeoutException:
+    except httpx.TimeoutException as e:
+        logger.error(f"❌ Upload timeout: {str(e)}")
         raise HTTPException(status_code=504, detail="Upload timeout - video too large")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"❌ Upload error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
+        logger.error(f"❌ Upload error: {type(e).__name__}: {str(e)}")
+        logger.exception("Full traceback:")
+        raise HTTPException(status_code=500, detail=f"Upload failed: {type(e).__name__}: {str(e)}")
 
 async def start_video_translation(video_id: str, target_languages: List[str]) -> str:
     """
