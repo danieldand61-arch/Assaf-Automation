@@ -32,7 +32,11 @@ function App() {
     }
     setIsGenerating(true)
     
-    const apiUrl = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'https://assaf-automation-production.up.railway.app')
+    // Production API URL (HTTPS required)
+    const apiUrl = import.meta.env.VITE_API_URL || 
+      (typeof window !== 'undefined' && window.location.hostname === 'localhost' 
+        ? 'http://localhost:8000' 
+        : 'https://assaf-automation-production.up.railway.app')
     
     console.log('🚀 Starting generation...')
     console.log('📍 API URL:', apiUrl)
