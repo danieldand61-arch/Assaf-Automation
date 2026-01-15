@@ -64,10 +64,18 @@ export function VideoTranslation() {
       formData.append('target_languages', selectedLanguages.join(','))
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+      
+      // For large videos, we need a longer timeout (5 minutes)
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 min
+      
       const response = await fetch(`${apiUrl}/api/video/translate`, {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       })
+      
+      clearTimeout(timeoutId)
 
       if (!response.ok) {
         const errorData = await response.json()

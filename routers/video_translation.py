@@ -55,7 +55,8 @@ async def upload_video_to_elevenlabs(video_file: bytes, filename: str) -> str:
     api_key = get_elevenlabs_api_key()
     
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        # Large video uploads can take 3-5 minutes (500MB max)
+        async with httpx.AsyncClient(timeout=300.0) as client:
             # Upload video to ElevenLabs
             files = {"video": (filename, video_file, "video/mp4")}
             headers = {"xi-api-key": api_key}
