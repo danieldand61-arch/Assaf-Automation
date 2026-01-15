@@ -3,6 +3,7 @@ Video Translation Router - ElevenLabs Integration
 Translates and dubs videos into multiple languages using ElevenLabs API
 """
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from pydantic import BaseModel
 import logging
@@ -151,10 +152,11 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
             detail=f"Dubbing failed for {target_lang}: {str(e)}"
         )
 
-async def check_dubbing_status(dubbing_id: str) -> dict:
+async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
     """
     Check dubbing job status using ElevenLabs SDK
-    Returns: {status, download_url (if completed)}
+    Returns: {status, target_lang}
+    Note: Download URL is provided by separate endpoint
     """
     api_key = get_elevenlabs_api_key()
     
@@ -166,6 +168,8 @@ async def check_dubbing_status(dubbing_id: str) -> dict:
             # Get dubbing metadata
             metadata = client.dubbing.get_dubbing_project_metadata(dubbing_id=dubbing_id)
             
+            logger.info(f"📊 Dubbing {dubbing_id} status: {metadata.status}")
+            
             status_map = {
                 "dubbing": "processing",
                 "dubbed": "completed",
@@ -176,20 +180,13 @@ async def check_dubbing_status(dubbing_id: str) -> dict:
             
             result = {
                 "status": status,
-                "dubbing_id": dubbing_id
+                "dubbing_id": dubbing_id,
+                "target_lang": target_lang,
+                "metadata": {
+                    "name": getattr(metadata, "name", ""),
+                    "target_languages": getattr(metadata, "target_languages", []),
+                }
             }
-            
-            # If completed, get download URL
-            if status == "completed":
-                try:
-                    # Get the dubbed audio/video file URL
-                    audio_url = client.dubbing.get_dubbed_file(
-                        dubbing_id=dubbing_id,
-                        language_code=metadata.target_lang
-                    )
-                    result["download_url"] = audio_url
-                except Exception as e:
-                    logger.warning(f"⚠️ Could not get download URL: {str(e)}")
             
             return result
             
@@ -305,7 +302,7 @@ async def translate_video(
 @router.get("/status/{job_id}")
 async def get_translation_status(job_id: str):
     """
-    Check dubbing job status and get download URLs for all languages
+    Check dubbing job status and provide download endpoints for completed dubs
     """
     if job_id not in translation_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
@@ -324,11 +321,12 @@ async def get_translation_status(job_id: str):
             continue
             
         try:
-            status_info = await check_dubbing_status(dubbing_id)
+            status_info = await check_dubbing_status(dubbing_id, lang)
             
             if status_info.get("status") == "completed":
                 completed_count += 1
-                download_urls[lang] = status_info.get("download_url", "")
+                # Provide our API endpoint for download (it will proxy from ElevenLabs)
+                download_urls[lang] = f"/api/video/download/{dubbing_id}/{lang}"
             elif status_info.get("status") == "failed":
                 failed_count += 1
                 
@@ -350,7 +348,7 @@ async def get_translation_status(job_id: str):
     else:
         job["status"] = "processing"
     
-    # Store download URLs
+    # Store download URLs (our proxy endpoints)
     if download_urls:
         job["download_urls"] = download_urls
     
@@ -375,6 +373,81 @@ async def list_translation_jobs():
         "jobs": list(translation_jobs.values()),
         "total": len(translation_jobs)
     }
+
+@router.get("/download/{dubbing_id}/{language}")
+async def download_dubbed_video(dubbing_id: str, language: str):
+    """
+    Download dubbed video file from ElevenLabs (proxy endpoint)
+    This streams the file from ElevenLabs to the client
+    """
+    api_key = get_elevenlabs_api_key()
+    
+    # Map language codes to ElevenLabs format
+    language_map = {
+        "he": "heb",
+        "en": "eng",
+        "es": "spa",
+        "fr": "fra",
+        "pt": "por"
+    }
+    
+    elevenlabs_lang = language_map.get(language, language)
+    
+    try:
+        if ELEVENLABS_SDK_AVAILABLE:
+            logger.info(f"📥 Downloading dubbed file: {dubbing_id} / {language} ({elevenlabs_lang})")
+            
+            client = ElevenLabs(api_key=api_key)
+            
+            # Get the dubbed file as a stream
+            # SDK returns an iterator of bytes
+            file_stream = client.dubbing.get_dubbed_file(
+                dubbing_id=dubbing_id,
+                language_code=elevenlabs_lang
+            )
+            
+            # Stream the file to client
+            return StreamingResponse(
+                file_stream,
+                media_type="video/mp4",
+                headers={
+                    "Content-Disposition": f"attachment; filename=dubbed_{dubbing_id}_{language}.mp4"
+                }
+            )
+        else:
+            # Fallback to httpx
+            import httpx
+            async with httpx.AsyncClient(timeout=300.0) as http_client:
+                headers = {"xi-api-key": api_key}
+                
+                url = f"{ELEVENLABS_API_URL}/dubbing/{dubbing_id}/audio/{elevenlabs_lang}"
+                logger.info(f"📥 Downloading from: {url}")
+                
+                async with http_client.stream("GET", url, headers=headers) as response:
+                    if response.status_code != 200:
+                        error_detail = await response.aread()
+                        logger.error(f"❌ Download failed: {error_detail}")
+                        raise HTTPException(
+                            status_code=response.status_code,
+                            detail=f"Download failed: {error_detail.decode()}"
+                        )
+                    
+                    async def stream_generator():
+                        async for chunk in response.aiter_bytes(chunk_size=8192):
+                            yield chunk
+                    
+                    return StreamingResponse(
+                        stream_generator(),
+                        media_type="video/mp4",
+                        headers={
+                            "Content-Disposition": f"attachment; filename=dubbed_{dubbing_id}_{language}.mp4"
+                        }
+                    )
+                    
+    except Exception as e:
+        logger.error(f"❌ Download error: {str(e)}")
+        logger.exception("Full traceback:")
+        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
 @router.delete("/job/{job_id}")
 async def cancel_translation_job(job_id: str):

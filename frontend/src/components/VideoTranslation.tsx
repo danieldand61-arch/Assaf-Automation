@@ -340,27 +340,32 @@ export function VideoTranslation() {
               </div>
             )}
 
-            {currentJob.status === 'completed' && Object.keys(currentJob.translated_videos).length > 0 && (
+            {currentJob.status === 'completed' && currentJob.download_urls && Object.keys(currentJob.download_urls).length > 0 && (
               <div className="mt-6">
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-4">
                   📥 Download Translated Videos:
                 </h4>
                 <div className="space-y-3">
-                  {Object.entries(currentJob.translated_videos).map(([lang, url]) => (
-                    <a
-                      key={lang}
-                      href={url}
-                      download
-                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                    >
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {LANGUAGE_OPTIONS.find(l => l.code === lang)?.name || lang}
-                      </span>
-                      <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                      </svg>
-                    </a>
-                  ))}
+                  {Object.entries(currentJob.download_urls).map(([lang, path]) => {
+                    const apiUrl = getApiUrl()
+                    const fullUrl = `${apiUrl}${path}`
+                    
+                    return (
+                      <a
+                        key={lang}
+                        href={fullUrl}
+                        download
+                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <span className="font-medium text-gray-900 dark:text-white">
+                          {LANGUAGE_OPTIONS.find(l => l.code === lang)?.name || lang} ({lang.toUpperCase()})
+                        </span>
+                        <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                        </svg>
+                      </a>
+                    )
+                  })}
                 </div>
               </div>
             )}
