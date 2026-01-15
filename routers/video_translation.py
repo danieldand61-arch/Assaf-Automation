@@ -379,6 +379,8 @@ async def download_dubbed_video(dubbing_id: str, language: str):
     """
     Download dubbed video file from ElevenLabs (proxy endpoint)
     This streams the file from ElevenLabs to the client
+    
+    Note: ElevenLabs returns the dubbed VIDEO (not just audio) when source was video
     """
     api_key = get_elevenlabs_api_key()
     
@@ -394,24 +396,56 @@ async def download_dubbed_video(dubbing_id: str, language: str):
     elevenlabs_lang = language_map.get(language, language)
     
     try:
-        if ELEVENLABS_SDK_AVAILABLE:
-            logger.info(f"📥 Downloading dubbed file: {dubbing_id} / {language} ({elevenlabs_lang})")
+        logger.info(f"📥 Downloading dubbed file: {dubbing_id} / {language} ({elevenlabs_lang})")
+        
+        # Use direct HTTP request to get proper headers and content type
+        import httpx
+        async with httpx.AsyncClient(timeout=300.0) as http_client:
+            headers = {"xi-api-key": api_key}
             
-            client = ElevenLabs(api_key=api_key)
+            # ElevenLabs endpoint for getting dubbed file
+            url = f"{ELEVENLABS_API_URL}/dubbing/{dubbing_id}/audio/{elevenlabs_lang}"
+            logger.info(f"🔍 Downloading from: {url}")
             
-            # Get the dubbed file as a stream
-            # SDK returns an iterator of bytes
-            file_stream = client.dubbing.get_dubbed_file(
-                dubbing_id=dubbing_id,
-                language_code=elevenlabs_lang
-            )
+            response = await http_client.get(url, headers=headers)
             
-            # Stream the file to client
+            if response.status_code != 200:
+                error_detail = response.text
+                logger.error(f"❌ Download failed: {error_detail}")
+                raise HTTPException(
+                    status_code=response.status_code,
+                    detail=f"Download failed: {error_detail}"
+                )
+            
+            # Log response headers for debugging
+            content_type = response.headers.get("content-type", "unknown")
+            content_length = response.headers.get("content-length", "unknown")
+            logger.info(f"📊 Response: type={content_type}, length={content_length} bytes")
+            
+            # Get the full content
+            file_content = response.content
+            logger.info(f"✅ Downloaded {len(file_content)} bytes")
+            
+            # Determine media type from response or default to video/mp4
+            media_type = content_type if content_type != "unknown" else "video/mp4"
+            
+            # Determine file extension
+            if "audio" in media_type or "mpeg" in media_type:
+                extension = "mp3"
+                media_type = "audio/mpeg"
+            else:
+                extension = "mp4"
+                media_type = "video/mp4"
+            
+            logger.info(f"📦 Serving as: {media_type} (.{extension})")
+            
+            # Return the file
             return StreamingResponse(
-                file_stream,
-                media_type="video/mp4",
+                iter([file_content]),
+                media_type=media_type,
                 headers={
-                    "Content-Disposition": f"attachment; filename=dubbed_{dubbing_id}_{language}.mp4"
+                    "Content-Disposition": f'attachment; filename="dubbed_{dubbing_id}_{language}.{extension}"',
+                    "Content-Length": str(len(file_content))
                 }
             )
         else:
