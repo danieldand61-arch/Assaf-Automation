@@ -191,16 +191,15 @@ async def translate_video(
         logger.info(f"   Target languages: {langs}")
         
         # Read video file
-        await video.seek(0, 2)
-        video_size_mb = video.file.tell() / (1024 * 1024)
-        await video.seek(0)
+        video_content = await video.read()
+        video_size_mb = len(video_content) / (1024 * 1024)
         logger.info(f"   Video size: {video_size_mb:.2f} MB")
         
         if video_size_mb > 500:  # 500MB limit
             raise HTTPException(status_code=400, detail="Video too large (max 500MB)")
         
         # Step 1: Upload to ElevenLabs
-        video_id = await upload_video_to_elevenlabs(video)
+        video_id = await upload_video_to_elevenlabs(video_content, video.filename)
         
         # Step 2: Start translation
         job_id = await start_video_translation(video_id, langs)
