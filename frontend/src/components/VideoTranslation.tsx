@@ -3,10 +3,11 @@ import { getApiUrl } from '../lib/api'
 
 interface TranslationJob {
   job_id: string
-  status: 'processing' | 'completed' | 'failed' | 'cancelled'
+  status: 'processing' | 'completed' | 'failed' | 'cancelled' | 'partial'
   original_video: string
   target_languages: string[]
   translated_videos: Record<string, string>
+  download_urls?: Record<string, string>  // Download endpoints for completed dubs
   created_at: string
   completed_at?: string
   error?: string
