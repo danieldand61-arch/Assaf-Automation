@@ -448,35 +448,6 @@ async def download_dubbed_video(dubbing_id: str, language: str):
                     "Content-Length": str(len(file_content))
                 }
             )
-        else:
-            # Fallback to httpx
-            import httpx
-            async with httpx.AsyncClient(timeout=300.0) as http_client:
-                headers = {"xi-api-key": api_key}
-                
-                url = f"{ELEVENLABS_API_URL}/dubbing/{dubbing_id}/audio/{elevenlabs_lang}"
-                logger.info(f"📥 Downloading from: {url}")
-                
-                async with http_client.stream("GET", url, headers=headers) as response:
-                    if response.status_code != 200:
-                        error_detail = await response.aread()
-                        logger.error(f"❌ Download failed: {error_detail}")
-                        raise HTTPException(
-                            status_code=response.status_code,
-                            detail=f"Download failed: {error_detail.decode()}"
-                        )
-                    
-                    async def stream_generator():
-                        async for chunk in response.aiter_bytes(chunk_size=8192):
-                            yield chunk
-                    
-                    return StreamingResponse(
-                        stream_generator(),
-                        media_type="video/mp4",
-                        headers={
-                            "Content-Disposition": f"attachment; filename=dubbed_{dubbing_id}_{language}.mp4"
-                        }
-                    )
                     
     except Exception as e:
         logger.error(f"❌ Download error: {str(e)}")
