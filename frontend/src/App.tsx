@@ -20,6 +20,8 @@ function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('landing')
   const { generatedContent, setGeneratedContent } = useContentStore()
   const { t } = useApp()
+  
+  // Force rebuild to clear Vercel cache
 
   const handleGenerate = async (formData: any) => {
     // Check if user is logged in
