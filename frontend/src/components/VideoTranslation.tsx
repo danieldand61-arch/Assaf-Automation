@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useApp } from '../contexts/AppContext'
 
 interface TranslationJob {
   job_id: string
@@ -20,7 +19,6 @@ const LANGUAGE_OPTIONS = [
 ]
 
 export function VideoTranslation() {
-  const { t } = useApp()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
   const [isUploading, setIsUploading] = useState(false)
