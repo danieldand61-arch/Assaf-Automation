@@ -84,16 +84,18 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
     }
     
     # Check if language is actually supported by dubbing API
-    UNSUPPORTED_IN_DUBBING = ["he"]  # Hebrew not in dubbing API (only in TTS v3)
+    # NOTE: Scribe v2 is for Speech-to-Text (transcription), NOT for dubbing!
+    # Hebrew is supported in Scribe v2 for transcription, but NOT in Dubbing API
+    UNSUPPORTED_IN_DUBBING = ["he"]  # Hebrew not in dubbing API (only in Scribe v2 STT)
     if target_lang in UNSUPPORTED_IN_DUBBING:
         logger.warning(f"⚠️ {target_lang} is not supported in ElevenLabs Dubbing API")
-        logger.warning(f"   Hebrew is available in TTS v3 model, but not in video dubbing")
+        logger.warning(f"   Hebrew IS supported in Scribe v2 (Speech-to-Text), but NOT in Dubbing")
         raise HTTPException(
             status_code=400,
             detail=f"Language '{target_lang}' is not supported in ElevenLabs Dubbing API. "
                    f"Supported languages: en, es, fr, pt, de, it, pl, ru, ar, zh, ja, ko, tr. "
-                   f"Note: Hebrew is available in Text-to-Speech v3, but not in video dubbing yet. "
-                   f"Contact ElevenLabs support to request Hebrew dubbing access."
+                   f"Note: Hebrew is supported in Scribe v2 (Speech-to-Text), but not in video dubbing. "
+                   f"For Hebrew dubbing, try: Azure Video Indexer, Google Cloud, or Rask.ai"
         )
     
     elevenlabs_lang = language_map.get(target_lang, target_lang)
