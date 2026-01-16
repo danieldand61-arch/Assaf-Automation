@@ -14,11 +14,20 @@ interface TranslationJob {
 }
 
 const LANGUAGE_OPTIONS = [
-  { code: 'he', name: 'Hebrew (עברית)', flag: '🇮🇱', alpha: true },
-  { code: 'en', name: 'English (English)', flag: '🇺🇸', alpha: false },
-  { code: 'es', name: 'Spanish (Español)', flag: '🇪🇸', alpha: false },
-  { code: 'fr', name: 'French (Français)', flag: '🇫🇷', alpha: false },
-  { code: 'pt', name: 'Portuguese (Português)', flag: '🇵🇹', alpha: false },
+  { code: 'he', name: 'Hebrew (עברית) - NOT SUPPORTED YET', flag: '🇮🇱', alpha: true, disabled: true },
+  { code: 'en', name: 'English (English)', flag: '🇺🇸', alpha: false, disabled: false },
+  { code: 'es', name: 'Spanish (Español)', flag: '🇪🇸', alpha: false, disabled: false },
+  { code: 'fr', name: 'French (Français)', flag: '🇫🇷', alpha: false, disabled: false },
+  { code: 'pt', name: 'Portuguese (Português)', flag: '🇵🇹', alpha: false, disabled: false },
+  { code: 'de', name: 'German (Deutsch)', flag: '🇩🇪', alpha: false, disabled: false },
+  { code: 'it', name: 'Italian (Italiano)', flag: '🇮🇹', alpha: false, disabled: false },
+  { code: 'pl', name: 'Polish (Polski)', flag: '🇵🇱', alpha: false, disabled: false },
+  { code: 'ru', name: 'Russian (Русский)', flag: '🇷🇺', alpha: false, disabled: false },
+  { code: 'ar', name: 'Arabic (العربية)', flag: '🇸🇦', alpha: false, disabled: false },
+  { code: 'zh', name: 'Chinese (中文)', flag: '🇨🇳', alpha: false, disabled: false },
+  { code: 'ja', name: 'Japanese (日本語)', flag: '🇯🇵', alpha: false, disabled: false },
+  { code: 'ko', name: 'Korean (한국어)', flag: '🇰🇷', alpha: false, disabled: false },
+  { code: 'tr', name: 'Turkish (Türkçe)', flag: '🇹🇷', alpha: false, disabled: false },
 ]
 
 export function VideoTranslation() {
@@ -144,18 +153,19 @@ export function VideoTranslation() {
           </div>
         </div>
 
-        {/* Priority Info */}
-        <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-lg">
+        {/* Important Info */}
+        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 p-4 rounded-lg">
           <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+            <svg className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
             </svg>
             <div>
-              <h3 className="font-semibold text-blue-900 dark:text-blue-200">
-                🇮🇱 Hebrew Translation (Alpha Access)
+              <h3 className="font-semibold text-red-900 dark:text-red-200">
+                🇮🇱 Hebrew NOT Supported Yet
               </h3>
-              <p className="text-sm text-blue-800 dark:text-blue-300 mt-1">
-                Hebrew translation is only available via API (not in ElevenLabs UI). You have early access!
+              <p className="text-sm text-red-800 dark:text-red-300 mt-1">
+                ElevenLabs Dubbing API doesn't support Hebrew yet. Hebrew is available in Text-to-Speech v3, but not in video dubbing.  
+                Contact ElevenLabs support to request Hebrew dubbing access or try alternatives: Azure Video Indexer, Google Cloud Video Intelligence, or Papercup.
               </p>
             </div>
           </div>
@@ -235,17 +245,20 @@ export function VideoTranslation() {
             <label
               key={lang.code}
               className={`
-                relative flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all
-                ${selectedLanguages.includes(lang.code)
+                relative flex items-center gap-4 p-4 rounded-xl border-2 transition-all
+                ${lang.disabled 
+                  ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800' 
+                  : 'cursor-pointer'}
+                ${!lang.disabled && selectedLanguages.includes(lang.code)
                   ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
-                  : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                }
+                  : !lang.disabled ? 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600' : ''}
               `}
             >
               <input
                 type="checkbox"
                 checked={selectedLanguages.includes(lang.code)}
-                onChange={() => toggleLanguage(lang.code)}
+                onChange={() => !lang.disabled && toggleLanguage(lang.code)}
+                disabled={lang.disabled}
                 className="sr-only"
               />
               <div className="flex items-center gap-4 flex-1">
@@ -255,20 +268,30 @@ export function VideoTranslation() {
                     <p className="font-semibold text-gray-900 dark:text-white">
                       {lang.name}
                     </p>
-                    {lang.alpha && (
+                    {lang.disabled && (
+                      <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 px-2 py-1 rounded-full font-medium">
+                        NOT SUPPORTED
+                      </span>
+                    )}
+                    {lang.alpha && !lang.disabled && (
                       <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full font-medium">
                         ALPHA
                       </span>
                     )}
                   </div>
-                  {lang.alpha && (
+                  {lang.disabled && (
+                    <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                      ElevenLabs Dubbing API doesn't support this language yet
+                    </p>
+                  )}
+                  {lang.alpha && !lang.disabled && (
                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                       API-only early access
                     </p>
                   )}
                 </div>
               </div>
-              {selectedLanguages.includes(lang.code) && (
+              {selectedLanguages.includes(lang.code) && !lang.disabled && (
                 <div className="text-purple-600 dark:text-purple-400">
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
