@@ -63,24 +63,23 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
     """
     api_key = get_elevenlabs_api_key()
     
-    # Map our language codes to ElevenLabs format (ISO 639-3 codes)
-    # NOTE: ElevenLabs Dubbing API supports 29 languages (as of 2026)
-    # Hebrew is NOT in standard dubbing API, but supported in TTS v3 model
+    # Map our language codes to ElevenLabs format
+    # ElevenLabs uses ISO 639-1 codes (2-letter) for most languages
     language_map = {
-        "he": "heb",  # Hebrew - ⚠️ NOT supported in dubbing API yet
-        "en": "eng",  # English ✅
-        "es": "spa",  # Spanish ✅
-        "fr": "fra",  # French ✅
-        "pt": "por",  # Portuguese ✅
-        "de": "deu",  # German ✅
-        "it": "ita",  # Italian ✅
-        "pl": "pol",  # Polish ✅
-        "ru": "rus",  # Russian ✅
-        "ar": "ara",  # Arabic ✅
-        "zh": "zho",  # Chinese ✅
-        "ja": "jpn",  # Japanese ✅
-        "ko": "kor",  # Korean ✅
-        "tr": "tur",  # Turkish ✅
+        "he": "he",   # Hebrew - ⚠️ NOT supported in dubbing API yet
+        "en": "en",   # English ✅
+        "es": "es",   # Spanish ✅
+        "fr": "fr",   # French ✅
+        "pt": "pt",   # Portuguese (Brazilian) ✅
+        "de": "de",   # German ✅
+        "it": "it",   # Italian ✅
+        "pl": "pl",   # Polish ✅
+        "ru": "ru",   # Russian ✅
+        "ar": "ar",   # Arabic ✅
+        "zh": "zh",   # Chinese ✅
+        "ja": "ja",   # Japanese ✅
+        "ko": "ko",   # Korean ✅
+        "tr": "tr",   # Turkish ✅
     }
     
     # Check if language is actually supported by dubbing API
