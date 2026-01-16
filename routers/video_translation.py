@@ -64,13 +64,37 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
     api_key = get_elevenlabs_api_key()
     
     # Map our language codes to ElevenLabs format (ISO 639-3 codes)
+    # NOTE: ElevenLabs Dubbing API supports 29 languages (as of 2026)
+    # Hebrew is NOT in standard dubbing API, but supported in TTS v3 model
     language_map = {
-        "he": "heb",  # Hebrew
-        "en": "eng",  # English
-        "es": "spa",  # Spanish
-        "fr": "fra",  # French
-        "pt": "por"   # Portuguese
+        "he": "heb",  # Hebrew - ⚠️ NOT supported in dubbing API yet
+        "en": "eng",  # English ✅
+        "es": "spa",  # Spanish ✅
+        "fr": "fra",  # French ✅
+        "pt": "por",  # Portuguese ✅
+        "de": "deu",  # German ✅
+        "it": "ita",  # Italian ✅
+        "pl": "pol",  # Polish ✅
+        "ru": "rus",  # Russian ✅
+        "ar": "ara",  # Arabic ✅
+        "zh": "zho",  # Chinese ✅
+        "ja": "jpn",  # Japanese ✅
+        "ko": "kor",  # Korean ✅
+        "tr": "tur",  # Turkish ✅
     }
+    
+    # Check if language is actually supported by dubbing API
+    UNSUPPORTED_IN_DUBBING = ["he"]  # Hebrew not in dubbing API (only in TTS v3)
+    if target_lang in UNSUPPORTED_IN_DUBBING:
+        logger.warning(f"⚠️ {target_lang} is not supported in ElevenLabs Dubbing API")
+        logger.warning(f"   Hebrew is available in TTS v3 model, but not in video dubbing")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Language '{target_lang}' is not supported in ElevenLabs Dubbing API. "
+                   f"Supported languages: en, es, fr, pt, de, it, pl, ru, ar, zh, ja, ko, tr. "
+                   f"Note: Hebrew is available in Text-to-Speech v3, but not in video dubbing yet. "
+                   f"Contact ElevenLabs support to request Hebrew dubbing access."
+        )
     
     elevenlabs_lang = language_map.get(target_lang, target_lang)
     
@@ -87,11 +111,20 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
             
             # Create dubbing project with minimal required parameters
             # SDK method signature: dub_a_video_or_an_audio_file(file, target_lang, source_lang=None, ...)
-            dubbing = client.dubbing.dub_a_video_or_an_audio_file(
-                file=file_obj,
-                target_lang=elevenlabs_lang,
-                source_lang="eng"  # Assume English source (can be made dynamic later)
-            )
+            # For Hebrew and other v3-only languages, try to use highest quality model
+            dubbing_params = {
+                "file": file_obj,
+                "target_lang": elevenlabs_lang,
+                "source_lang": "eng",  # Assume English source (can be made dynamic later)
+            }
+            
+            # Try to use highest quality/most comprehensive model for Hebrew
+            if target_lang == "he":
+                logger.info("🔍 Hebrew requested - attempting with advanced parameters")
+                # Note: Some parameters may not be supported by API
+                # dubbing_params["model_id"] = "eleven_multilingual_v3"  # If supported
+            
+            dubbing = client.dubbing.dub_a_video_or_an_audio_file(**dubbing_params)
             
             dubbing_id = dubbing.dubbing_id
             logger.info(f"✅ Dubbing created via SDK: {dubbing_id} for {target_lang}")
@@ -218,17 +251,29 @@ async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
 @router.post("/translate")
 async def translate_video(
     video: UploadFile = File(...),
-    target_languages: str = Form(...)  # Comma-separated: "he,es,pt"
+    target_languages: str = Form(...)  # Comma-separated: "en,es,pt"
 ):
     """
     Upload video and start dubbing to multiple languages using ElevenLabs
     
-    Priority languages:
-    - he: Hebrew (Alpha - API access only)
+    ✅ Supported languages (Dubbing API):
     - en: English
-    - es: Spanish
+    - es: Spanish  
     - fr: French
     - pt: Portuguese
+    - de: German
+    - it: Italian
+    - pl: Polish
+    - ru: Russian
+    - ar: Arabic
+    - zh: Chinese
+    - ja: Japanese
+    - ko: Korean
+    - tr: Turkish
+    
+    ⚠️ Hebrew (he) is NOT supported in Dubbing API yet
+    - Hebrew IS available in Text-to-Speech v3 model
+    - For Hebrew dubbing, contact ElevenLabs support or use manual workflow
     
     Note: ElevenLabs creates one dubbing project per target language
     """
