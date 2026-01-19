@@ -3,14 +3,13 @@ import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { AccountSwitcher } from './AccountSwitcher'
 import { UserMenu } from './UserMenu'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 
 export default function Header() {
   const { theme, toggleTheme, language, setLanguage, t } = useApp()
   const { user } = useAuth()
   const { activeAccount } = useAccount()
   const navigate = useNavigate()
-  const location = useLocation()
 
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm">

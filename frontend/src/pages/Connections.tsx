@@ -58,7 +58,7 @@ const PLATFORMS = [
 ]
 
 export function Connections() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const { activeAccount } = useAccount()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
@@ -101,7 +101,7 @@ export function Connections() {
       const apiUrl = getApiUrl()
       const response = await fetch(`${apiUrl}/api/social/connections`, {
         headers: {
-          'Authorization': `Bearer ${user?.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`
         }
       })
       
@@ -133,7 +133,7 @@ export function Connections() {
       const response = await fetch(`${apiUrl}/api/social/connections/${platformId}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${user?.access_token}`
+          'Authorization': `Bearer ${session?.access_token}`
         }
       })
       
