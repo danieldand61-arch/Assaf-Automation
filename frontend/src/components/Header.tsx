@@ -37,31 +37,6 @@ export default function Header() {
               </div>
             </button>
 
-            {/* Navigation Links (only if logged in) */}
-            {user && (
-              <nav className="hidden md:flex items-center gap-2">
-                <button
-                  onClick={() => navigate('/')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    location.pathname === '/'
-                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  Generate
-                </button>
-                <button
-                  onClick={() => navigate('/connections')}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    location.pathname === '/connections'
-                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
-                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  Connections
-                </button>
-              </nav>
-            )}
           </div>
 
           {/* Account Switcher, Theme & Language Toggles, User Menu */}

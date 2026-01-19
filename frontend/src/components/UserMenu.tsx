@@ -56,8 +56,7 @@ export function UserMenu() {
             <div className="py-1">
               <button
                 onClick={() => {
-                  // TODO: Navigate to settings
-                  alert('Settings coming soon!')
+                  navigate('/settings')
                   setIsOpen(false)
                 }}
                 className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
