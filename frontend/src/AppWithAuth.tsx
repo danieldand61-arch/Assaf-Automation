@@ -4,6 +4,7 @@ import { AccountProvider } from './contexts/AccountContext'
 import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
 import { AuthCallback } from './pages/AuthCallback'
+import { Connections } from './pages/Connections'
 import App from './App'
 import { Loader2 } from 'lucide-react'
 
@@ -34,6 +35,7 @@ export function AppWithAuth() {
             {/* Public Routes */}
             <Route path="/" element={<App />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/connections" element={<Connections />} />
             
             <Route
               path="/login"

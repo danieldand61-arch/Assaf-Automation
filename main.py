@@ -103,6 +103,20 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Video translation features will NOT be available!")
 
+# Try to load social connections router
+logger.info("🔄 Attempting to import social connections router...")
+try:
+    from routers import social
+    logger.info("✅ Social connections router imported successfully")
+    
+    logger.info("🔄 Registering social connections router endpoints...")
+    app.include_router(social.router)
+    logger.info("✅ Social connections router registered")
+except Exception as e:
+    logger.error(f"❌ Social connections router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Social connections features will NOT be available!")
+
 logger.info("ℹ️ All routers loaded successfully!")
 
 # Log all requests middleware (after CORS)

@@ -3,31 +3,65 @@ import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { AccountSwitcher } from './AccountSwitcher'
 import { UserMenu } from './UserMenu'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 export default function Header() {
   const { theme, toggleTheme, language, setLanguage, t } = useApp()
   const { user } = useAuth()
   const { activeAccount } = useAccount()
+  const navigate = useNavigate()
+  const location = useLocation()
 
   return (
     <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex items-center justify-between">
           {/* Logo & Title */}
-          <div className="flex items-center gap-3">
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-2 rounded-xl">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-                {t('title')}
-              </h1>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                {t('poweredBy')}
-              </p>
-            </div>
+          <div className="flex items-center gap-6">
+            <button 
+              onClick={() => navigate('/')}
+              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+            >
+              <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-2 rounded-xl">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+                  {t('title')}
+                </h1>
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  {t('poweredBy')}
+                </p>
+              </div>
+            </button>
+
+            {/* Navigation Links (only if logged in) */}
+            {user && (
+              <nav className="hidden md:flex items-center gap-2">
+                <button
+                  onClick={() => navigate('/')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    location.pathname === '/'
+                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  Generate
+                </button>
+                <button
+                  onClick={() => navigate('/connections')}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                    location.pathname === '/connections'
+                      ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                      : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+                  }`}
+                >
+                  Connections
+                </button>
+              </nav>
+            )}
           </div>
 
           {/* Account Switcher, Theme & Language Toggles, User Menu */}
