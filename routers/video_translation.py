@@ -430,13 +430,22 @@ async def download_dubbed_video(dubbing_id: str, language: str):
     """
     api_key = get_elevenlabs_api_key()
     
-    # Map language codes to ElevenLabs format
+    # Use ISO 639-1 codes (2-letter) for ElevenLabs Dubbing API
     language_map = {
-        "he": "heb",
-        "en": "eng",
-        "es": "spa",
-        "fr": "fra",
-        "pt": "por"
+        "he": "he",   # Hebrew
+        "en": "en",   # English
+        "es": "es",   # Spanish
+        "fr": "fr",   # French
+        "pt": "pt",   # Portuguese
+        "de": "de",   # German
+        "it": "it",   # Italian
+        "pl": "pl",   # Polish
+        "ru": "ru",   # Russian
+        "ar": "ar",   # Arabic
+        "zh": "zh",   # Chinese
+        "ja": "ja",   # Japanese
+        "ko": "ko",   # Korean
+        "tr": "tr",   # Turkish
     }
     
     elevenlabs_lang = language_map.get(language, language)
