@@ -32,7 +32,7 @@ const LANGUAGE_OPTIONS = [
 
 export function VideoTranslation() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([])
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [currentJob, setCurrentJob] = useState<TranslationJob | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -53,17 +53,13 @@ export function VideoTranslation() {
     }
   }
 
-  const toggleLanguage = (code: string) => {
-    setSelectedLanguages(prev =>
-      prev.includes(code)
-        ? prev.filter(l => l !== code)
-        : [...prev, code]
-    )
+  const selectLanguage = (code: string) => {
+    setSelectedLanguage(code)
   }
 
   const handleTranslate = async () => {
-    if (!selectedFile || selectedLanguages.length === 0) {
-      setError('Please select a video and at least one language')
+    if (!selectedFile || !selectedLanguage) {
+      setError('Please select a video and a target language')
       return
     }
 
@@ -73,7 +69,7 @@ export function VideoTranslation() {
     try {
       const formData = new FormData()
       formData.append('video', selectedFile)
-      formData.append('target_languages', selectedLanguages.join(','))
+      formData.append('target_languages', selectedLanguage)
 
       const apiUrl = getApiUrl()
       
@@ -148,7 +144,7 @@ export function VideoTranslation() {
               Video Translation
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
-              Automatically dub your videos into multiple languages with AI
+              Automatically dub your video into another language with AI
             </p>
           </div>
         </div>
@@ -237,7 +233,7 @@ export function VideoTranslation() {
       {/* Language Selection */}
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-6">
         <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6">
-          2. Select Target Languages
+          2. Select Target Language
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -249,15 +245,16 @@ export function VideoTranslation() {
                 ${lang.disabled 
                   ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800' 
                   : 'cursor-pointer'}
-                ${!lang.disabled && selectedLanguages.includes(lang.code)
+                ${!lang.disabled && selectedLanguage === lang.code
                   ? 'border-purple-600 bg-purple-50 dark:bg-purple-900/20'
                   : !lang.disabled ? 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600' : ''}
               `}
             >
               <input
-                type="checkbox"
-                checked={selectedLanguages.includes(lang.code)}
-                onChange={() => !lang.disabled && toggleLanguage(lang.code)}
+                type="radio"
+                name="target-language"
+                checked={selectedLanguage === lang.code}
+                onChange={() => !lang.disabled && selectLanguage(lang.code)}
                 disabled={lang.disabled}
                 className="sr-only"
               />
@@ -291,10 +288,10 @@ export function VideoTranslation() {
                   )}
                 </div>
               </div>
-              {selectedLanguages.includes(lang.code) && !lang.disabled && (
+              {selectedLanguage === lang.code && !lang.disabled && (
                 <div className="text-purple-600 dark:text-purple-400">
                   <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    <circle cx="10" cy="10" r="6" />
                   </svg>
                 </div>
               )}
@@ -302,11 +299,11 @@ export function VideoTranslation() {
           ))}
         </div>
 
-        {selectedLanguages.length > 0 && (
+        {selectedLanguage && (
           <div className="mt-4 p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
             <p className="text-sm text-green-800 dark:text-green-300">
-              ✅ Selected {selectedLanguages.length} language{selectedLanguages.length > 1 ? 's' : ''}
-              {' • '}Estimated time: ~{selectedLanguages.length * 5} minutes
+              ✅ Target language: {LANGUAGE_OPTIONS.find(l => l.code === selectedLanguage)?.name}
+              {' • '}Estimated time: ~5 minutes
             </p>
           </div>
         )}
