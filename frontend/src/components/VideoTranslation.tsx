@@ -319,7 +319,7 @@ export function VideoTranslation() {
       {/* Translate Button */}
       <button
         onClick={handleTranslate}
-        disabled={!selectedFile || selectedLanguages.length === 0 || isUploading}
+        disabled={!selectedFile || !selectedLanguage || isUploading}
         className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-4 px-6 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
       >
         {isUploading ? (
