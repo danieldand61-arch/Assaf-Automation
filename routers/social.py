@@ -9,7 +9,7 @@ import os
 import logging
 from datetime import datetime, timedelta
 from middleware.auth import get_current_user, get_account_id
-from database.supabase_client import get_supabase_client
+from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/social", tags=["social-connections"])
@@ -142,7 +142,7 @@ async def instagram_callback(
                 logger.warning(f"⚠️ Could not fetch profile info")
         
         # Save connection to database
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         
         connection_data = {
             "account_id": account_id,
@@ -191,7 +191,7 @@ async def get_connections(
     Get all social media connections for current account
     """
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         
         result = supabase.table("account_connections").select("*").eq(
             "account_id", account_id
@@ -224,7 +224,7 @@ async def disconnect_platform(
     Disconnect a social media platform
     """
     try:
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         
         result = supabase.table("account_connections").delete().match({
             "account_id": account_id,
