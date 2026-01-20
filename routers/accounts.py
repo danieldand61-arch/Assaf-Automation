@@ -32,7 +32,7 @@ class UpdateAccountRequest(BaseModel):
     default_include_emojis: Optional[bool] = None
     default_include_logo: Optional[bool] = None
 
-@router.get("/")
+@router.get("")
 async def get_accounts(user = Depends(get_current_user)):
     """
     Get all accounts for current user
@@ -94,7 +94,7 @@ async def get_account(account_id: str, user = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/")
+@router.post("")
 async def create_account(request: CreateAccountRequest, user = Depends(get_current_user)):
     """
     Create a new business account
