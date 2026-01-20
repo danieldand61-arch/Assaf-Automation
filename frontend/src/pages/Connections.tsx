@@ -137,10 +137,25 @@ export function Connections() {
     }
   }
 
-  const handleConnect = (platformId: string) => {
-    const apiUrl = getApiUrl()
-    // Redirect to backend OAuth endpoint
-    window.location.href = `${apiUrl}/api/social/${platformId}/connect`
+  const handleConnect = async (platformId: string) => {
+    try {
+      const apiUrl = getApiUrl()
+      // Get OAuth URL from backend (with auth header)
+      const response = await fetch(`${apiUrl}/api/social/${platformId}/connect`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      })
+      
+      if (!response.ok) throw new Error('Failed to get authorization URL')
+      
+      const data = await response.json()
+      // Redirect to OAuth URL
+      window.location.href = data.auth_url
+    } catch (err) {
+      console.error('Error connecting:', err)
+      setError(err instanceof Error ? err.message : 'Failed to connect')
+    }
   }
 
   const handleDisconnect = async (platformId: string) => {

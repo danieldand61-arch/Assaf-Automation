@@ -31,7 +31,7 @@ async def instagram_connect(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Step 1: Redirect user to Instagram OAuth authorization
+    Step 1: Get Instagram OAuth authorization URL
     """
     if not FACEBOOK_APP_ID:
         raise HTTPException(status_code=500, detail="Instagram API not configured")
@@ -58,11 +58,11 @@ async def instagram_connect(
         f"&state={active_account_id}"  # Pass account_id via state parameter
     )
     
-    logger.info(f"🔗 Instagram OAuth: Redirecting user to authorization")
+    logger.info(f"🔗 Instagram OAuth: Generated authorization URL")
     logger.info(f"   Account ID: {active_account_id}")
     logger.info(f"   Redirect URI: {redirect_uri}")
     
-    return RedirectResponse(url=auth_url)
+    return {"auth_url": auth_url}
 
 
 @router.get("/instagram/callback")
