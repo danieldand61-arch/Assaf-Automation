@@ -6,11 +6,20 @@ from typing import Optional
 import jwt
 import os
 import logging
+import httpx
+from jwt import PyJWKClient
 
 logger = logging.getLogger(__name__)
 
-# Supabase JWT Secret for token verification
+# Supabase configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+
+# JWKS client for ES256 verification
+jwks_client = None
+if SUPABASE_URL:
+    jwks_url = f"{SUPABASE_URL}/auth/v1/jwks"
+    jwks_client = PyJWKClient(jwks_url)
 
 async def get_current_user(authorization: Optional[str] = Header(None)):
     """
@@ -30,21 +39,36 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
         if scheme.lower() != "bearer":
             raise HTTPException(status_code=401, detail="Invalid authentication scheme")
         
-        # DEBUG: Decode without verification to see algorithm
-        try:
-            unverified = jwt.decode(token, options={"verify_signature": False})
-            logger.info(f"🔍 Token algorithm from header: {jwt.get_unverified_header(token)}")
-            logger.info(f"🔍 Token payload (unverified): {unverified}")
-        except Exception as e:
-            logger.warning(f"⚠️ Failed to decode unverified: {e}")
+        # Get token algorithm
+        header = jwt.get_unverified_header(token)
+        alg = header.get("alg")
         
-        # Decode Supabase JWT (supports both HS256 and RS256)
-        payload = jwt.decode(
-            token, 
-            SUPABASE_JWT_SECRET, 
-            algorithms=["HS256", "RS256"],
-            options={"verify_aud": False}  # Don't verify audience for now
-        )
+        logger.info(f"🔍 Token algorithm: {alg}")
+        
+        # Decode based on algorithm
+        if alg == "ES256" and jwks_client:
+            # Get signing key from JWKS for ES256
+            signing_key = jwks_client.get_signing_key_from_jwt(token)
+            payload = jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["ES256"],
+                audience="authenticated",
+                options={"verify_aud": True}
+            )
+        elif alg in ["HS256", "RS256"] and SUPABASE_JWT_SECRET:
+            # Legacy support for HS256/RS256
+            payload = jwt.decode(
+                token, 
+                SUPABASE_JWT_SECRET, 
+                algorithms=["HS256", "RS256"],
+                options={"verify_aud": False}
+            )
+        else:
+            raise HTTPException(
+                status_code=401, 
+                detail=f"Unsupported algorithm: {alg} or missing configuration"
+            )
         user_id = payload.get("sub")
         
         if not user_id:
