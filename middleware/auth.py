@@ -9,15 +9,20 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-JWT_SECRET = os.getenv("JWT_SECRET")
+# Supabase JWT Secret for token verification
+SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 
 async def get_current_user(authorization: Optional[str] = Header(None)):
     """
-    Extract user from JWT token in Authorization header
+    Extract user from Supabase JWT token in Authorization header
     Required for protected routes
     """
     if not authorization:
         raise HTTPException(status_code=401, detail="Authorization header missing")
+    
+    if not SUPABASE_JWT_SECRET:
+        logger.error("❌ SUPABASE_JWT_SECRET not configured")
+        raise HTTPException(status_code=500, detail="Authentication not configured")
     
     try:
         # Extract token from "Bearer <token>"
@@ -25,25 +30,34 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
         if scheme.lower() != "bearer":
             raise HTTPException(status_code=401, detail="Invalid authentication scheme")
         
-        # Decode JWT
-        payload = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+        # Decode Supabase JWT
+        payload = jwt.decode(
+            token, 
+            SUPABASE_JWT_SECRET, 
+            algorithms=["HS256"],
+            audience="authenticated"  # Supabase specific
+        )
         user_id = payload.get("sub")
         
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token payload")
         
+        logger.info(f"✅ User authenticated: {user_id}")
+        
         return {
             "user_id": user_id,
             "email": payload.get("email"),
-            "role": payload.get("role", "user")
+            "role": payload.get("role", "authenticated")
         }
         
     except jwt.ExpiredSignatureError:
+        logger.warning("⚠️ Token expired")
         raise HTTPException(status_code=401, detail="Token has expired")
-    except jwt.InvalidTokenError:
+    except jwt.InvalidTokenError as e:
+        logger.warning(f"⚠️ Invalid token: {str(e)}")
         raise HTTPException(status_code=401, detail="Invalid token")
     except Exception as e:
-        logger.error(f"Auth error: {str(e)}")
+        logger.error(f"❌ Auth error: {str(e)}")
         raise HTTPException(status_code=401, detail="Authentication failed")
 
 
