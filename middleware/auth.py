@@ -30,6 +30,14 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
         if scheme.lower() != "bearer":
             raise HTTPException(status_code=401, detail="Invalid authentication scheme")
         
+        # DEBUG: Decode without verification to see algorithm
+        try:
+            unverified = jwt.decode(token, options={"verify_signature": False})
+            logger.info(f"🔍 Token algorithm from header: {jwt.get_unverified_header(token)}")
+            logger.info(f"🔍 Token payload (unverified): {unverified}")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to decode unverified: {e}")
+        
         # Decode Supabase JWT (supports both HS256 and RS256)
         payload = jwt.decode(
             token, 
