@@ -28,14 +28,21 @@ FACEBOOK_GRAPH_URL = "https://graph.facebook.com/v18.0"
 
 @router.get("/instagram/connect")
 async def instagram_connect(
-    account_id: str = Depends(get_account_id),
-    user_id: str = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Step 1: Redirect user to Instagram OAuth authorization
     """
     if not FACEBOOK_APP_ID:
         raise HTTPException(status_code=500, detail="Instagram API not configured")
+    
+    # Get active account for the user
+    supabase = get_supabase()
+    user_settings = supabase.table("user_settings").select("active_account_id").eq("user_id", current_user["user_id"]).single().execute()
+    active_account_id = user_settings.data["active_account_id"] if user_settings.data else None
+    
+    if not active_account_id:
+        raise HTTPException(status_code=400, detail="No active business account found for user.")
     
     # Instagram OAuth parameters
     redirect_uri = f"{BACKEND_URL}/api/social/instagram/callback"
@@ -48,11 +55,11 @@ async def instagram_connect(
         f"&redirect_uri={redirect_uri}"
         f"&scope={scope}"
         f"&response_type=code"
-        f"&state={account_id}"  # Pass account_id via state parameter
+        f"&state={active_account_id}"  # Pass account_id via state parameter
     )
     
     logger.info(f"🔗 Instagram OAuth: Redirecting user to authorization")
-    logger.info(f"   Account ID: {account_id}")
+    logger.info(f"   Account ID: {active_account_id}")
     logger.info(f"   Redirect URI: {redirect_uri}")
     
     return RedirectResponse(url=auth_url)
@@ -184,8 +191,7 @@ async def instagram_callback(
 
 @router.get("/connections")
 async def get_connections(
-    account_id: str = Depends(get_account_id),
-    user_id: str = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Get all social media connections for current account
@@ -193,8 +199,15 @@ async def get_connections(
     try:
         supabase = get_supabase()
         
+        # Get active account for the user
+        user_settings = supabase.table("user_settings").select("active_account_id").eq("user_id", current_user["user_id"]).single().execute()
+        active_account_id = user_settings.data["active_account_id"] if user_settings.data else None
+        
+        if not active_account_id:
+            raise HTTPException(status_code=400, detail="No active business account found for user.")
+        
         result = supabase.table("account_connections").select("*").eq(
-            "account_id", account_id
+            "account_id", active_account_id
         ).execute()
         
         connections = result.data if result.data else []
@@ -217,8 +230,7 @@ async def get_connections(
 @router.delete("/connections/{platform}")
 async def disconnect_platform(
     platform: str,
-    account_id: str = Depends(get_account_id),
-    user_id: str = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Disconnect a social media platform
@@ -226,12 +238,19 @@ async def disconnect_platform(
     try:
         supabase = get_supabase()
         
+        # Get active account for the user
+        user_settings = supabase.table("user_settings").select("active_account_id").eq("user_id", current_user["user_id"]).single().execute()
+        active_account_id = user_settings.data["active_account_id"] if user_settings.data else None
+        
+        if not active_account_id:
+            raise HTTPException(status_code=400, detail="No active business account found for user.")
+        
         result = supabase.table("account_connections").delete().match({
-            "account_id": account_id,
+            "account_id": active_account_id,
             "platform": platform
         }).execute()
         
-        logger.info(f"✅ Disconnected {platform} from account {account_id}")
+        logger.info(f"✅ Disconnected {platform} from account {active_account_id}")
         
         return {
             "success": True,
