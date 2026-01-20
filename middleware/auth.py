@@ -18,8 +18,13 @@ SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
 # JWKS client for ES256 verification
 jwks_client = None
 if SUPABASE_URL:
-    jwks_url = f"{SUPABASE_URL}/auth/v1/jwks"
-    jwks_client = PyJWKClient(jwks_url)
+    # Supabase JWKS endpoint (public)
+    jwks_url = f"{SUPABASE_URL}/auth/v1/.well-known/jwks.json"
+    logger.info(f"🔑 Using JWKS URL: {jwks_url}")
+    try:
+        jwks_client = PyJWKClient(jwks_url)
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize JWKS client: {e}")
 
 async def get_current_user(authorization: Optional[str] = Header(None)):
     """
