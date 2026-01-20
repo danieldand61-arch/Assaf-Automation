@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Connections } from './Connections'
 
 type Tab = 'connections' | 'profile' | 'accounts'
@@ -10,7 +10,35 @@ export function Settings() {
   const { user } = useAuth()
   const { activeAccount } = useAccount()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<Tab>('connections')
+
+  // Read tab from URL params
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam === 'social' || tabParam === 'connections') {
+      setActiveTab('connections')
+    } else if (tabParam === 'profile') {
+      setActiveTab('profile')
+    } else if (tabParam === 'accounts') {
+      setActiveTab('accounts')
+    }
+
+    // Show error/success notifications
+    const error = searchParams.get('error')
+    const success = searchParams.get('success')
+    
+    if (error) {
+      // You can use toast notifications here
+      console.error('Connection error:', error)
+      alert(`Connection failed: ${error}`)
+    }
+    
+    if (success) {
+      console.log('Connection successful:', success)
+      alert(`Successfully connected ${success}!`)
+    }
+  }, [searchParams])
 
   if (!user) {
     navigate('/login')
