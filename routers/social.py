@@ -20,9 +20,9 @@ FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://assaf-automation.vercel.app")
 BACKEND_URL = os.getenv("BACKEND_URL", "https://assaf-automation-production.up.railway.app")
 
-INSTAGRAM_OAUTH_URL = "https://api.instagram.com/oauth/authorize"
-INSTAGRAM_TOKEN_URL = "https://api.instagram.com/oauth/access_token"
-FACEBOOK_GRAPH_URL = "https://graph.facebook.com/v18.0"
+FACEBOOK_OAUTH_URL = "https://www.facebook.com/v19.0/dialog/oauth"
+FACEBOOK_TOKEN_URL = "https://graph.facebook.com/v19.0/oauth/access_token"
+FACEBOOK_GRAPH_URL = "https://graph.facebook.com/v19.0"
 
 # ============= Instagram OAuth Flow =============
 
@@ -44,13 +44,13 @@ async def instagram_connect(
     if not active_account_id:
         raise HTTPException(status_code=400, detail="No active business account found for user.")
     
-    # Instagram OAuth parameters
+    # Facebook OAuth parameters for Instagram Business
     redirect_uri = f"{BACKEND_URL}/api/social/instagram/callback"
-    scope = "instagram_basic,instagram_content_publish"
+    scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights,pages_show_list,pages_read_engagement"
     
-    # Build authorization URL
+    # Build Facebook authorization URL
     auth_url = (
-        f"{INSTAGRAM_OAUTH_URL}"
+        f"{FACEBOOK_OAUTH_URL}"
         f"?client_id={FACEBOOK_APP_ID}"
         f"&redirect_uri={redirect_uri}"
         f"&scope={scope}"
@@ -81,13 +81,13 @@ async def instagram_callback(
     if error:
         logger.error(f"❌ Instagram OAuth error: {error} - {error_description}")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/connections?error={error_description or error}"
+            url=f"{FRONTEND_URL}/settings?tab=social&error={error_description or error}"
         )
     
     if not code or not state:
         logger.error(f"❌ Missing code or state in callback")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/connections?error=Missing authorization code"
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Missing authorization code"
         )
     
     account_id = state
@@ -97,55 +97,101 @@ async def instagram_callback(
         logger.info(f"🔄 Instagram OAuth: Exchanging code for token")
         logger.info(f"   Account ID: {account_id}")
         
-        # Exchange code for access token
+        # Exchange code for access token (Facebook Graph API)
+        token_url = f"{FACEBOOK_TOKEN_URL}?client_id={FACEBOOK_APP_ID}&redirect_uri={redirect_uri}&client_secret={FACEBOOK_APP_SECRET}&code={code}"
+        
         async with httpx.AsyncClient() as client:
-            response = await client.post(
-                INSTAGRAM_TOKEN_URL,
-                data={
-                    "client_id": FACEBOOK_APP_ID,
-                    "client_secret": FACEBOOK_APP_SECRET,
-                    "grant_type": "authorization_code",
-                    "redirect_uri": redirect_uri,
-                    "code": code
-                }
-            )
+            response = await client.get(token_url)
             
             if response.status_code != 200:
                 error_text = response.text
                 logger.error(f"❌ Token exchange failed: {error_text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/connections?error=Failed to get access token"
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to get access token"
                 )
             
             token_data = response.json()
             access_token = token_data.get("access_token")
-            user_id_ig = token_data.get("user_id")
             
             if not access_token:
                 logger.error(f"❌ No access token in response")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/connections?error=Invalid token response"
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
                 )
             
-            logger.info(f"✅ Access token received for user: {user_id_ig}")
+            logger.info(f"✅ User Access token received")
             
-            # Get user profile info from Instagram Graph API
+            # Get Facebook Pages that user manages
+            pages_response = await client.get(
+                f"{FACEBOOK_GRAPH_URL}/me/accounts",
+                params={"access_token": access_token}
+            )
+            
+            if pages_response.status_code != 200:
+                logger.error(f"❌ Failed to get Facebook Pages: {pages_response.text}")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Could not access Facebook Pages"
+                )
+            
+            pages_data = pages_response.json()
+            pages = pages_data.get("data", [])
+            
+            if not pages:
+                logger.error(f"❌ No Facebook Pages found")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=No Facebook Pages found. Please create a Facebook Page and connect it to your Instagram Business account."
+                )
+            
+            # Try to find a page with Instagram Business Account
+            instagram_account = None
+            page_access_token = None
+            
+            for page in pages:
+                page_id = page.get("id")
+                page_token = page.get("access_token")
+                
+                # Get Instagram Business Account connected to this page
+                ig_response = await client.get(
+                    f"{FACEBOOK_GRAPH_URL}/{page_id}",
+                    params={
+                        "fields": "instagram_business_account",
+                        "access_token": page_token
+                    }
+                )
+                
+                if ig_response.status_code == 200:
+                    ig_data = ig_response.json()
+                    ig_account = ig_data.get("instagram_business_account")
+                    
+                    if ig_account:
+                        instagram_account = ig_account
+                        page_access_token = page_token
+                        logger.info(f"✅ Found Instagram Business Account: {ig_account.get('id')}")
+                        break
+            
+            if not instagram_account:
+                logger.error(f"❌ No Instagram Business Account found")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=No Instagram Business Account found. Please convert your Instagram account to a Business account and connect it to a Facebook Page."
+                )
+            
+            instagram_user_id = instagram_account.get("id")
+            
+            # Get Instagram profile info
             profile_response = await client.get(
-                f"{FACEBOOK_GRAPH_URL}/{user_id_ig}",
+                f"{FACEBOOK_GRAPH_URL}/{instagram_user_id}",
                 params={
-                    "fields": "id,username,account_type",
-                    "access_token": access_token
+                    "fields": "id,username,name,profile_picture_url",
+                    "access_token": page_access_token
                 }
             )
             
+            username = ""
             if profile_response.status_code == 200:
                 profile_data = profile_response.json()
                 username = profile_data.get("username", "")
-                account_type = profile_data.get("account_type", "")
-                
-                logger.info(f"✅ Profile retrieved: @{username} ({account_type})")
+                logger.info(f"✅ Profile retrieved: @{username}")
             else:
-                username = ""
                 logger.warning(f"⚠️ Could not fetch profile info")
         
         # Save connection to database
@@ -154,10 +200,10 @@ async def instagram_callback(
         connection_data = {
             "account_id": account_id,
             "platform": "instagram",
-            "access_token": access_token,
-            "refresh_token": None,  # Instagram Graph API doesn't use refresh tokens
-            "token_expires_at": None,  # Long-lived tokens don't expire
-            "platform_user_id": user_id_ig,
+            "access_token": page_access_token,  # Use Page Access Token for API calls
+            "refresh_token": None,
+            "token_expires_at": None,  # Page tokens don't expire if page exists
+            "platform_user_id": instagram_user_id,
             "platform_username": username,
             "platform_profile_url": f"https://www.instagram.com/{username}" if username else None,
             "is_connected": True,
@@ -176,16 +222,16 @@ async def instagram_callback(
         logger.info(f"   Account: {account_id}")
         logger.info(f"   Platform: Instagram (@{username})")
         
-        # Redirect back to frontend connections page
+        # Redirect back to frontend settings page with success
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/connections?success=instagram"
+            url=f"{FRONTEND_URL}/settings?tab=social&success=instagram"
         )
         
     except Exception as e:
         logger.error(f"❌ Instagram OAuth callback error: {str(e)}")
         logger.exception("Full traceback:")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/connections?error=Connection failed"
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
         )
 
 
