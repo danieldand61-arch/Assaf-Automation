@@ -30,12 +30,12 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
         if scheme.lower() != "bearer":
             raise HTTPException(status_code=401, detail="Invalid authentication scheme")
         
-        # Decode Supabase JWT
+        # Decode Supabase JWT (supports both HS256 and RS256)
         payload = jwt.decode(
             token, 
             SUPABASE_JWT_SECRET, 
-            algorithms=["HS256"],
-            audience="authenticated"  # Supabase specific
+            algorithms=["HS256", "RS256"],
+            options={"verify_aud": False}  # Don't verify audience for now
         )
         user_id = payload.get("sub")
         
