@@ -17,12 +17,18 @@ router = APIRouter(prefix="/api/social", tags=["social-connections"])
 # ============= Configuration =============
 FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID")
 FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET")
+LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID")
+LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://assaf-automation.vercel.app")
 BACKEND_URL = os.getenv("BACKEND_URL", "https://assaf-automation-production.up.railway.app")
 
 FACEBOOK_OAUTH_URL = "https://www.facebook.com/v19.0/dialog/oauth"
 FACEBOOK_TOKEN_URL = "https://graph.facebook.com/v19.0/oauth/access_token"
 FACEBOOK_GRAPH_URL = "https://graph.facebook.com/v19.0"
+
+LINKEDIN_OAUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
+LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
+LINKEDIN_API_URL = "https://api.linkedin.com/v2"
 
 # ============= Instagram OAuth Flow =============
 
@@ -409,6 +415,214 @@ async def facebook_callback(
         
     except Exception as e:
         logger.error(f"❌ Facebook OAuth callback error: {str(e)}")
+        logger.exception("Full traceback:")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
+        )
+
+
+# ============= LinkedIn OAuth Flow =============
+
+@router.get("/linkedin/connect")
+async def linkedin_connect(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Step 1: Get LinkedIn OAuth authorization URL
+    """
+    if not LINKEDIN_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="LinkedIn API not configured")
+    
+    # Get active account for the user
+    supabase = get_supabase()
+    user_settings = supabase.table("user_settings").select("active_account_id").eq("user_id", current_user["user_id"]).single().execute()
+    active_account_id = user_settings.data["active_account_id"] if user_settings.data else None
+    
+    if not active_account_id:
+        raise HTTPException(status_code=400, detail="No active business account found for user.")
+    
+    # LinkedIn OAuth parameters for Organization Pages
+    redirect_uri = f"{BACKEND_URL}/api/social/linkedin/callback"
+    # LinkedIn scopes for posting to organization pages
+    scope = "openid profile email w_member_social w_organization_social r_organization_social"
+    state = active_account_id  # Pass account_id as state
+    
+    # Build authorization URL
+    auth_url = (
+        f"{LINKEDIN_OAUTH_URL}?"
+        f"response_type=code&"
+        f"client_id={LINKEDIN_CLIENT_ID}&"
+        f"redirect_uri={redirect_uri}&"
+        f"state={state}&"
+        f"scope={scope}"
+    )
+    
+    logger.info(f"🔗 LinkedIn OAuth: Generated authorization URL")
+    logger.info(f"   Account ID: {active_account_id}")
+    logger.info(f"   Redirect URI: {redirect_uri}")
+    
+    return {"auth_url": auth_url}
+
+
+@router.get("/linkedin/callback")
+async def linkedin_callback(
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),  # account_id
+    error: Optional[str] = Query(None),
+    error_description: Optional[str] = Query(None)
+):
+    """
+    Step 2: Handle OAuth callback from LinkedIn
+    Exchange authorization code for access token
+    """
+    # Check for errors
+    if error:
+        logger.error(f"❌ LinkedIn OAuth error: {error} - {error_description}")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error={error_description or error}"
+        )
+    
+    if not code or not state:
+        logger.error(f"❌ Missing code or state in callback")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Missing authorization code"
+        )
+    
+    account_id = state
+    redirect_uri = f"{BACKEND_URL}/api/social/linkedin/callback"
+    
+    try:
+        logger.info(f"🔄 LinkedIn OAuth: Exchanging code for token")
+        logger.info(f"   Account ID: {account_id}")
+        
+        # Exchange code for access token
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                LINKEDIN_TOKEN_URL,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "client_id": LINKEDIN_CLIENT_ID,
+                    "client_secret": LINKEDIN_CLIENT_SECRET,
+                    "redirect_uri": redirect_uri
+                }
+            )
+            
+            if response.status_code != 200:
+                error_text = response.text
+                logger.error(f"❌ Token exchange failed: {error_text}")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to get access token"
+                )
+            
+            token_data = response.json()
+            access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            expires_in = token_data.get("expires_in", 5184000)  # 60 days default
+            
+            if not access_token:
+                logger.error(f"❌ No access token in response")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
+                )
+            
+            logger.info(f"✅ Access token received")
+            
+            # Get user profile
+            profile_response = await client.get(
+                f"{LINKEDIN_API_URL}/userinfo",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            
+            if profile_response.status_code != 200:
+                logger.error(f"❌ Failed to get profile: {profile_response.text}")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Could not access LinkedIn profile"
+                )
+            
+            profile_data = profile_response.json()
+            user_sub = profile_data.get("sub")  # LinkedIn user ID
+            user_name = profile_data.get("name", "LinkedIn User")
+            user_email = profile_data.get("email", "")
+            
+            logger.info(f"✅ Profile retrieved: {user_name}")
+            
+            # Get organization pages that user can manage
+            # Note: This requires the user to have admin access to LinkedIn Organization Pages
+            orgs_response = await client.get(
+                f"{LINKEDIN_API_URL}/organizationAcls",
+                params={
+                    "q": "roleAssignee",
+                    "role": "ADMINISTRATOR",
+                    "projection": "(elements*(organization~(id,localizedName,vanityName)))"
+                },
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            
+            platform_username = user_name
+            platform_profile_url = f"https://www.linkedin.com/"
+            platform_user_id = user_sub
+            
+            if orgs_response.status_code == 200:
+                orgs_data = orgs_response.json()
+                elements = orgs_data.get("elements", [])
+                
+                if elements:
+                    # Use first organization
+                    org = elements[0].get("organization~", {})
+                    org_name = org.get("localizedName", user_name)
+                    org_vanity = org.get("vanityName", "")
+                    org_id = org.get("id", user_sub)
+                    
+                    platform_username = org_name
+                    platform_profile_url = f"https://www.linkedin.com/company/{org_vanity}" if org_vanity else "https://www.linkedin.com/"
+                    platform_user_id = org_id
+                    
+                    logger.info(f"✅ Organization found: {org_name}")
+                else:
+                    logger.warning(f"⚠️ No organization pages found, using personal profile")
+            else:
+                logger.warning(f"⚠️ Could not fetch organizations: {orgs_response.text}")
+            
+            # Save connection to database
+            supabase = get_supabase()
+            
+            expires_at = datetime.now() + timedelta(seconds=expires_in)
+            
+            connection_data = {
+                "account_id": account_id,
+                "platform": "linkedin",
+                "platform_user_id": platform_user_id,
+                "platform_username": platform_username,
+                "platform_profile_url": platform_profile_url,
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_expires_at": expires_at.isoformat(),
+                "is_connected": True,
+                "last_connected_at": datetime.now().isoformat()
+            }
+            
+            # Upsert connection
+            result = supabase.table("account_connections").upsert(
+                connection_data,
+                on_conflict="account_id,platform"
+            ).execute()
+            
+            if not result.data:
+                logger.error(f"❌ Failed to save connection")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to save connection"
+                )
+            
+            logger.info(f"✅ LinkedIn connection saved successfully")
+            
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&success=linkedin"
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ LinkedIn OAuth callback error: {str(e)}")
         logger.exception("Full traceback:")
         return RedirectResponse(
             url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
