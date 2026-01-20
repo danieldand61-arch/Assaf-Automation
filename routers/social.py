@@ -1,5 +1,5 @@
 """
-Social Media Connections Router - Instagram OAuth Integration
+Social Media Connections Router - Instagram & Facebook OAuth Integration
 """
 from fastapi import APIRouter, HTTPException, Query, Depends
 from fastapi.responses import RedirectResponse
@@ -230,6 +230,185 @@ async def instagram_callback(
         
     except Exception as e:
         logger.error(f"❌ Instagram OAuth callback error: {str(e)}")
+        logger.exception("Full traceback:")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
+        )
+
+
+# ============= Facebook Pages OAuth Flow =============
+
+@router.get("/facebook/connect")
+async def facebook_connect(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Step 1: Get Facebook OAuth authorization URL for Facebook Pages
+    """
+    if not FACEBOOK_APP_ID:
+        raise HTTPException(status_code=500, detail="Facebook API not configured")
+    
+    # Get active account for the user
+    supabase = get_supabase()
+    user_settings = supabase.table("user_settings").select("active_account_id").eq("user_id", current_user["user_id"]).single().execute()
+    active_account_id = user_settings.data["active_account_id"] if user_settings.data else None
+    
+    if not active_account_id:
+        raise HTTPException(status_code=400, detail="No active business account found for user.")
+    
+    # Facebook OAuth parameters for Facebook Pages
+    redirect_uri = f"{BACKEND_URL}/api/social/facebook/callback"
+    scope = "pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
+    
+    # Build Facebook authorization URL
+    auth_url = (
+        f"{FACEBOOK_OAUTH_URL}"
+        f"?client_id={FACEBOOK_APP_ID}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={scope}"
+        f"&response_type=code"
+        f"&state={active_account_id}"
+    )
+    
+    logger.info(f"🔗 Facebook OAuth: Generated authorization URL")
+    logger.info(f"   Account ID: {active_account_id}")
+    logger.info(f"   Redirect URI: {redirect_uri}")
+    
+    return {"auth_url": auth_url}
+
+
+@router.get("/facebook/callback")
+async def facebook_callback(
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    error_reason: Optional[str] = Query(None),
+    error_description: Optional[str] = Query(None)
+):
+    """
+    Step 2: Handle OAuth callback from Facebook
+    Exchange authorization code for access token and get Facebook Pages
+    """
+    if error:
+        logger.error(f"❌ Facebook OAuth error: {error} - {error_description}")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error={error_description or error}"
+        )
+    
+    if not code or not state:
+        logger.error(f"❌ Missing code or state in callback")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Missing authorization code"
+        )
+    
+    account_id = state
+    redirect_uri = f"{BACKEND_URL}/api/social/facebook/callback"
+    
+    try:
+        logger.info(f"🔄 Facebook OAuth: Exchanging code for token")
+        logger.info(f"   Account ID: {account_id}")
+        
+        # Exchange code for access token (Facebook Graph API)
+        token_url = f"{FACEBOOK_TOKEN_URL}?client_id={FACEBOOK_APP_ID}&redirect_uri={redirect_uri}&client_secret={FACEBOOK_APP_SECRET}&code={code}"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.get(token_url)
+            
+            if response.status_code != 200:
+                error_text = response.text
+                logger.error(f"❌ Token exchange failed: {error_text}")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to get access token"
+                )
+            
+            token_data = response.json()
+            access_token = token_data.get("access_token")
+            
+            if not access_token:
+                logger.error(f"❌ No access token in response")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
+                )
+            
+            logger.info(f"✅ User Access token received")
+            
+            # Get Facebook Pages that user manages
+            pages_response = await client.get(
+                f"{FACEBOOK_GRAPH_URL}/me/accounts",
+                params={"access_token": access_token}
+            )
+            
+            if pages_response.status_code != 200:
+                logger.error(f"❌ Failed to get Facebook Pages: {pages_response.text}")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Could not access Facebook Pages"
+                )
+            
+            pages_data = pages_response.json()
+            pages = pages_data.get("data", [])
+            
+            if not pages:
+                logger.error(f"❌ No Facebook Pages found")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=No Facebook Pages found. Please create a Facebook Page first."
+                )
+            
+            # Use the first page (or we can later add page selection)
+            page = pages[0]
+            page_id = page.get("id")
+            page_name = page.get("name")
+            page_access_token = page.get("access_token")
+            
+            logger.info(f"✅ Found Facebook Page: {page_name}")
+            
+            # Get page profile picture
+            page_picture_url = None
+            try:
+                picture_response = await client.get(
+                    f"{FACEBOOK_GRAPH_URL}/{page_id}/picture",
+                    params={"redirect": "false", "access_token": page_access_token}
+                )
+                if picture_response.status_code == 200:
+                    picture_data = picture_response.json()
+                    page_picture_url = picture_data.get("data", {}).get("url")
+            except:
+                pass
+        
+        # Save connection to database
+        supabase = get_supabase()
+        
+        connection_data = {
+            "account_id": account_id,
+            "platform": "facebook",
+            "access_token": page_access_token,
+            "refresh_token": None,
+            "token_expires_at": None,
+            "platform_user_id": page_id,
+            "platform_username": page_name,
+            "platform_profile_url": page_picture_url,
+            "is_connected": True,
+            "last_connected_at": datetime.utcnow().isoformat(),
+            "connection_error": None,
+            "updated_at": datetime.utcnow().isoformat()
+        }
+        
+        # Upsert connection (update if exists, insert if not)
+        result = supabase.table("account_connections").upsert(
+            connection_data,
+            on_conflict="account_id,platform"
+        ).execute()
+        
+        logger.info(f"✅ Connection saved to database")
+        logger.info(f"   Account: {account_id}")
+        logger.info(f"   Platform: Facebook ({page_name})")
+        
+        # Redirect back to frontend settings page with success
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&success=facebook"
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Facebook OAuth callback error: {str(e)}")
         logger.exception("Full traceback:")
         return RedirectResponse(
             url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
