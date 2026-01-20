@@ -46,7 +46,8 @@ async def instagram_connect(
     
     # Facebook OAuth parameters for Instagram Business
     redirect_uri = f"{BACKEND_URL}/api/social/instagram/callback"
-    scope = "instagram_basic,instagram_content_publish,instagram_manage_comments,instagram_manage_insights,pages_show_list,pages_read_engagement"
+    # Minimal scopes for testing - only what's absolutely required
+    scope = "pages_show_list,instagram_basic,instagram_content_publish,pages_read_engagement"
     
     # Build Facebook authorization URL
     auth_url = (
