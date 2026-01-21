@@ -11,18 +11,26 @@ export function UserMenu() {
   if (!user) return null
 
   const handleSignOut = async () => {
+    setIsOpen(false)
     try {
-      setIsOpen(false)
+      // Sign out from Supabase
       await signOut()
-      // Clear any cached data
-      localStorage.clear()
-      sessionStorage.clear()
-      // Force navigate to login
-      window.location.href = '/login'
     } catch (error) {
       console.error('Sign out error:', error)
-      // Force navigate even on error
-      window.location.href = '/login'
+    } finally {
+      // Clear Supabase auth data from storage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('sb-')) {
+          localStorage.removeItem(key)
+        }
+      })
+      Object.keys(sessionStorage).forEach(key => {
+        if (key.startsWith('sb-')) {
+          sessionStorage.removeItem(key)
+        }
+      })
+      // Force full page reload to login
+      window.location.replace('/login')
     }
   }
 
