@@ -443,8 +443,10 @@ async def linkedin_connect(
     
     # LinkedIn OAuth parameters for Organization Pages
     redirect_uri = f"{BACKEND_URL}/api/social/linkedin/callback"
-    # LinkedIn scopes for posting to organization pages
-    scope = "openid profile email w_member_social w_organization_social r_organization_social"
+    # LinkedIn scopes - start with basic ones that are always available
+    # openid, profile, email are available with "Sign In with LinkedIn using OpenID Connect"
+    # w_member_social requires "Share on LinkedIn" product
+    scope = "openid profile email w_member_social"
     state = active_account_id  # Pass account_id as state
     
     # Build authorization URL
@@ -548,42 +550,13 @@ async def linkedin_callback(
             
             logger.info(f"✅ Profile retrieved: {user_name}")
             
-            # Get organization pages that user can manage
-            # Note: This requires the user to have admin access to LinkedIn Organization Pages
-            orgs_response = await client.get(
-                f"{LINKEDIN_API_URL}/organizationAcls",
-                params={
-                    "q": "roleAssignee",
-                    "role": "ADMINISTRATOR",
-                    "projection": "(elements*(organization~(id,localizedName,vanityName)))"
-                },
-                headers={"Authorization": f"Bearer {access_token}"}
-            )
-            
+            # Use personal profile for now
+            # TODO: Add organization pages support when r_organization_social scope is approved
             platform_username = user_name
-            platform_profile_url = f"https://www.linkedin.com/"
+            platform_profile_url = f"https://www.linkedin.com/in/{user_email.split('@')[0]}" if user_email else "https://www.linkedin.com/"
             platform_user_id = user_sub
             
-            if orgs_response.status_code == 200:
-                orgs_data = orgs_response.json()
-                elements = orgs_data.get("elements", [])
-                
-                if elements:
-                    # Use first organization
-                    org = elements[0].get("organization~", {})
-                    org_name = org.get("localizedName", user_name)
-                    org_vanity = org.get("vanityName", "")
-                    org_id = org.get("id", user_sub)
-                    
-                    platform_username = org_name
-                    platform_profile_url = f"https://www.linkedin.com/company/{org_vanity}" if org_vanity else "https://www.linkedin.com/"
-                    platform_user_id = org_id
-                    
-                    logger.info(f"✅ Organization found: {org_name}")
-                else:
-                    logger.warning(f"⚠️ No organization pages found, using personal profile")
-            else:
-                logger.warning(f"⚠️ Could not fetch organizations: {orgs_response.text}")
+            logger.info(f"✅ Using personal profile: {platform_username}")
             
             # Save connection to database
             supabase = get_supabase()
