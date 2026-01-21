@@ -443,10 +443,11 @@ async def linkedin_connect(
     
     # LinkedIn OAuth parameters for Organization Pages
     redirect_uri = f"{BACKEND_URL}/api/social/linkedin/callback"
-    # LinkedIn scopes - start with basic ones that are always available
+    # LinkedIn scopes - using only basic scopes that are always available
     # openid, profile, email are available with "Sign In with LinkedIn using OpenID Connect"
-    # w_member_social requires "Share on LinkedIn" product
-    scope = "openid profile email w_member_social"
+    # w_member_social requires "Share on LinkedIn" product (must be requested separately)
+    # TODO: Add w_member_social scope once "Share on LinkedIn" product is approved
+    scope = "openid profile email"
     state = active_account_id  # Pass account_id as state
     
     # Build authorization URL
