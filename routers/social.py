@@ -69,6 +69,7 @@ async def instagram_connect(
     logger.info(f"🔗 Instagram OAuth: Generated authorization URL")
     logger.info(f"   Account ID: {active_account_id}")
     logger.info(f"   Redirect URI: {redirect_uri}")
+    logger.info(f"   📎 Full Auth URL: {auth_url}")
     
     return {"auth_url": auth_url}
 
@@ -280,6 +281,7 @@ async def facebook_connect(
     logger.info(f"🔗 Facebook OAuth: Generated authorization URL")
     logger.info(f"   Account ID: {active_account_id}")
     logger.info(f"   Redirect URI: {redirect_uri}")
+    logger.info(f"   📎 Full Auth URL: {auth_url}")
     
     return {"auth_url": auth_url}
 
