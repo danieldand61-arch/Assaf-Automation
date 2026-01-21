@@ -12,10 +12,17 @@ export function UserMenu() {
 
   const handleSignOut = async () => {
     try {
+      setIsOpen(false)
       await signOut()
-      navigate('/login')
+      // Clear any cached data
+      localStorage.clear()
+      sessionStorage.clear()
+      // Force navigate to login
+      window.location.href = '/login'
     } catch (error) {
       console.error('Sign out error:', error)
+      // Force navigate even on error
+      window.location.href = '/login'
     }
   }
 
