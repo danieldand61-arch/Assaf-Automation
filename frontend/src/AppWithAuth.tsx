@@ -5,6 +5,8 @@ import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
 import { AuthCallback } from './pages/AuthCallback'
 import { Settings } from './pages/Settings'
+import { Privacy } from './pages/Privacy'
+import { Terms } from './pages/Terms'
 import App from './App'
 import { Loader2 } from 'lucide-react'
 
@@ -36,6 +38,8 @@ export function AppWithAuth() {
             <Route path="/" element={<App />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
             
             <Route
               path="/login"
