@@ -19,6 +19,10 @@ FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID")
 FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET")
 LINKEDIN_CLIENT_ID = os.getenv("LINKEDIN_CLIENT_ID")
 LINKEDIN_CLIENT_SECRET = os.getenv("LINKEDIN_CLIENT_SECRET")
+TWITTER_CLIENT_ID = os.getenv("TWITTER_CLIENT_ID")
+TWITTER_CLIENT_SECRET = os.getenv("TWITTER_CLIENT_SECRET")
+TIKTOK_CLIENT_KEY = os.getenv("TIKTOK_CLIENT_KEY")
+TIKTOK_CLIENT_SECRET = os.getenv("TIKTOK_CLIENT_SECRET")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://assaf-automation.vercel.app")
 BACKEND_URL = os.getenv("BACKEND_URL", "https://assaf-automation-production.up.railway.app")
 
@@ -29,6 +33,14 @@ FACEBOOK_GRAPH_URL = "https://graph.facebook.com/v19.0"
 LINKEDIN_OAUTH_URL = "https://www.linkedin.com/oauth/v2/authorization"
 LINKEDIN_TOKEN_URL = "https://www.linkedin.com/oauth/v2/accessToken"
 LINKEDIN_API_URL = "https://api.linkedin.com/v2"
+
+TWITTER_OAUTH_URL = "https://twitter.com/i/oauth2/authorize"
+TWITTER_TOKEN_URL = "https://api.twitter.com/2/oauth2/token"
+TWITTER_API_URL = "https://api.twitter.com/2"
+
+TIKTOK_OAUTH_URL = "https://www.tiktok.com/v2/auth/authorize"
+TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token"
+TIKTOK_API_URL = "https://open.tiktokapis.com/v2"
 
 # ============= Instagram OAuth Flow =============
 
@@ -600,6 +612,382 @@ async def linkedin_callback(
         
     except Exception as e:
         logger.error(f"❌ LinkedIn OAuth callback error: {str(e)}")
+        logger.exception("Full traceback:")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
+        )
+
+
+# ============= Twitter/X OAuth Flow =============
+
+@router.get("/twitter/connect")
+async def twitter_connect(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Step 1: Get Twitter/X OAuth authorization URL (OAuth 2.0 with PKCE)
+    """
+    if not TWITTER_CLIENT_ID:
+        raise HTTPException(status_code=500, detail="Twitter API not configured")
+    
+    # Get active account for the user
+    supabase = get_supabase()
+    user_settings = supabase.table("user_settings").select("active_account_id").eq("user_id", current_user["user_id"]).single().execute()
+    active_account_id = user_settings.data["active_account_id"] if user_settings.data else None
+    
+    if not active_account_id:
+        raise HTTPException(status_code=400, detail="No active business account found for user.")
+    
+    # Twitter OAuth parameters
+    redirect_uri = f"{BACKEND_URL}/api/social/twitter/callback"
+    scope = "tweet.read tweet.write users.read offline.access"
+    state = active_account_id
+    
+    # Generate code_challenge for PKCE (Twitter requires PKCE)
+    import hashlib
+    import base64
+    import secrets
+    
+    code_verifier = secrets.token_urlsafe(32)
+    code_challenge = base64.urlsafe_b64encode(
+        hashlib.sha256(code_verifier.encode()).digest()
+    ).decode().rstrip('=')
+    
+    # Store code_verifier temporarily (in production, use Redis or DB)
+    # For now, we'll pass it via state (not recommended for production)
+    state_data = f"{active_account_id}:{code_verifier}"
+    
+    # Build authorization URL
+    auth_url = (
+        f"{TWITTER_OAUTH_URL}?"
+        f"response_type=code&"
+        f"client_id={TWITTER_CLIENT_ID}&"
+        f"redirect_uri={redirect_uri}&"
+        f"scope={scope}&"
+        f"state={state_data}&"
+        f"code_challenge={code_challenge}&"
+        f"code_challenge_method=S256"
+    )
+    
+    logger.info(f"🔗 Twitter OAuth: Generated authorization URL")
+    logger.info(f"   Account ID: {active_account_id}")
+    logger.info(f"   Redirect URI: {redirect_uri}")
+    
+    return {"auth_url": auth_url}
+
+
+@router.get("/twitter/callback")
+async def twitter_callback(
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    error_description: Optional[str] = Query(None)
+):
+    """
+    Step 2: Handle OAuth callback from Twitter/X
+    Exchange authorization code for access token
+    """
+    if error:
+        logger.error(f"❌ Twitter OAuth error: {error} - {error_description}")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error={error_description or error}"
+        )
+    
+    if not code or not state:
+        logger.error(f"❌ Missing code or state in callback")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Missing authorization code"
+        )
+    
+    # Extract account_id and code_verifier from state
+    try:
+        account_id, code_verifier = state.split(':', 1)
+    except ValueError:
+        logger.error(f"❌ Invalid state format")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid state"
+        )
+    
+    redirect_uri = f"{BACKEND_URL}/api/social/twitter/callback"
+    
+    try:
+        logger.info(f"🔄 Twitter OAuth: Exchanging code for token")
+        logger.info(f"   Account ID: {account_id}")
+        
+        # Exchange code for access token
+        import base64
+        auth_string = f"{TWITTER_CLIENT_ID}:{TWITTER_CLIENT_SECRET}"
+        auth_b64 = base64.b64encode(auth_string.encode()).decode()
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                TWITTER_TOKEN_URL,
+                headers={
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": f"Basic {auth_b64}"
+                },
+                data={
+                    "code": code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": redirect_uri,
+                    "code_verifier": code_verifier
+                }
+            )
+            
+            if response.status_code != 200:
+                error_text = response.text
+                logger.error(f"❌ Token exchange failed: {error_text}")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to get access token"
+                )
+            
+            token_data = response.json()
+            access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            expires_in = token_data.get("expires_in", 7200)
+            
+            if not access_token:
+                logger.error(f"❌ No access token in response")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
+                )
+            
+            logger.info(f"✅ Access token received")
+            
+            # Get user profile
+            profile_response = await client.get(
+                f"{TWITTER_API_URL}/users/me",
+                headers={"Authorization": f"Bearer {access_token}"}
+            )
+            
+            if profile_response.status_code != 200:
+                logger.error(f"❌ Failed to get profile: {profile_response.text}")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Could not access Twitter profile"
+                )
+            
+            profile_data = profile_response.json()
+            user_data = profile_data.get("data", {})
+            user_id = user_data.get("id")
+            username = user_data.get("username")
+            name = user_data.get("name")
+            
+            logger.info(f"✅ Profile retrieved: @{username}")
+            
+            # Save connection to database
+            supabase = get_supabase()
+            
+            expires_at = datetime.now() + timedelta(seconds=expires_in)
+            
+            connection_data = {
+                "account_id": account_id,
+                "platform": "twitter",
+                "platform_user_id": user_id,
+                "platform_username": f"@{username}",
+                "platform_profile_url": f"https://twitter.com/{username}",
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_expires_at": expires_at.isoformat(),
+                "is_connected": True,
+                "last_connected_at": datetime.now().isoformat()
+            }
+            
+            # Upsert connection
+            result = supabase.table("account_connections").upsert(
+                connection_data,
+                on_conflict="account_id,platform"
+            ).execute()
+            
+            if not result.data:
+                logger.error(f"❌ Failed to save connection")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to save connection"
+                )
+            
+            logger.info(f"✅ Twitter connection saved successfully")
+            
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&success=twitter"
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Twitter OAuth callback error: {str(e)}")
+        logger.exception("Full traceback:")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
+        )
+
+
+# ============= TikTok OAuth Flow =============
+
+@router.get("/tiktok/connect")
+async def tiktok_connect(
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Step 1: Get TikTok OAuth authorization URL
+    """
+    if not TIKTOK_CLIENT_KEY:
+        raise HTTPException(status_code=500, detail="TikTok API not configured")
+    
+    # Get active account for the user
+    supabase = get_supabase()
+    user_settings = supabase.table("user_settings").select("active_account_id").eq("user_id", current_user["user_id"]).single().execute()
+    active_account_id = user_settings.data["active_account_id"] if user_settings.data else None
+    
+    if not active_account_id:
+        raise HTTPException(status_code=400, detail="No active business account found for user.")
+    
+    # TikTok OAuth parameters
+    redirect_uri = f"{BACKEND_URL}/api/social/tiktok/callback"
+    scope = "user.info.basic,video.publish,video.upload"
+    state = active_account_id
+    
+    # Build authorization URL
+    auth_url = (
+        f"{TIKTOK_OAUTH_URL}?"
+        f"client_key={TIKTOK_CLIENT_KEY}&"
+        f"scope={scope}&"
+        f"response_type=code&"
+        f"redirect_uri={redirect_uri}&"
+        f"state={state}"
+    )
+    
+    logger.info(f"🔗 TikTok OAuth: Generated authorization URL")
+    logger.info(f"   Account ID: {active_account_id}")
+    logger.info(f"   Redirect URI: {redirect_uri}")
+    
+    return {"auth_url": auth_url}
+
+
+@router.get("/tiktok/callback")
+async def tiktok_callback(
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    error_description: Optional[str] = Query(None)
+):
+    """
+    Step 2: Handle OAuth callback from TikTok
+    Exchange authorization code for access token
+    """
+    if error:
+        logger.error(f"❌ TikTok OAuth error: {error} - {error_description}")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error={error_description or error}"
+        )
+    
+    if not code or not state:
+        logger.error(f"❌ Missing code or state in callback")
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&error=Missing authorization code"
+        )
+    
+    account_id = state
+    redirect_uri = f"{BACKEND_URL}/api/social/tiktok/callback"
+    
+    try:
+        logger.info(f"🔄 TikTok OAuth: Exchanging code for token")
+        logger.info(f"   Account ID: {account_id}")
+        
+        # Exchange code for access token
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                TIKTOK_TOKEN_URL,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={
+                    "client_key": TIKTOK_CLIENT_KEY,
+                    "client_secret": TIKTOK_CLIENT_SECRET,
+                    "code": code,
+                    "grant_type": "authorization_code",
+                    "redirect_uri": redirect_uri
+                }
+            )
+            
+            if response.status_code != 200:
+                error_text = response.text
+                logger.error(f"❌ Token exchange failed: {error_text}")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to get access token"
+                )
+            
+            token_data = response.json()
+            data = token_data.get("data", {})
+            access_token = data.get("access_token")
+            refresh_token = data.get("refresh_token")
+            expires_in = data.get("expires_in", 86400)
+            open_id = data.get("open_id")
+            
+            if not access_token:
+                logger.error(f"❌ No access token in response")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
+                )
+            
+            logger.info(f"✅ Access token received")
+            
+            # Get user profile
+            profile_response = await client.post(
+                f"{TIKTOK_API_URL}/user/info/",
+                headers={
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "access_token": access_token
+                }
+            )
+            
+            username = ""
+            profile_url = ""
+            
+            if profile_response.status_code == 200:
+                profile_data = profile_response.json()
+                user_data = profile_data.get("data", {}).get("user", {})
+                username = user_data.get("display_name", "")
+                profile_url = user_data.get("profile_deep_link", "")
+                logger.info(f"✅ Profile retrieved: {username}")
+            else:
+                logger.warning(f"⚠️ Could not fetch profile info")
+                username = f"TikTok User {open_id[:8]}"
+            
+            # Save connection to database
+            supabase = get_supabase()
+            
+            expires_at = datetime.now() + timedelta(seconds=expires_in)
+            
+            connection_data = {
+                "account_id": account_id,
+                "platform": "tiktok",
+                "platform_user_id": open_id,
+                "platform_username": username,
+                "platform_profile_url": profile_url,
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                "token_expires_at": expires_at.isoformat(),
+                "is_connected": True,
+                "last_connected_at": datetime.now().isoformat()
+            }
+            
+            # Upsert connection
+            result = supabase.table("account_connections").upsert(
+                connection_data,
+                on_conflict="account_id,platform"
+            ).execute()
+            
+            if not result.data:
+                logger.error(f"❌ Failed to save connection")
+                return RedirectResponse(
+                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to save connection"
+                )
+            
+            logger.info(f"✅ TikTok connection saved successfully")
+            
+        return RedirectResponse(
+            url=f"{FRONTEND_URL}/settings?tab=social&success=tiktok"
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ TikTok OAuth callback error: {str(e)}")
         logger.exception("Full traceback:")
         return RedirectResponse(
             url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
