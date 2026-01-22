@@ -6,13 +6,12 @@ export function AuthCallback() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Extract hash params
+    // Extract hash params (OAuth returns tokens in hash)
     const hashParams = new URLSearchParams(window.location.hash.substring(1))
     const accessToken = hashParams.get('access_token')
-    const type = hashParams.get('type')
 
-    if (accessToken && type === 'signup') {
-      // Email confirmed, redirect to main page
+    if (accessToken) {
+      // Valid OAuth token received, redirect to main page
       setTimeout(() => {
         navigate('/', { replace: true })
       }, 1000)
@@ -27,7 +26,7 @@ export function AuthCallback() {
       <div className="text-center">
         <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
         <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-          Email Confirmed!
+          Signing you in...
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
           Redirecting to the app...
