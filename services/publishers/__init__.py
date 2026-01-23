@@ -1,1 +1,3 @@
-# Publishers package for social media platforms
+"""
+Publishers for each social media platform
+"""

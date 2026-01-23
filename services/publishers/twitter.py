@@ -1,64 +1,89 @@
 """
-Twitter/X publishing integration
-Uses Twitter API v2
+Twitter/X publisher - publishes content to Twitter
 """
 import httpx
 import logging
-from typing import Optional
+from typing import Dict, Any
+import base64
 
 logger = logging.getLogger(__name__)
 
-async def publish_to_twitter(connection: dict, content: str, image_url: Optional[str] = None) -> dict:
+async def publish_to_twitter(connection: Dict[str, Any], content: str, image_url: str) -> Dict[str, Any]:
     """
-    Publish tweet to Twitter/X
+    Publish content to Twitter/X
     
-    connection: {
-        "platform_account_id": "USER_ID",
-        "access_token": "OAUTH_ACCESS_TOKEN"
-    }
-    
-    Returns: {
-        "post_id": "1234567890",
-        "post_url": "https://twitter.com/user/status/1234567890"
-    }
+    Args:
+        connection: Database connection record with access_token and platform_user_id
+        content: Tweet text
+        image_url: URL to image to post
+        
+    Returns:
+        Dict with post_id and post_url
     """
     try:
-        access_token = connection["access_token"]
+        access_token = connection.get("access_token")
+        username = connection.get("platform_username", "").replace("@", "")
         
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
+        if not access_token:
+            raise Exception("Missing access token")
         
-        # Prepare tweet data
-        tweet_data = {
-            "text": content
-        }
+        logger.info(f"🐦 Publishing to Twitter: @{username}")
         
-        # If image provided, upload first and attach media_id
-        if image_url:
-            # Twitter requires uploading media first to get media_id
-            # This is simplified - full implementation needs multi-part upload
-            logger.warning("⚠️ Twitter image upload not fully implemented yet")
-            # tweet_data["media"] = {"media_ids": [media_id]}
-        
-        # Make API request
-        url = "https://api.twitter.com/2/tweets"
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=tweet_data, headers=headers)
-            response.raise_for_status()
-            result = response.json()
-        
-        tweet_id = result["data"]["id"]
-        
-        logger.info(f"✅ Published to Twitter: {tweet_id}")
-        
-        return {
-            "post_id": tweet_id,
-            "post_url": f"https://twitter.com/i/status/{tweet_id}"
-        }
-        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json"
+            }
+            
+            media_id = None
+            
+            # Upload image if provided
+            if image_url:
+                # Download image
+                img_response = await client.get(image_url)
+                if img_response.status_code == 200:
+                    image_data = img_response.content
+                    
+                    # Upload to Twitter
+                    media_response = await client.post(
+                        "https://upload.twitter.com/1.1/media/upload.json",
+                        headers={"Authorization": f"Bearer {access_token}"},
+                        files={"media": image_data}
+                    )
+                    
+                    if media_response.status_code == 200:
+                        media_id = media_response.json().get("media_id_string")
+                        logger.info(f"✅ Image uploaded: {media_id}")
+            
+            # Create tweet
+            tweet_data = {"text": content}
+            
+            if media_id:
+                tweet_data["media"] = {"media_ids": [media_id]}
+            
+            response = await client.post(
+                "https://api.twitter.com/2/tweets",
+                headers=headers,
+                json=tweet_data
+            )
+            
+            if response.status_code not in [200, 201]:
+                error_text = response.text
+                logger.error(f"❌ Twitter publish failed: {error_text}")
+                raise Exception(f"Twitter publish failed: {error_text}")
+            
+            data = response.json()
+            tweet_data_result = data.get("data", {})
+            tweet_id = tweet_data_result.get("id")
+            
+            logger.info(f"✅ Published to Twitter: {tweet_id}")
+            
+            return {
+                "success": True,
+                "post_id": tweet_id,
+                "post_url": f"https://twitter.com/{username}/status/{tweet_id}"
+            }
+            
     except Exception as e:
-        logger.error(f"❌ Twitter publish error: {str(e)}")
-        raise Exception(f"Twitter API error: {str(e)}")
+        logger.error(f"❌ Twitter publishing error: {str(e)}")
+        raise

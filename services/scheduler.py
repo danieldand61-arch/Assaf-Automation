@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 import logging
 import asyncio
 
-from database.supabase_client import get_supabase_client
+from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +23,14 @@ async def check_and_publish_posts():
     try:
         logger.info("🔍 Checking for posts to publish...")
         
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         
         # Get pending posts that are due
         now = datetime.now(timezone.utc)
         response = supabase.table("scheduled_posts")\
-            .select("*, accounts(user_id, name, logo_url)")\
+            .select("*")\
             .eq("status", "pending")\
-            .lte("scheduled_at", now.isoformat())\
+            .lte("scheduled_time", now.isoformat())\
             .execute()
         
         posts_to_publish = response.data
@@ -56,19 +56,36 @@ async def publish_post(post: dict):
     try:
         post_id = post["id"]
         platforms = post["platforms"]
-        content = post["content"]
+        
+        # Build content from post data
+        text = post.get("text", "")
+        hashtags = post.get("hashtags", [])
+        cta = post.get("call_to_action", "")
+        
+        # Format content with hashtags
+        hashtag_text = " ".join([f"#{tag}" for tag in hashtags])
+        content = f"{text}\n\n{hashtag_text}"
+        if cta:
+            content += f"\n\n{cta}"
+        
         image_url = post.get("image_url")
         
         logger.info(f"📤 Publishing post {post_id} to {platforms}")
         
-        supabase = get_supabase_client()
+        supabase = get_supabase()
+        
+        # Update status to 'publishing'
+        supabase.table("scheduled_posts")\
+            .update({"status": "publishing"})\
+            .eq("id", post_id)\
+            .execute()
         
         # Get social connections for this account
-        connections_response = supabase.table("social_connections")\
+        connections_response = supabase.table("account_connections")\
             .select("*")\
             .eq("account_id", post["account_id"])\
             .in_("platform", platforms)\
-            .eq("is_active", True)\
+            .eq("is_connected", True)\
             .execute()
         
         connections = connections_response.data
@@ -118,10 +135,10 @@ async def publish_post(post: dict):
                     "account_id": post["account_id"],
                     "scheduled_post_id": post_id,
                     "platform": platform,
-                    "platform_post_id": result.get("post_id"),
-                    "platform_post_url": result.get("post_url"),
-                    "content": content,
-                    "image_url": image_url
+                    "text": text,
+                    "image_url": image_url,
+                    "platforms": [platform],
+                    "published_at": datetime.now(timezone.utc).isoformat()
                 }).execute()
                 
                 published_count += 1
@@ -175,7 +192,7 @@ async def publish_post(post: dict):
         
         # Mark as failed
         try:
-            supabase = get_supabase_client()
+            supabase = get_supabase()
             supabase.table("scheduled_posts")\
                 .update({
                     "status": "failed",
@@ -206,17 +223,17 @@ async def schedule_next_recurrence(post: dict):
             return
         
         # Create new scheduled post
-        supabase = get_supabase_client()
+        supabase = get_supabase()
         supabase.table("scheduled_posts").insert({
             "account_id": post["account_id"],
+            "user_id": post["user_id"],
             "platforms": post["platforms"],
-            "content": post["content"],
+            "text": post["text"],
             "hashtags": post.get("hashtags", []),
+            "call_to_action": post.get("call_to_action", ""),
             "image_url": post.get("image_url"),
-            "scheduled_at": next_time.isoformat(),
+            "scheduled_time": next_time.isoformat(),
             "timezone": post.get("timezone", "UTC"),
-            "is_recurring": True,
-            "recurring_pattern": pattern,
             "status": "pending"
         }).execute()
         

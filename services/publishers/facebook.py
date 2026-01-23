@@ -1,61 +1,65 @@
 """
-Facebook publishing integration
-Uses Facebook Graph API
+Facebook publisher - publishes content to Facebook Pages
 """
 import httpx
 import logging
-from typing import Optional
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
-async def publish_to_facebook(connection: dict, content: str, image_url: Optional[str] = None) -> dict:
+async def publish_to_facebook(connection: Dict[str, Any], content: str, image_url: str) -> Dict[str, Any]:
     """
-    Publish post to Facebook Page
+    Publish content to Facebook Page
     
-    connection: {
-        "platform_account_id": "PAGE_ID",
-        "access_token": "PAGE_ACCESS_TOKEN"
-    }
-    
-    Returns: {
-        "post_id": "123456789_987654321",
-        "post_url": "https://facebook.com/..."
-    }
+    Args:
+        connection: Database connection record with access_token and platform_user_id (page_id)
+        content: Post text
+        image_url: URL to image to post
+        
+    Returns:
+        Dict with post_id and post_url
     """
     try:
-        page_id = connection["platform_account_id"]
-        access_token = connection["access_token"]
+        access_token = connection.get("access_token")
+        page_id = connection.get("platform_user_id")
         
-        # Facebook Graph API endpoint
-        url = f"https://graph.facebook.com/v19.0/{page_id}/feed"
+        if not access_token or not page_id:
+            raise Exception("Missing access token or page ID")
         
-        # Prepare post data
-        data = {
-            "message": content,
-            "access_token": access_token
-        }
+        logger.info(f"📘 Publishing to Facebook page: {page_id}")
         
-        # If image URL provided, upload as photo
-        if image_url:
-            url = f"https://graph.facebook.com/v19.0/{page_id}/photos"
-            data["url"] = image_url  # URL to image
-            data["caption"] = content
-        
-        # Make API request
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, data=data)
-            response.raise_for_status()
-            result = response.json()
-        
-        post_id = result.get("id") or result.get("post_id")
-        
-        logger.info(f"✅ Published to Facebook: {post_id}")
-        
-        return {
-            "post_id": post_id,
-            "post_url": f"https://www.facebook.com/{post_id}"
-        }
-        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            # Post to Facebook Page
+            params = {
+                "message": content,
+                "access_token": access_token
+            }
+            
+            # Add image if provided
+            if image_url:
+                params["url"] = image_url
+                endpoint = f"https://graph.facebook.com/v19.0/{page_id}/photos"
+            else:
+                endpoint = f"https://graph.facebook.com/v19.0/{page_id}/feed"
+            
+            response = await client.post(endpoint, params=params)
+            
+            if response.status_code != 200:
+                error_text = response.text
+                logger.error(f"❌ Facebook publish failed: {error_text}")
+                raise Exception(f"Facebook publish failed: {error_text}")
+            
+            data = response.json()
+            post_id = data.get("id") or data.get("post_id")
+            
+            logger.info(f"✅ Published to Facebook: {post_id}")
+            
+            return {
+                "success": True,
+                "post_id": post_id,
+                "post_url": f"https://www.facebook.com/{post_id}"
+            }
+            
     except Exception as e:
-        logger.error(f"❌ Facebook publish error: {str(e)}")
-        raise Exception(f"Facebook API error: {str(e)}")
+        logger.error(f"❌ Facebook publishing error: {str(e)}")
+        raise

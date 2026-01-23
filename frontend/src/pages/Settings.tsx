@@ -3,8 +3,9 @@ import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Connections } from './Connections'
+import { ScheduledPosts } from '../components/ScheduledPosts'
 
-type Tab = 'connections' | 'profile' | 'accounts'
+type Tab = 'connections' | 'scheduled' | 'profile' | 'accounts'
 
 export function Settings() {
   const { user } = useAuth()
@@ -18,6 +19,8 @@ export function Settings() {
     const tabParam = searchParams.get('tab')
     if (tabParam === 'social' || tabParam === 'connections') {
       setActiveTab('connections')
+    } else if (tabParam === 'scheduled') {
+      setActiveTab('scheduled')
     } else if (tabParam === 'profile') {
       setActiveTab('profile')
     } else if (tabParam === 'accounts') {
@@ -52,6 +55,15 @@ export function Settings() {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+        </svg>
+      )
+    },
+    {
+      id: 'scheduled' as Tab,
+      name: 'Scheduled Posts',
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
       )
     },
@@ -123,6 +135,9 @@ export function Settings() {
             {activeTab === 'connections' && (
               <ConnectionsTab />
             )}
+            {activeTab === 'scheduled' && (
+              <ScheduledPostsTab />
+            )}
             {activeTab === 'profile' && (
               <ProfileTab />
             )}
@@ -139,6 +154,15 @@ export function Settings() {
 // Connections Tab (uses existing Connections component)
 function ConnectionsTab() {
   return <Connections />
+}
+
+// Scheduled Posts Tab
+function ScheduledPostsTab() {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+      <ScheduledPosts />
+    </div>
+  )
 }
 
 // Profile Tab

@@ -1,58 +1,56 @@
 """
-TikTok publishing integration
-Uses TikTok API for Business
+TikTok publisher - publishes video content to TikTok
 """
 import httpx
 import logging
-from typing import Optional
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
-async def publish_to_tiktok(connection: dict, content: str, image_url: Optional[str] = None) -> dict:
+async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url: str) -> Dict[str, Any]:
     """
-    Publish video to TikTok
+    Publish content to TikTok
     
-    NOTE: TikTok requires video content, not just images
-    This is a placeholder implementation
+    Note: TikTok requires video content, not static images.
+    This is a placeholder that will need proper video handling.
     
-    connection: {
-        "platform_account_id": "USER_OPEN_ID",
-        "access_token": "ACCESS_TOKEN"
-    }
-    
-    Returns: {
-        "post_id": "video_id",
-        "post_url": "https://tiktok.com/@user/video/123456"
-    }
+    Args:
+        connection: Database connection record with access_token and platform_user_id
+        content: Post caption/description
+        image_url: URL to video file (not image)
+        
+    Returns:
+        Dict with post_id and post_url
     """
     try:
-        # TikTok API requires video upload, not image
-        if image_url and not image_url.endswith(('.mp4', '.mov', '.avi')):
-            raise Exception("TikTok requires video content (mp4, mov, avi)")
+        access_token = connection.get("access_token")
+        open_id = connection.get("platform_user_id")
         
-        access_token = connection["access_token"]
-        open_id = connection["platform_account_id"]
+        if not access_token or not open_id:
+            raise Exception("Missing access token or user ID")
         
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
+        logger.info(f"🎵 Publishing to TikTok: {open_id}")
         
-        # This is a simplified placeholder
-        # Full TikTok API requires:
+        # TikTok Content Posting API requires video files
+        # For now, we'll return a placeholder error since we're generating images, not videos
+        
+        logger.warning("⚠️ TikTok publishing requires video content")
+        raise Exception("TikTok requires video content. Please use the Video Translation feature to create TikTok videos.")
+        
+        # TODO: Implement proper TikTok video upload when video content is available
+        # The flow would be:
         # 1. Initialize upload
-        # 2. Upload video in chunks
-        # 3. Publish video
+        # 2. Upload video chunks
+        # 3. Publish video with caption
         
-        logger.warning("⚠️ TikTok publishing not fully implemented yet")
-        logger.info(f"📝 TikTok post content: {content[:100]}...")
-        
-        # Placeholder response
+        # Placeholder return
         return {
-            "post_id": "tiktok_placeholder",
-            "post_url": "https://www.tiktok.com"
+            "success": False,
+            "post_id": None,
+            "post_url": None,
+            "error": "TikTok requires video content"
         }
-        
+            
     except Exception as e:
-        logger.error(f"❌ TikTok publish error: {str(e)}")
-        raise Exception(f"TikTok API error: {str(e)}")
+        logger.error(f"❌ TikTok publishing error: {str(e)}")
+        raise

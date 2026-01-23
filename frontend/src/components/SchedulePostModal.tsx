@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { getApiUrl } from '../lib/api'
 import { X, Calendar, Clock, Send, Loader2 } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 interface SchedulePostModalProps {
   isOpen: boolean
@@ -20,6 +21,7 @@ export function SchedulePostModal({
   postData,
   platforms 
 }: SchedulePostModalProps) {
+  const { session } = useAuth()
   const [scheduleType, setScheduleType] = useState<'now' | 'later'>('now')
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
@@ -28,30 +30,66 @@ export function SchedulePostModal({
   if (!isOpen) return null
 
   const handleSchedule = async () => {
+    if (!session) {
+      alert('Please sign in to schedule posts')
+      return
+    }
+
     setIsPosting(true)
     
     try {
       const apiUrl = getApiUrl()
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
       
       if (scheduleType === 'now') {
-        // Post immediately (mock for now)
-        console.log('📤 Posting immediately to:', platforms)
-        alert('✅ Post published successfully! (Mock - actual publishing not implemented yet)')
+        // Post immediately
+        const response = await fetch(`${apiUrl}/api/scheduling/publish-now`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({
+            post_data: postData,
+            platforms,
+            scheduled_time: new Date().toISOString(),
+            timezone: userTimezone
+          })
+        })
+        
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.detail || 'Publishing failed')
+        }
+        
+        alert('✅ Post is being published! It will appear on your connected platforms shortly.')
       } else {
         // Schedule for later
+        if (!scheduledDate || !scheduledTime) {
+          alert('Please select both date and time')
+          return
+        }
+        
         const scheduleDateTime = new Date(`${scheduledDate}T${scheduledTime}`)
         
         const response = await fetch(`${apiUrl}/api/scheduling/schedule`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`
+          },
           body: JSON.stringify({
             post_data: postData,
             platforms,
-            scheduled_time: scheduleDateTime.toISOString()
+            scheduled_time: scheduleDateTime.toISOString(),
+            timezone: userTimezone
           })
         })
         
-        if (!response.ok) throw new Error('Scheduling failed')
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.detail || 'Scheduling failed')
+        }
         
         alert(`✅ Post scheduled for ${scheduleDateTime.toLocaleString()}!`)
       }
@@ -59,7 +97,7 @@ export function SchedulePostModal({
       onClose()
     } catch (error) {
       console.error('Scheduling error:', error)
-      alert('❌ Failed to schedule post. Please try again.')
+      alert(`❌ Failed to schedule post: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsPosting(false)
     }

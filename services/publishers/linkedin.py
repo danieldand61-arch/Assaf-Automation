@@ -1,84 +1,95 @@
 """
-LinkedIn publishing integration
-Uses LinkedIn API v2
+LinkedIn publisher - publishes content to LinkedIn profiles/pages
 """
 import httpx
 import logging
-from typing import Optional
-import base64
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
-async def publish_to_linkedin(connection: dict, content: str, image_url: Optional[str] = None) -> dict:
+async def publish_to_linkedin(connection: Dict[str, Any], content: str, image_url: str) -> Dict[str, Any]:
     """
-    Publish post to LinkedIn Profile or Company Page
+    Publish content to LinkedIn
     
-    connection: {
-        "platform_account_id": "urn:li:person:ABC123" or "urn:li:organization:123456",
-        "access_token": "ACCESS_TOKEN"
-    }
-    
-    Returns: {
-        "post_id": "urn:li:share:123456789",
-        "post_url": "https://linkedin.com/feed/update/urn:li:share:123456789"
-    }
+    Args:
+        connection: Database connection record with access_token and platform_user_id
+        content: Post text
+        image_url: URL to image to post
+        
+    Returns:
+        Dict with post_id and post_url
     """
     try:
-        author_urn = connection["platform_account_id"]
-        access_token = connection["access_token"]
+        access_token = connection.get("access_token")
+        user_id = connection.get("platform_user_id")
         
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json",
-            "X-Restli-Protocol-Version": "2.0.0"
-        }
+        if not access_token or not user_id:
+            raise Exception("Missing access token or user ID")
         
-        # Prepare post data
-        post_data = {
-            "author": author_urn,
-            "lifecycleState": "PUBLISHED",
-            "specificContent": {
-                "com.linkedin.ugc.ShareContent": {
-                    "shareCommentary": {
+        logger.info(f"💼 Publishing to LinkedIn: {user_id}")
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+                "X-Restli-Protocol-Version": "2.0.0"
+            }
+            
+            # Create post body
+            post_body = {
+                "author": f"urn:li:person:{user_id}",
+                "lifecycleState": "PUBLISHED",
+                "specificContent": {
+                    "com.linkedin.ugc.ShareContent": {
+                        "shareCommentary": {
+                            "text": content
+                        },
+                        "shareMediaCategory": "NONE"
+                    }
+                },
+                "visibility": {
+                    "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                }
+            }
+            
+            # Add image if provided
+            if image_url:
+                post_body["specificContent"]["com.linkedin.ugc.ShareContent"]["shareMediaCategory"] = "IMAGE"
+                post_body["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [{
+                    "status": "READY",
+                    "description": {
                         "text": content
                     },
-                    "shareMediaCategory": "NONE"
-                }
-            },
-            "visibility": {
-                "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                    "media": image_url,
+                    "title": {
+                        "text": "Post"
+                    }
+                }]
+            
+            # Note: LinkedIn API v2 UGC endpoint requires w_member_social scope
+            # This is a simplified version that might need adjustment based on actual API approval
+            response = await client.post(
+                "https://api.linkedin.com/v2/ugcPosts",
+                headers=headers,
+                json=post_body
+            )
+            
+            if response.status_code not in [200, 201]:
+                error_text = response.text
+                logger.error(f"❌ LinkedIn publish failed: {error_text}")
+                raise Exception(f"LinkedIn publish failed: {error_text}")
+            
+            data = response.json()
+            post_id = data.get("id", "")
+            
+            logger.info(f"✅ Published to LinkedIn: {post_id}")
+            
+            return {
+                "success": True,
+                "post_id": post_id,
+                "post_url": f"https://www.linkedin.com/feed/update/{post_id}"
             }
-        }
-        
-        # If image provided, upload and attach
-        if image_url:
-            # LinkedIn requires uploading the image first
-            # This is a simplified version - full implementation needs multi-step upload
-            post_data["specificContent"]["com.linkedin.ugc.ShareContent"]["shareMediaCategory"] = "IMAGE"
-            post_data["specificContent"]["com.linkedin.ugc.ShareContent"]["media"] = [
-                {
-                    "status": "READY",
-                    "originalUrl": image_url
-                }
-            ]
-        
-        # Make API request
-        url = "https://api.linkedin.com/v2/ugcPosts"
-        
-        async with httpx.AsyncClient() as client:
-            response = await client.post(url, json=post_data, headers=headers)
-            response.raise_for_status()
-            result = response.json()
-        
-        post_id = result.get("id")
-        
-        logger.info(f"✅ Published to LinkedIn: {post_id}")
-        
-        return {
-            "post_id": post_id,
-            "post_url": f"https://www.linkedin.com/feed/update/{post_id}"
-        }
-        
+            
     except Exception as e:
-        logger.error(f"❌ LinkedIn publish error: {str(e)}")
-        raise Exception(f"LinkedIn API error: {str(e)}")
+        logger.error(f"❌ LinkedIn publishing error: {str(e)}")
+        raise

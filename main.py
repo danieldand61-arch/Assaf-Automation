@@ -242,12 +242,29 @@ async def startup_event():
     else:
         logger.warning("⚠️ GOOGLE_AI_API_KEY not set - generation will fail!")
     
+    # Start background scheduler for scheduled posts
+    try:
+        from services.scheduler import start_scheduler
+        start_scheduler()
+        logger.info("✅ Background scheduler started")
+    except Exception as e:
+        logger.error(f"❌ Failed to start scheduler: {str(e)}")
+        logger.warning("⚠️ Scheduled posts will NOT be published automatically!")
+    
     logger.info("✅ Application startup complete")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """App shutdown"""
     logger.info("🛑 Application shutting down...")
+    
+    # Stop scheduler
+    try:
+        from services.scheduler import stop_scheduler
+        stop_scheduler()
+        logger.info("✅ Scheduler stopped")
+    except:
+        pass
 
 if __name__ == "__main__":
     import uvicorn

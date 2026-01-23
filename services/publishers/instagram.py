@@ -1,82 +1,80 @@
 """
-Instagram publishing integration
-Uses Instagram Graph API (requires Facebook Business account)
+Instagram publisher - publishes content to Instagram Business accounts
 """
 import httpx
 import logging
-from typing import Optional
-import asyncio
+from typing import Dict, Any
 
 logger = logging.getLogger(__name__)
 
-async def publish_to_instagram(connection: dict, content: str, image_url: Optional[str] = None) -> dict:
+async def publish_to_instagram(connection: Dict[str, Any], content: str, image_url: str) -> Dict[str, Any]:
     """
-    Publish post to Instagram Business Account
+    Publish content to Instagram Business account
     
-    Instagram requires a 2-step process:
-    1. Create media container
-    2. Publish the container
-    
-    connection: {
-        "platform_account_id": "INSTAGRAM_BUSINESS_ACCOUNT_ID",
-        "access_token": "USER_ACCESS_TOKEN"
-    }
-    
-    Returns: {
-        "post_id": "17895695668004550",
-        "post_url": "https://instagram.com/p/..."
-    }
+    Args:
+        connection: Database connection record with access_token and platform_user_id
+        content: Post caption text
+        image_url: URL to image to post
+        
+    Returns:
+        Dict with post_id and post_url
     """
     try:
-        if not image_url:
-            raise Exception("Instagram requires an image URL")
+        access_token = connection.get("access_token")
+        instagram_account_id = connection.get("platform_user_id")
         
-        instagram_account_id = connection["platform_account_id"]
-        access_token = connection["access_token"]
+        if not access_token or not instagram_account_id:
+            raise Exception("Missing access token or account ID")
         
-        # Step 1: Create media container
-        create_url = f"https://graph.facebook.com/v19.0/{instagram_account_id}/media"
-        create_data = {
-            "image_url": image_url,
-            "caption": content,
-            "access_token": access_token
-        }
+        logger.info(f"📸 Publishing to Instagram account: {instagram_account_id}")
         
+        # Instagram Graph API - Create container
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Create container
-            response = await client.post(create_url, data=create_data)
-            response.raise_for_status()
-            container_result = response.json()
+            # Step 1: Create media container
+            container_response = await client.post(
+                f"https://graph.facebook.com/v19.0/{instagram_account_id}/media",
+                params={
+                    "image_url": image_url,
+                    "caption": content,
+                    "access_token": access_token
+                }
+            )
             
-            container_id = container_result.get("id")
-            if not container_id:
-                raise Exception("Failed to create media container")
+            if container_response.status_code != 200:
+                error_text = container_response.text
+                logger.error(f"❌ Failed to create container: {error_text}")
+                raise Exception(f"Instagram container creation failed: {error_text}")
             
-            logger.info(f"✅ Instagram container created: {container_id}")
+            container_data = container_response.json()
+            container_id = container_data.get("id")
             
-            # Wait a moment for Instagram to process the media
-            await asyncio.sleep(2)
+            logger.info(f"✅ Media container created: {container_id}")
             
             # Step 2: Publish the container
-            publish_url = f"https://graph.facebook.com/v19.0/{instagram_account_id}/media_publish"
-            publish_data = {
-                "creation_id": container_id,
-                "access_token": access_token
+            publish_response = await client.post(
+                f"https://graph.facebook.com/v19.0/{instagram_account_id}/media_publish",
+                params={
+                    "creation_id": container_id,
+                    "access_token": access_token
+                }
+            )
+            
+            if publish_response.status_code != 200:
+                error_text = publish_response.text
+                logger.error(f"❌ Failed to publish: {error_text}")
+                raise Exception(f"Instagram publish failed: {error_text}")
+            
+            publish_data = publish_response.json()
+            post_id = publish_data.get("id")
+            
+            logger.info(f"✅ Published to Instagram: {post_id}")
+            
+            return {
+                "success": True,
+                "post_id": post_id,
+                "post_url": f"https://www.instagram.com/p/{post_id}/"
             }
             
-            response = await client.post(publish_url, data=publish_data)
-            response.raise_for_status()
-            publish_result = response.json()
-            
-            media_id = publish_result.get("id")
-        
-        logger.info(f"✅ Published to Instagram: {media_id}")
-        
-        return {
-            "post_id": media_id,
-            "post_url": f"https://www.instagram.com/p/{media_id}"  # This is a shortcode, may need conversion
-        }
-        
     except Exception as e:
-        logger.error(f"❌ Instagram publish error: {str(e)}")
-        raise Exception(f"Instagram API error: {str(e)}")
+        logger.error(f"❌ Instagram publishing error: {str(e)}")
+        raise
