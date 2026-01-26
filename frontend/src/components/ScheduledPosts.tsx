@@ -121,17 +121,28 @@ export function ScheduledPosts() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex justify-between items-start">
+        <div className="flex-1">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Scheduled Posts</h2>
           <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Manage your scheduled and published content
+            Track posts that are scheduled for publishing or already published
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 rounded-lg text-xs">
+              <Clock className="w-3 h-3" />
+              <strong>Pending:</strong> Will be posted at scheduled time
+            </span>
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-lg text-xs">
+              <CheckCircle className="w-3 h-3" />
+              <strong>Published:</strong> Already posted to platforms
+            </span>
+          </div>
         </div>
         <button
           onClick={fetchScheduledPosts}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition"
+          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition flex items-center gap-2"
         >
+          <Loader2 className="w-4 h-4" />
           Refresh
         </button>
       </div>

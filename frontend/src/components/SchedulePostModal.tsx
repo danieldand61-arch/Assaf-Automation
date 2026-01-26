@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getApiUrl } from '../lib/api'
 import { X, Calendar, Clock, Send, Loader2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
@@ -12,20 +12,82 @@ interface SchedulePostModalProps {
     cta: string
     imageUrl: string
   }
-  platforms: string[]
+  platforms?: string[]  // Optional, can be selected in modal
+}
+
+interface Connection {
+  id: string
+  platform: string
+  platform_username: string
+  is_connected: boolean
+}
+
+// Platform icons and colors
+const PLATFORM_CONFIG = {
+  facebook: { name: 'Facebook', color: 'bg-blue-600', icon: '📘' },
+  instagram: { name: 'Instagram', color: 'bg-pink-600', icon: '📷' },
+  linkedin: { name: 'LinkedIn', color: 'bg-blue-700', icon: '💼' },
+  twitter: { name: 'X (Twitter)', color: 'bg-gray-900', icon: '🐦' },
+  tiktok: { name: 'TikTok', color: 'bg-gray-800', icon: '🎵' }
 }
 
 export function SchedulePostModal({ 
   isOpen, 
   onClose, 
   postData,
-  platforms 
+  platforms: initialPlatforms = []
 }: SchedulePostModalProps) {
   const { session } = useAuth()
   const [scheduleType, setScheduleType] = useState<'now' | 'later'>('now')
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
   const [isPosting, setIsPosting] = useState(false)
+  
+  // Connected platforms and selection
+  const [connectedPlatforms, setConnectedPlatforms] = useState<Connection[]>([])
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(initialPlatforms)
+  const [loadingConnections, setLoadingConnections] = useState(true)
+
+  // Fetch connected platforms
+  useEffect(() => {
+    if (isOpen && session) {
+      fetchConnections()
+    }
+  }, [isOpen, session])
+
+  const fetchConnections = async () => {
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/social/connections`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      })
+      
+      if (!response.ok) throw new Error('Failed to fetch connections')
+      
+      const data = await response.json()
+      const connected = (data.connections || []).filter((c: Connection) => c.is_connected)
+      setConnectedPlatforms(connected)
+      
+      // If no platforms preselected, select all connected by default
+      if (selectedPlatforms.length === 0 && connected.length > 0) {
+        setSelectedPlatforms(connected.map((c: Connection) => c.platform))
+      }
+    } catch (error) {
+      console.error('Error fetching connections:', error)
+    } finally {
+      setLoadingConnections(false)
+    }
+  }
+
+  const togglePlatform = (platform: string) => {
+    setSelectedPlatforms(prev =>
+      prev.includes(platform)
+        ? prev.filter(p => p !== platform)
+        : [...prev, platform]
+    )
+  }
 
   if (!isOpen) return null
 
@@ -51,7 +113,7 @@ export function SchedulePostModal({
           },
           body: JSON.stringify({
             post_data: postData,
-            platforms,
+            platforms: selectedPlatforms,
             scheduled_time: new Date().toISOString(),
             timezone: userTimezone
           })
@@ -80,7 +142,7 @@ export function SchedulePostModal({
           },
           body: JSON.stringify({
             post_data: postData,
-            platforms,
+            platforms: selectedPlatforms,
             scheduled_time: scheduleDateTime.toISOString(),
             timezone: userTimezone
           })
@@ -194,28 +256,81 @@ export function SchedulePostModal({
             </div>
           )}
 
-          {/* Platforms Info */}
+          {/* Platform Selection */}
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-            <h4 className="font-semibold text-gray-800 dark:text-white mb-2">Publishing to:</h4>
-            <div className="flex flex-wrap gap-2">
-              {platforms.map((platform) => (
-                <span
-                  key={platform}
-                  className="px-3 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium capitalize"
-                >
-                  {platform}
-                </span>
-              ))}
-            </div>
+            <h4 className="font-semibold text-gray-800 dark:text-white mb-3">
+              Select Platforms to Post:
+            </h4>
+            
+            {loadingConnections ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
+              </div>
+            ) : connectedPlatforms.length === 0 ? (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  No connected platforms. Please connect platforms in Settings first.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {connectedPlatforms.map((connection) => {
+                  const config = PLATFORM_CONFIG[connection.platform as keyof typeof PLATFORM_CONFIG]
+                  const isSelected = selectedPlatforms.includes(connection.platform)
+                  
+                  return (
+                    <label
+                      key={connection.platform}
+                      className={`flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition ${
+                        isSelected
+                          ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => togglePlatform(connection.platform)}
+                        className="w-5 h-5 text-purple-600 rounded focus:ring-purple-500"
+                      />
+                      <span className="text-2xl">{config?.icon}</span>
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 dark:text-white">
+                          {config?.name}
+                        </p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          @{connection.platform_username}
+                        </p>
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Post Preview */}
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-            <h4 className="font-semibold text-gray-800 dark:text-white mb-2">Post Preview:</h4>
-            <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
+            <h4 className="font-semibold text-gray-800 dark:text-white mb-3">Post Preview:</h4>
+            
+            {/* Image Preview */}
+            {postData.imageUrl && (
+              <div className="mb-3 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600">
+                <img 
+                  src={postData.imageUrl} 
+                  alt="Post" 
+                  className="w-full h-48 object-cover"
+                />
+              </div>
+            )}
+            
+            {/* Text */}
+            <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3 mb-2">
               {postData.text}
             </p>
-            <div className="mt-2 flex flex-wrap gap-1">
+            
+            {/* Hashtags */}
+            <div className="flex flex-wrap gap-1">
               {postData.hashtags.slice(0, 5).map((tag, i) => (
                 <span key={i} className="text-xs text-blue-600 dark:text-blue-400">
                   #{tag}
@@ -238,7 +353,11 @@ export function SchedulePostModal({
           </button>
           <button
             onClick={handleSchedule}
-            disabled={isPosting || (scheduleType === 'later' && (!scheduledDate || !scheduledTime))}
+            disabled={
+              isPosting || 
+              selectedPlatforms.length === 0 ||
+              (scheduleType === 'later' && (!scheduledDate || !scheduledTime))
+            }
             className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
           >
             {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}

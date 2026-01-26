@@ -28,10 +28,10 @@ export function Scheduled() {
           </button>
 
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Scheduled Posts
+            📅 Scheduled Posts
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Manage your upcoming and published posts
+            Posts that are scheduled for publishing or already published
           </p>
           {activeAccount && (
             <p className="text-sm text-purple-600 dark:text-purple-400 mt-2">
