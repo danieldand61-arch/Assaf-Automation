@@ -1,12 +1,14 @@
 import { useState } from 'react'
-import { Download, RefreshCw, Edit, Smartphone, Monitor, Edit3, Send } from 'lucide-react'
+import { Download, RefreshCw, Edit, Smartphone, Monitor, Edit3, Send, BookmarkPlus } from 'lucide-react'
 import { useContentStore } from '../store/contentStore'
 import { useApp } from '../contexts/AppContext'
+import { useAuth } from '../contexts/AuthContext'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { PostEditModal } from './PostEditModal'
 import { ImageEditModal } from './ImageEditModal'
 import { PostToSocial } from './PostToSocial'
+import { getApiUrl } from '../lib/api'
 
 interface PreviewSectionProps {
   onReset: () => void
@@ -15,11 +17,13 @@ interface PreviewSectionProps {
 export function PreviewSection({ onReset }: PreviewSectionProps) {
   const { generatedContent, updateVariation, updateImage } = useContentStore()
   const { t } = useApp()
+  const { session } = useAuth()
   const [selectedVariation, setSelectedVariation] = useState(0)
   const [viewMode, setViewMode] = useState<'mobile' | 'desktop'>('mobile')
   const [isEditingText, setIsEditingText] = useState(false)
   const [isEditingImage, setIsEditingImage] = useState(false)
   const [isPostingToSocial, setIsPostingToSocial] = useState(false)
+  const [savingToLibrary, setSavingToLibrary] = useState(false)
 
   if (!generatedContent) return null
 
@@ -76,6 +80,45 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
     updateImage(selectedVariation, newImageUrl)
   }
 
+  const handleSaveToLibrary = async () => {
+    if (!session) {
+      alert('Please sign in to save posts')
+      return
+    }
+
+    setSavingToLibrary(true)
+    
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/saved-posts/save`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          text: variation.text,
+          hashtags: variation.hashtags,
+          call_to_action: variation.call_to_action,
+          image_url: image.url,
+          source_url: generatedContent?.request_params?.websiteUrl,
+          platforms: generatedContent?.request_params?.platforms || []
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to save post')
+      }
+
+      alert('Post saved to library!')
+    } catch (error) {
+      console.error('Save error:', error)
+      alert('Failed to save post. Please try again.')
+    } finally {
+      setSavingToLibrary(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       
@@ -95,6 +138,14 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
           >
             <Download className="w-4 h-4" />
             {t('downloadPost')}
+          </button>
+          <button
+            onClick={handleSaveToLibrary}
+            disabled={savingToLibrary}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-lg font-medium transition flex items-center gap-2"
+          >
+            <BookmarkPlus className="w-4 h-4" />
+            {savingToLibrary ? 'Saving...' : 'Save to Library'}
           </button>
           <button
             onClick={() => setIsPostingToSocial(true)}

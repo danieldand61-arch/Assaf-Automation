@@ -145,6 +145,20 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Social posting features will NOT be available!")
 
+# Try to load saved posts router
+logger.info("🔄 Attempting to import saved posts router...")
+try:
+    from routers import saved_posts
+    logger.info("✅ Saved posts router imported successfully")
+    
+    logger.info("🔄 Registering saved posts router endpoints...")
+    app.include_router(saved_posts.router)
+    logger.info("✅ Saved posts router registered")
+except Exception as e:
+    logger.error(f"❌ Saved posts router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Saved posts features will NOT be available!")
+
 logger.info("ℹ️ All routers loaded successfully!")
 
 # Log all requests middleware (after CORS)
