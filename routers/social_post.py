@@ -80,10 +80,14 @@ async def post_to_instagram(connection: dict, text: str, image_data: Optional[by
 
 
 async def post_to_linkedin(connection: dict, text: str, image_data: Optional[bytes]) -> dict:
-    """Post to LinkedIn"""
+    """Post to LinkedIn (text only for now)"""
     try:
         access_token = connection["access_token"]
         user_id = connection["platform_user_id"]
+        
+        # Log warning if image provided
+        if image_data:
+            logger.warning(f"⚠️ LinkedIn: Image posting not yet implemented, posting text only")
         
         async with httpx.AsyncClient(timeout=30.0) as client:
             headers = {
@@ -92,6 +96,7 @@ async def post_to_linkedin(connection: dict, text: str, image_data: Optional[byt
                 "X-Restli-Protocol-Version": "2.0.0"
             }
             
+            # Simple text-only post
             post_body = {
                 "author": f"urn:li:person:{user_id}",
                 "lifecycleState": "PUBLISHED",
@@ -100,7 +105,7 @@ async def post_to_linkedin(connection: dict, text: str, image_data: Optional[byt
                         "shareCommentary": {
                             "text": text
                         },
-                        "shareMediaCategory": "NONE" if not image_data else "IMAGE"
+                        "shareMediaCategory": "NONE"  # Text only for now
                     }
                 },
                 "visibility": {
@@ -108,7 +113,7 @@ async def post_to_linkedin(connection: dict, text: str, image_data: Optional[byt
                 }
             }
             
-            # TODO: Add image support (requires uploading to LinkedIn first)
+            # TODO: Add image support (requires registering upload, uploading to URL, getting URN)
             
             response = await client.post(
                 "https://api.linkedin.com/v2/ugcPosts",
