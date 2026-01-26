@@ -13,6 +13,10 @@ interface Connection {
 interface PostToSocialProps {
   isOpen: boolean
   onClose: () => void
+  prefilledData?: {
+    text?: string
+    imageUrl?: string
+  }
 }
 
 const PLATFORM_INFO = {
@@ -23,24 +27,32 @@ const PLATFORM_INFO = {
   tiktok: { name: 'TikTok', icon: '🎵', color: 'bg-black', supports: ['video'] }
 }
 
-export function PostToSocial({ isOpen, onClose }: PostToSocialProps) {
+export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialProps) {
   const { session } = useAuth()
   const [connections, setConnections] = useState<Connection[]>([])
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
   const [contentType, setContentType] = useState<'text-image' | 'video'>('text-image')
-  const [postText, setPostText] = useState('')
+  const [postText, setPostText] = useState(prefilledData?.text || '')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [videoFile, setVideoFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle')
   const [errorMessage, setErrorMessage] = useState('')
   const [results, setResults] = useState<{[key: string]: 'success' | 'failed'}>({})
+  const [prefilledImageUrl, setPrefilledImageUrl] = useState(prefilledData?.imageUrl || '')
 
   useEffect(() => {
     if (isOpen) {
       fetchConnections()
+      // Set prefilled data when modal opens
+      if (prefilledData?.text) {
+        setPostText(prefilledData.text)
+      }
+      if (prefilledData?.imageUrl) {
+        setPrefilledImageUrl(prefilledData.imageUrl)
+      }
     }
-  }, [isOpen])
+  }, [isOpen, prefilledData])
 
   const fetchConnections = async () => {
     if (!session) return
@@ -135,6 +147,18 @@ export function PostToSocial({ isOpen, onClose }: PostToSocialProps) {
     try {
       const apiUrl = getApiUrl()
       
+      // Convert base64 image URL to file if needed
+      let imageToUpload = imageFile
+      if (!imageFile && prefilledImageUrl && prefilledImageUrl.startsWith('data:')) {
+        try {
+          const response = await fetch(prefilledImageUrl)
+          const blob = await response.blob()
+          imageToUpload = new File([blob], 'generated-image.jpg', { type: 'image/jpeg' })
+        } catch (error) {
+          console.error('Failed to convert image:', error)
+        }
+      }
+      
       // Post to each selected platform
       const postResults: {[key: string]: 'success' | 'failed'} = {}
 
@@ -165,8 +189,8 @@ export function PostToSocial({ isOpen, onClose }: PostToSocialProps) {
             const formData = new FormData()
             formData.append('text', postText)
             formData.append('platforms', JSON.stringify([platform]))
-            if (imageFile) {
-              formData.append('image', imageFile)
+            if (imageToUpload) {
+              formData.append('image', imageToUpload)
             }
 
             const response = await fetch(`${apiUrl}/api/social/post`, {
@@ -377,7 +401,7 @@ export function PostToSocial({ isOpen, onClose }: PostToSocialProps) {
                   Image (Optional)
                 </label>
                 
-                {!imageFile ? (
+                {!imageFile && !prefilledImageUrl ? (
                   <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-xl cursor-pointer hover:border-purple-500 dark:hover:border-purple-400 transition bg-gray-50 dark:bg-gray-700/50">
                     <ImageIcon className="w-8 h-8 text-gray-400 mb-2" />
                     <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -394,13 +418,16 @@ export function PostToSocial({ isOpen, onClose }: PostToSocialProps) {
                 ) : (
                   <div className="relative">
                     <img 
-                      src={URL.createObjectURL(imageFile)} 
+                      src={imageFile ? URL.createObjectURL(imageFile) : prefilledImageUrl} 
                       alt="Preview" 
                       className="w-full h-48 object-cover rounded-lg"
                     />
                     {!uploading && (
                       <button
-                        onClick={() => setImageFile(null)}
+                        onClick={() => {
+                          setImageFile(null)
+                          setPrefilledImageUrl('')
+                        }}
                         className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
                       >
                         <X className="w-4 h-4" />

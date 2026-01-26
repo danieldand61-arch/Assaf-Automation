@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, RefreshCw, Edit, Smartphone, Monitor, Edit3, Calendar } from 'lucide-react'
+import { Download, RefreshCw, Edit, Smartphone, Monitor, Edit3, Calendar, Send } from 'lucide-react'
 import { useContentStore } from '../store/contentStore'
 import { useApp } from '../contexts/AppContext'
 import JSZip from 'jszip'
@@ -7,6 +7,7 @@ import { saveAs } from 'file-saver'
 import { PostEditModal } from './PostEditModal'
 import { ImageEditModal } from './ImageEditModal'
 import { SchedulePostModal } from './SchedulePostModal'
+import { PostToSocial } from './PostToSocial'
 
 interface PreviewSectionProps {
   onReset: () => void
@@ -20,6 +21,7 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
   const [isEditingText, setIsEditingText] = useState(false)
   const [isEditingImage, setIsEditingImage] = useState(false)
   const [isScheduling, setIsScheduling] = useState(false)
+  const [isPostingToSocial, setIsPostingToSocial] = useState(false)
 
   if (!generatedContent) return null
 
@@ -102,6 +104,13 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
           >
             <Calendar className="w-4 h-4" />
             Schedule Post
+          </button>
+          <button
+            onClick={() => setIsPostingToSocial(true)}
+            className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white rounded-lg font-medium transition flex items-center gap-2"
+          >
+            <Send className="w-4 h-4" />
+            Post to Social Media
           </button>
         </div>
         
@@ -327,6 +336,15 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
           imageUrl: image.url
         }}
         platforms={generatedContent.request_params?.platforms || ['instagram']}
+      />
+
+      <PostToSocial
+        isOpen={isPostingToSocial}
+        onClose={() => setIsPostingToSocial(false)}
+        prefilledData={{
+          text: `${variation.text}\n\n${variation.hashtags.map(tag => `#${tag}`).join(' ')}\n\n${variation.call_to_action}`,
+          imageUrl: image.url
+        }}
       />
     </div>
   )

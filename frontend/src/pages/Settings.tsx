@@ -4,6 +4,7 @@ import { useAccount } from '../contexts/AccountContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Connections } from './Connections'
 import { ScheduledPosts } from '../components/ScheduledPosts'
+import { ArrowLeft } from 'lucide-react'
 
 type Tab = 'connections' | 'scheduled' | 'profile' | 'accounts'
 
@@ -92,6 +93,15 @@ export function Settings() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Header */}
         <div className="mb-8">
+          <div className="flex items-center gap-4 mb-4">
+            <button
+              onClick={() => navigate('/')}
+              className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span className="font-medium">Back to Home</span>
+            </button>
+          </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Settings
           </h1>
