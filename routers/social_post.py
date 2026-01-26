@@ -80,40 +80,126 @@ async def post_to_instagram(connection: dict, text: str, image_data: Optional[by
 
 
 async def post_to_linkedin(connection: dict, text: str, image_data: Optional[bytes]) -> dict:
-    """Post to LinkedIn (text only for now)"""
+    """Post to LinkedIn with text and optional image"""
     try:
         access_token = connection["access_token"]
         user_id = connection["platform_user_id"]
+        author_urn = f"urn:li:person:{user_id}"
         
-        # Log warning if image provided
-        if image_data:
-            logger.warning(f"⚠️ LinkedIn: Image posting not yet implemented, posting text only")
-        
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             headers = {
                 "Authorization": f"Bearer {access_token}",
                 "Content-Type": "application/json",
                 "X-Restli-Protocol-Version": "2.0.0"
             }
             
-            # Simple text-only post
-            post_body = {
-                "author": f"urn:li:person:{user_id}",
-                "lifecycleState": "PUBLISHED",
-                "specificContent": {
-                    "com.linkedin.ugc.ShareContent": {
-                        "shareCommentary": {
-                            "text": text
-                        },
-                        "shareMediaCategory": "NONE"  # Text only for now
-                    }
-                },
-                "visibility": {
-                    "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-                }
-            }
+            image_urn = None
             
-            # TODO: Add image support (requires registering upload, uploading to URL, getting URN)
+            # Step 1 & 2: Upload image if provided
+            if image_data:
+                try:
+                    logger.info(f"🖼️ LinkedIn: Uploading image...")
+                    
+                    # Step 1: Register upload
+                    register_payload = {
+                        "registerUploadRequest": {
+                            "recipes": ["urn:li:digitalmediaRecipe:feedshare-image"],
+                            "owner": author_urn,
+                            "serviceRelationships": [
+                                {
+                                    "relationshipType": "OWNER",
+                                    "identifier": "urn:li:userGeneratedContent"
+                                }
+                            ]
+                        }
+                    }
+                    
+                    register_response = await client.post(
+                        "https://api.linkedin.com/v2/assets?action=registerUpload",
+                        headers=headers,
+                        json=register_payload
+                    )
+                    
+                    if register_response.status_code not in [200, 201]:
+                        logger.error(f"❌ LinkedIn: Failed to register upload: {register_response.text}")
+                        raise Exception(f"Failed to register image upload: {register_response.text}")
+                    
+                    register_data = register_response.json()
+                    upload_url = register_data["value"]["uploadMechanism"]["com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest"]["uploadUrl"]
+                    asset_urn = register_data["value"]["asset"]
+                    
+                    logger.info(f"✅ LinkedIn: Upload registered, asset URN: {asset_urn}")
+                    
+                    # Step 2: Upload image to the URL
+                    upload_response = await client.put(
+                        upload_url,
+                        headers={
+                            "Authorization": f"Bearer {access_token}"
+                        },
+                        content=image_data
+                    )
+                    
+                    if upload_response.status_code not in [200, 201]:
+                        logger.error(f"❌ LinkedIn: Failed to upload image: {upload_response.text}")
+                        raise Exception(f"Failed to upload image: {upload_response.text}")
+                    
+                    logger.info(f"✅ LinkedIn: Image uploaded successfully")
+                    image_urn = asset_urn
+                    
+                except Exception as img_error:
+                    logger.error(f"⚠️ LinkedIn: Image upload failed, posting text only: {str(img_error)}")
+                    # Continue with text-only post if image upload fails
+                    image_urn = None
+            
+            # Step 3: Create post with or without image
+            if image_urn:
+                # Post with image
+                post_body = {
+                    "author": author_urn,
+                    "lifecycleState": "PUBLISHED",
+                    "specificContent": {
+                        "com.linkedin.ugc.ShareContent": {
+                            "shareCommentary": {
+                                "text": text
+                            },
+                            "shareMediaCategory": "IMAGE",
+                            "media": [
+                                {
+                                    "status": "READY",
+                                    "description": {
+                                        "text": "Image"
+                                    },
+                                    "media": image_urn,
+                                    "title": {
+                                        "text": "Post Image"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "visibility": {
+                        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                    }
+                }
+                logger.info(f"📝 LinkedIn: Creating post with image")
+            else:
+                # Text-only post
+                post_body = {
+                    "author": author_urn,
+                    "lifecycleState": "PUBLISHED",
+                    "specificContent": {
+                        "com.linkedin.ugc.ShareContent": {
+                            "shareCommentary": {
+                                "text": text
+                            },
+                            "shareMediaCategory": "NONE"
+                        }
+                    },
+                    "visibility": {
+                        "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                    }
+                }
+                logger.info(f"📝 LinkedIn: Creating text-only post")
             
             response = await client.post(
                 "https://api.linkedin.com/v2/ugcPosts",
@@ -125,7 +211,10 @@ async def post_to_linkedin(connection: dict, text: str, image_data: Optional[byt
                 raise Exception(f"LinkedIn API error: {response.text}")
             
             data = response.json()
-            return {"success": True, "post_id": data.get("id", "")}
+            post_id = data.get("id", "")
+            logger.info(f"✅ LinkedIn: Post created successfully: {post_id}")
+            
+            return {"success": True, "post_id": post_id}
             
     except Exception as e:
         logger.error(f"LinkedIn post error: {str(e)}")
