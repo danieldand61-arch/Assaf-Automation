@@ -131,6 +131,20 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ TikTok upload features will NOT be available!")
 
+# Try to load social post router
+logger.info("🔄 Attempting to import social post router...")
+try:
+    from routers import social_post
+    logger.info("✅ Social post router imported successfully")
+    
+    logger.info("🔄 Registering social post router endpoints...")
+    app.include_router(social_post.router)
+    logger.info("✅ Social post router registered")
+except Exception as e:
+    logger.error(f"❌ Social post router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Social posting features will NOT be available!")
+
 logger.info("ℹ️ All routers loaded successfully!")
 
 # Log all requests middleware (after CORS)

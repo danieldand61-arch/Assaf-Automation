@@ -3,8 +3,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { getApiUrl } from '../lib/api'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { TikTokUpload } from '../components/TikTokUpload'
-import { Upload } from 'lucide-react'
+import { PostToSocial } from '../components/PostToSocial'
+import { Send } from 'lucide-react'
 
 interface Connection {
   id: string
@@ -84,7 +84,7 @@ export function Connections() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
-  const [isTikTokUploadOpen, setIsTikTokUploadOpen] = useState(false)
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false)
 
   useEffect(() => {
     // Check for OAuth callback messages
@@ -193,13 +193,26 @@ export function Connections() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Social Media Connections
-        </h2>
-        <p className="text-gray-600 dark:text-gray-400">
-          Connect your social media accounts to start publishing
-        </p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Social Media Connections
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            Connect your social media accounts to start publishing
+          </p>
+        </div>
+        
+        {/* Post to Social Media Button */}
+        {connections.some(c => c.is_connected) && (
+          <button
+            onClick={() => setIsPostModalOpen(true)}
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-xl font-semibold transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+          >
+            <Send className="w-5 h-5" />
+            Post to Social Media
+          </button>
+        )}
       </div>
 
       {/* Success Message */}
@@ -300,17 +313,6 @@ export function Connections() {
                           Connected
                         </span>
 
-                        {/* Upload Video Button (TikTok only) */}
-                        {platform.id === 'tiktok' && (
-                          <button
-                            onClick={() => setIsTikTokUploadOpen(true)}
-                            className="px-4 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all flex items-center gap-2"
-                          >
-                            <Upload className="w-4 h-4" />
-                            Upload Video
-                          </button>
-                        )}
-
                         {/* Disconnect Button */}
                         <button
                           onClick={() => handleDisconnect(platform.id)}
@@ -351,10 +353,10 @@ export function Connections() {
         </div>
       ) : null}
 
-      {/* TikTok Upload Modal */}
-      <TikTokUpload 
-        isOpen={isTikTokUploadOpen} 
-        onClose={() => setIsTikTokUploadOpen(false)} 
+      {/* Post to Social Media Modal */}
+      <PostToSocial 
+        isOpen={isPostModalOpen} 
+        onClose={() => setIsPostModalOpen(false)} 
       />
     </div>
   )
