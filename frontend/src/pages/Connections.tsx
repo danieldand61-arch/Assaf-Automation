@@ -3,6 +3,8 @@ import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { getApiUrl } from '../lib/api'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { TikTokUpload } from '../components/TikTokUpload'
+import { Upload } from 'lucide-react'
 
 interface Connection {
   id: string
@@ -82,6 +84,7 @@ export function Connections() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [isTikTokUploadOpen, setIsTikTokUploadOpen] = useState(false)
 
   useEffect(() => {
     // Check for OAuth callback messages
@@ -297,6 +300,17 @@ export function Connections() {
                           Connected
                         </span>
 
+                        {/* Upload Video Button (TikTok only) */}
+                        {platform.id === 'tiktok' && (
+                          <button
+                            onClick={() => setIsTikTokUploadOpen(true)}
+                            className="px-4 py-2 bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 text-white rounded-lg font-semibold transition-all flex items-center gap-2"
+                          >
+                            <Upload className="w-4 h-4" />
+                            Upload Video
+                          </button>
+                        )}
+
                         {/* Disconnect Button */}
                         <button
                           onClick={() => handleDisconnect(platform.id)}
@@ -336,6 +350,12 @@ export function Connections() {
           })}
         </div>
       ) : null}
+
+      {/* TikTok Upload Modal */}
+      <TikTokUpload 
+        isOpen={isTikTokUploadOpen} 
+        onClose={() => setIsTikTokUploadOpen(false)} 
+      />
     </div>
   )
 }
