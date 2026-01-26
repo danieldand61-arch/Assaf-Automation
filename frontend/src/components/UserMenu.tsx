@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { User, LogOut, Settings, ChevronDown } from 'lucide-react'
+import { User, LogOut, Settings, ChevronDown, BookmarkPlus, Calendar } from 'lucide-react'
 
 export function UserMenu() {
   const { user, signOut } = useAuth()
@@ -69,6 +69,30 @@ export function UserMenu() {
 
             {/* Menu Items */}
             <div className="py-1">
+              <button
+                onClick={() => {
+                  navigate('/library')
+                  setIsOpen(false)
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              >
+                <BookmarkPlus className="w-4 h-4" />
+                Post Library
+              </button>
+
+              <button
+                onClick={() => {
+                  navigate('/scheduled')
+                  setIsOpen(false)
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              >
+                <Calendar className="w-4 h-4" />
+                Scheduled Posts
+              </button>
+
+              <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
               <button
                 onClick={() => {
                   navigate('/settings')
