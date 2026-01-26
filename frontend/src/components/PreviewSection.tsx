@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { Download, RefreshCw, Edit, Smartphone, Monitor, Edit3, Calendar, Send } from 'lucide-react'
+import { Download, RefreshCw, Edit, Smartphone, Monitor, Edit3, Send } from 'lucide-react'
 import { useContentStore } from '../store/contentStore'
 import { useApp } from '../contexts/AppContext'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { PostEditModal } from './PostEditModal'
 import { ImageEditModal } from './ImageEditModal'
-import { SchedulePostModal } from './SchedulePostModal'
 import { PostToSocial } from './PostToSocial'
 
 interface PreviewSectionProps {
@@ -20,7 +19,6 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
   const [viewMode, setViewMode] = useState<'mobile' | 'desktop'>('mobile')
   const [isEditingText, setIsEditingText] = useState(false)
   const [isEditingImage, setIsEditingImage] = useState(false)
-  const [isScheduling, setIsScheduling] = useState(false)
   const [isPostingToSocial, setIsPostingToSocial] = useState(false)
 
   if (!generatedContent) return null
@@ -97,13 +95,6 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
           >
             <Download className="w-4 h-4" />
             {t('downloadPost')}
-          </button>
-          <button
-            onClick={() => setIsScheduling(true)}
-            className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white rounded-lg font-medium transition flex items-center gap-2"
-          >
-            <Calendar className="w-4 h-4" />
-            Schedule Post
           </button>
           <button
             onClick={() => setIsPostingToSocial(true)}
@@ -324,18 +315,6 @@ export function PreviewSection({ onReset }: PreviewSectionProps) {
         imageSize={generatedContent.request_params?.image_size || '1080x1080'}
         includeLogo={generatedContent.request_params?.include_logo || false}
         onImageUpdate={handleImageUpdate}
-      />
-
-      <SchedulePostModal
-        isOpen={isScheduling}
-        onClose={() => setIsScheduling(false)}
-        postData={{
-          text: variation.text,
-          hashtags: variation.hashtags,
-          cta: variation.call_to_action,
-          imageUrl: image.url
-        }}
-        platforms={generatedContent.request_params?.platforms || ['instagram']}
       />
 
       <PostToSocial
