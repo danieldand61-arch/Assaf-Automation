@@ -912,6 +912,8 @@ async def tiktok_callback(
                 )
             
             token_data = response.json()
+            logger.info(f"📦 TikTok token response: {token_data}")
+            
             data = token_data.get("data", {})
             access_token = data.get("access_token")
             refresh_token = data.get("refresh_token")
@@ -920,6 +922,7 @@ async def tiktok_callback(
             
             if not access_token:
                 logger.error(f"❌ No access token in response")
+                logger.error(f"   Full response: {token_data}")
                 return RedirectResponse(
                     url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
                 )
