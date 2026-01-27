@@ -914,11 +914,11 @@ async def tiktok_callback(
             token_data = response.json()
             logger.info(f"📦 TikTok token response: {token_data}")
             
-            data = token_data.get("data", {})
-            access_token = data.get("access_token")
-            refresh_token = data.get("refresh_token")
-            expires_in = data.get("expires_in", 86400)
-            open_id = data.get("open_id")
+            # TikTok returns tokens directly in root, not in "data" field
+            access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            expires_in = token_data.get("expires_in", 86400)
+            open_id = token_data.get("open_id")
             
             if not access_token:
                 logger.error(f"❌ No access token in response")
