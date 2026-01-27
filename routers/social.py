@@ -39,7 +39,7 @@ TWITTER_TOKEN_URL = "https://api.twitter.com/2/oauth2/token"
 TWITTER_API_URL = "https://api.twitter.com/2"
 
 TIKTOK_OAUTH_URL = "https://www.tiktok.com/v2/auth/authorize"
-TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token"
+TIKTOK_TOKEN_URL = "https://open.tiktokapis.com/v2/oauth/token/"
 TIKTOK_API_URL = "https://open.tiktokapis.com/v2"
 
 # ============= Instagram OAuth Flow =============
