@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { getApiUrl } from '../lib/api'
+import { SchedulePostModal } from './SchedulePostModal'
 
 interface TranslationJob {
   job_id: string
@@ -36,6 +37,9 @@ export function VideoTranslation() {
   const [isUploading, setIsUploading] = useState(false)
   const [currentJob, setCurrentJob] = useState<TranslationJob | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
+  const [showScheduleModal, setShowScheduleModal] = useState(false)
+  const [selectedVideoForSchedule, setSelectedVideoForSchedule] = useState<{ url: string; lang: string } | null>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -48,9 +52,23 @@ export function VideoTranslation() {
         setError('Please select a video file')
         return
       }
+      
+      // Revoke previous preview URL to avoid memory leaks
+      if (videoPreviewUrl) {
+        URL.revokeObjectURL(videoPreviewUrl)
+      }
+      
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file)
+      setVideoPreviewUrl(previewUrl)
       setSelectedFile(file)
       setError(null)
     }
+  }
+  
+  const handleScheduleClick = (videoUrl: string, lang: string) => {
+    setSelectedVideoForSchedule({ url: videoUrl, lang })
+    setShowScheduleModal(true)
   }
 
   const selectLanguage = (code: string) => {
@@ -201,31 +219,55 @@ export function VideoTranslation() {
               </div>
             </label>
           ) : (
-            <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-lg">
-                  <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+            <>
+              <div className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="bg-purple-100 dark:bg-purple-900/30 p-3 rounded-lg">
+                    <svg className="w-6 h-6 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {formatFileSize(selectedFile.size)}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectedFile(null)
+                    if (videoPreviewUrl) {
+                      URL.revokeObjectURL(videoPreviewUrl)
+                      setVideoPreviewUrl(null)
+                    }
+                  }}
+                  className="text-red-600 hover:text-red-700 dark:text-red-400"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </div>
-                <div className="text-left">
-                  <p className="font-medium text-gray-900 dark:text-white">
-                    {selectedFile.name}
-                  </p>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {formatFileSize(selectedFile.size)}
-                  </p>
-                </div>
+                </button>
               </div>
-              <button
-                onClick={() => setSelectedFile(null)}
-                className="text-red-600 hover:text-red-700 dark:text-red-400"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+              
+              {/* Video Preview */}
+              {videoPreviewUrl && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+                    Original Video Preview:
+                  </h4>
+                  <video
+                    src={videoPreviewUrl}
+                    controls
+                    className="w-full rounded-lg bg-black max-h-96"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -366,25 +408,56 @@ export function VideoTranslation() {
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-4">
                   📥 Download Translated Videos:
                 </h4>
-                <div className="space-y-3">
+                <div className="space-y-6">
                   {Object.entries(currentJob.download_urls).map(([lang, path]) => {
                     const apiUrl = getApiUrl()
                     const fullUrl = `${apiUrl}${path}`
+                    const langName = LANGUAGE_OPTIONS.find(l => l.code === lang)?.name || lang
                     
                     return (
-                      <a
-                        key={lang}
-                        href={fullUrl}
-                        download
-                        className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                      >
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {LANGUAGE_OPTIONS.find(l => l.code === lang)?.name || lang} ({lang.toUpperCase()})
-                        </span>
-                        <svg className="w-5 h-5 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                      </a>
+                      <div key={lang} className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+                        {/* Language Header */}
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-medium text-gray-900 dark:text-white">
+                            {langName} ({lang.toUpperCase()})
+                          </span>
+                        </div>
+                        
+                        {/* Video Preview */}
+                        <div className="mb-4">
+                          <video
+                            src={fullUrl}
+                            controls
+                            className="w-full rounded-lg bg-black max-h-96"
+                          >
+                            Your browser does not support the video tag.
+                          </video>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 flex-wrap">
+                          <a
+                            href={fullUrl}
+                            download
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            Download
+                          </a>
+                          
+                          <button
+                            onClick={() => handleScheduleClick(fullUrl, lang)}
+                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg transition-colors"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Schedule Post
+                          </button>
+                        </div>
+                      </div>
                     )
                   })}
                 </div>
@@ -398,6 +471,23 @@ export function VideoTranslation() {
             )}
           </div>
         </div>
+      )}
+      
+      {/* Schedule Post Modal */}
+      {showScheduleModal && selectedVideoForSchedule && (
+        <SchedulePostModal
+          isOpen={showScheduleModal}
+          onClose={() => {
+            setShowScheduleModal(false)
+            setSelectedVideoForSchedule(null)
+          }}
+          postData={{
+            text: `Video translated to ${LANGUAGE_OPTIONS.find(l => l.code === selectedVideoForSchedule.lang)?.name || selectedVideoForSchedule.lang}`,
+            imageUrl: selectedVideoForSchedule.url,
+            hashtags: ['#VideoTranslation', '#AI', '#Dubbing'],
+            cta: 'Watch Now'
+          }}
+        />
       )}
     </div>
   )
