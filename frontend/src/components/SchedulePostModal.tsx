@@ -67,7 +67,15 @@ export function SchedulePostModal({
       if (!response.ok) throw new Error('Failed to fetch connections')
       
       const data = await response.json()
-      const connected = (data.connections || []).filter((c: Connection) => c.is_connected)
+      let connected = (data.connections || []).filter((c: Connection) => c.is_connected)
+      
+      // Filter out TikTok for image/text posts (TikTok only accepts videos)
+      // Only show TikTok if post has video content
+      const hasVideo = postData.imageUrl?.includes('video') || postData.imageUrl?.includes('.mp4')
+      if (!hasVideo) {
+        connected = connected.filter((c: Connection) => c.platform !== 'tiktok')
+      }
+      
       setConnectedPlatforms(connected)
       
       // If no platforms preselected, select all connected by default
@@ -305,6 +313,18 @@ export function SchedulePostModal({
                     </label>
                   )
                 })}
+              </div>
+            )}
+            
+            {/* TikTok Notice for image posts */}
+            {!postData.imageUrl?.includes('video') && !postData.imageUrl?.includes('.mp4') && (
+              <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                <p className="text-xs text-blue-700 dark:text-blue-300 flex items-center gap-2">
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span><strong>Note:</strong> TikTok only accepts video content. Use Video Translation feature to create TikTok videos.</span>
+                </p>
               </div>
             )}
           </div>
