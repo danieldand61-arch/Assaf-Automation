@@ -127,14 +127,33 @@ export function SavedPostsLibrary() {
             className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition cursor-pointer"
             onClick={() => handleSchedule(post)}
           >
-            {/* Image */}
+            {/* Media Preview */}
             {post.image_url && (
-              <div className="aspect-square bg-gray-100 dark:bg-gray-700">
-                <img
-                  src={post.image_url}
-                  alt="Post"
-                  className="w-full h-full object-cover"
-                />
+              <div className="aspect-square bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
+                {post.image_url.includes('video') || post.image_url.includes('.mp4') || post.image_url.includes('/video/') ? (
+                  <>
+                    <video
+                      src={post.image_url}
+                      className="w-full h-full object-cover"
+                      muted
+                      loop
+                      playsInline
+                    />
+                    {/* Video indicator */}
+                    <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
+                      </svg>
+                      VIDEO
+                    </div>
+                  </>
+                ) : (
+                  <img
+                    src={post.image_url}
+                    alt="Post"
+                    className="w-full h-full object-cover"
+                  />
+                )}
               </div>
             )}
 
