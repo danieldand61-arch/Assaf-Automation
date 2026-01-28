@@ -93,16 +93,26 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             
             # Step 2: Upload video
             logger.info(f"⬆️ Step 2: Uploading video ({video_size} bytes)...")
+            
+            # TikTok inbox API expects raw binary data without extra headers
             upload_headers = {
-                "Content-Type": "video/mp4",
-                "Content-Length": str(video_size)
+                "Content-Type": "video/mp4"
             }
             
-            upload_response = await client.put(upload_url, headers=upload_headers, content=video_data)
+            # Use content parameter for raw binary upload
+            upload_response = await client.put(
+                upload_url, 
+                headers=upload_headers, 
+                content=video_data,
+                timeout=120.0  # Longer timeout for upload
+            )
+            
+            logger.info(f"📊 Upload response status: {upload_response.status_code}")
             
             if upload_response.status_code not in [200, 201, 204]:
                 error_text = upload_response.text
                 logger.error(f"❌ TikTok video upload failed: {upload_response.status_code} - {error_text}")
+                logger.error(f"📋 Response headers: {upload_response.headers}")
                 raise Exception(f"TikTok video upload failed: {error_text}")
             
             logger.info("✅ Video uploaded successfully to TikTok inbox")
