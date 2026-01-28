@@ -226,7 +226,7 @@ export function SavedPostsLibrary() {
             cta: selectedPost.call_to_action,
             imageUrl: selectedPost.image_url
           }}
-          platforms={selectedPost.platforms.length > 0 ? selectedPost.platforms : ['instagram']}
+          platforms={selectedPost.platforms.length > 0 ? selectedPost.platforms : []}
         />
       )}
     </div>

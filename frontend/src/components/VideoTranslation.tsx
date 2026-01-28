@@ -549,6 +549,7 @@ export function VideoTranslation() {
             hashtags: ['#VideoTranslation', '#AI', '#Dubbing'],
             cta: 'Watch Now'
           }}
+          platforms={['tiktok']}
         />
       )}
     </div>

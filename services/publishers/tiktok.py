@@ -84,14 +84,18 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             init_data = init_response.json()
             logger.info(f"✅ Upload initialized: {init_data}")
             
-            upload_id = init_data["data"]["upload_id"]
+            # For inbox video API, we get publish_id directly
+            publish_id = init_data["data"]["publish_id"]
             upload_url = init_data["data"]["upload_url"]
+            
+            logger.info(f"📋 Publish ID: {publish_id}")
+            logger.info(f"📤 Upload URL: {upload_url[:50]}...")
             
             # Step 2: Upload video
             logger.info(f"⬆️ Step 2: Uploading video ({video_size} bytes)...")
             upload_headers = {
-                "Content-Range": f"bytes 0-{video_size-1}/{video_size}",
-                "Content-Type": "video/mp4"
+                "Content-Type": "video/mp4",
+                "Content-Length": str(video_size)
             }
             
             upload_response = await client.put(upload_url, headers=upload_headers, content=video_data)
@@ -101,42 +105,7 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
                 logger.error(f"❌ TikTok video upload failed: {upload_response.status_code} - {error_text}")
                 raise Exception(f"TikTok video upload failed: {error_text}")
             
-            logger.info("✅ Video uploaded successfully")
-            
-            # Step 3: Publish video
-            logger.info("📤 Step 3: Publishing video...")
-            publish_url = "https://open.tiktokapis.com/v2/post/publish/video/init/"
-            publish_headers = {
-                "Authorization": f"Bearer {access_token}",
-                "Content-Type": "application/json"
-            }
-            
-            publish_payload = {
-                "post_info": {
-                    "title": content[:150],  # TikTok has 150 char limit
-                    "privacy_level": "SELF_ONLY",  # Sandbox mode restriction
-                    "disable_duet": False,
-                    "disable_comment": False,
-                    "disable_stitch": False,
-                    "video_cover_timestamp_ms": 1000
-                },
-                "source_info": {
-                    "source": "FILE_UPLOAD",
-                    "video_upload_id": upload_id
-                }
-            }
-            
-            publish_response = await client.post(publish_url, headers=publish_headers, json=publish_payload)
-            
-            if publish_response.status_code != 200:
-                error_text = publish_response.text
-                logger.error(f"❌ TikTok publish failed: {publish_response.status_code} - {error_text}")
-                raise Exception(f"TikTok publish failed: {error_text}")
-            
-            publish_data = publish_response.json()
-            logger.info(f"✅ Video published: {publish_data}")
-            
-            publish_id = publish_data["data"]["publish_id"]
+            logger.info("✅ Video uploaded successfully to TikTok inbox")
             
             logger.info(f"✅ Published to TikTok: {publish_id}")
             logger.info("⚠️ Note: Video is private (SELF_ONLY) due to Sandbox mode")

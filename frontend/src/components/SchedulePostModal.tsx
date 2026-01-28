@@ -88,9 +88,9 @@ export function SchedulePostModal({
       
       setConnectedPlatforms(connected)
       
-      // If no platforms preselected, select all connected by default
-      if (selectedPlatforms.length === 0 && connected.length > 0) {
-        setSelectedPlatforms(connected.map((c: Connection) => c.platform))
+      // Only pre-select platforms if they were passed as props
+      if (initialPlatforms.length > 0 && selectedPlatforms.length === 0) {
+        setSelectedPlatforms(initialPlatforms)
       }
     } catch (error) {
       console.error('Error fetching connections:', error)
