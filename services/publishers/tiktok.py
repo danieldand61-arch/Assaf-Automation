@@ -57,14 +57,24 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             else:
                 raise Exception("Only HTTP(S) video URLs are supported")
             
-            # Step 1: Initialize video upload
-            init_url = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
+            # Step 1: Initialize direct video publish (not inbox)
+            # Direct publish will post the video immediately
+            init_url = "https://open.tiktokapis.com/v2/post/publish/video/init/"
             init_headers = {
                 "Authorization": f"Bearer {access_token}",
                 "Content-Type": "application/json"
             }
             
+            # Prepare post info for direct publish
             init_payload = {
+                "post_info": {
+                    "title": content[:150] if content else "Video from AI-Automation",  # TikTok has 150 char limit
+                    "privacy_level": "PUBLIC_TO_EVERYONE",  # Public post
+                    "disable_duet": False,
+                    "disable_comment": False,
+                    "disable_stitch": False,
+                    "video_cover_timestamp_ms": 1000
+                },
                 "source_info": {
                     "source": "FILE_UPLOAD",
                     "video_size": video_size,
@@ -73,7 +83,7 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
                 }
             }
             
-            logger.info("🔄 Step 1: Initializing TikTok upload...")
+            logger.info("🔄 Step 1: Initializing TikTok direct publish...")
             init_response = await client.post(init_url, headers=init_headers, json=init_payload)
             
             if init_response.status_code != 200:
@@ -84,7 +94,7 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             init_data = init_response.json()
             logger.info(f"✅ Upload initialized: {init_data}")
             
-            # For inbox video API, we get publish_id directly
+            # For direct publish API, we get publish_id and upload_url
             publish_id = init_data["data"]["publish_id"]
             upload_url = init_data["data"]["upload_url"]
             
@@ -121,11 +131,11 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
                 logger.error(f"📋 Full response: {upload_response.text}")
                 raise Exception(f"TikTok video upload failed: {error_text}")
             
-            logger.info("✅ Video uploaded successfully to TikTok inbox")
+            logger.info("✅ Video uploaded successfully to TikTok")
             logger.info(f"📋 Success response: {upload_response.text if upload_response.text else 'No content'}")
             
-            logger.info(f"✅ Published to TikTok: {publish_id}")
-            logger.info("⚠️ Note: Video is private (SELF_ONLY) due to Sandbox mode")
+            logger.info(f"✅ Published publicly to TikTok: {publish_id}")
+            logger.info("🎉 Video will appear on your TikTok profile shortly!")
             
             return {
                 "success": True,
