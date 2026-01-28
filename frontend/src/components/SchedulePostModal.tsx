@@ -42,11 +42,22 @@ export function SchedulePostModal({
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
   const [isPosting, setIsPosting] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  
+  // Editable post data
+  const [editableText, setEditableText] = useState(postData.text)
+  const [editableHashtags, setEditableHashtags] = useState(postData.hashtags.join(' '))
   
   // Connected platforms and selection
   const [connectedPlatforms, setConnectedPlatforms] = useState<Connection[]>([])
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(initialPlatforms)
   const [loadingConnections, setLoadingConnections] = useState(true)
+  
+  // Update editable fields when postData changes
+  useEffect(() => {
+    setEditableText(postData.text)
+    setEditableHashtags(postData.hashtags.join(' '))
+  }, [postData])
 
   // Fetch connected platforms
   useEffect(() => {
@@ -99,6 +110,62 @@ export function SchedulePostModal({
 
   if (!isOpen) return null
 
+  const getUpdatedPostData = () => {
+    // Parse hashtags from string
+    const hashtagArray = editableHashtags
+      .split(/[\s,]+/)
+      .map(tag => tag.replace(/^#/, '').trim())
+      .filter(tag => tag.length > 0)
+    
+    return {
+      ...postData,
+      text: editableText,
+      hashtags: hashtagArray
+    }
+  }
+
+  const handleSaveToLibrary = async () => {
+    if (!session) {
+      alert('Please sign in to save posts')
+      return
+    }
+
+    setIsSaving(true)
+    
+    try {
+      const apiUrl = getApiUrl()
+      const updatedPostData = getUpdatedPostData()
+      
+      const response = await fetch(`${apiUrl}/api/saved-posts/save`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          text: updatedPostData.text,
+          hashtags: updatedPostData.hashtags,
+          call_to_action: updatedPostData.cta || null,
+          image_url: updatedPostData.imageUrl || null,
+          platforms: []
+        })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to save post')
+      }
+      
+      alert('✅ Post saved to library!')
+      onClose()
+    } catch (error) {
+      console.error('Save error:', error)
+      alert(`❌ Failed to save post: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   const handleSchedule = async () => {
     if (!session) {
       alert('Please sign in to schedule posts')
@@ -110,6 +177,7 @@ export function SchedulePostModal({
     try {
       const apiUrl = getApiUrl()
       const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      const updatedPostData = getUpdatedPostData()
       
       if (scheduleType === 'now') {
         // Post immediately
@@ -120,7 +188,7 @@ export function SchedulePostModal({
             'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify({
-            post_data: postData,
+            post_data: updatedPostData,
             platforms: selectedPlatforms,
             scheduled_time: new Date().toISOString(),
             timezone: userTimezone
@@ -149,7 +217,7 @@ export function SchedulePostModal({
             'Authorization': `Bearer ${session.access_token}`
           },
           body: JSON.stringify({
-            post_data: postData,
+            post_data: updatedPostData,
             platforms: selectedPlatforms,
             scheduled_time: scheduleDateTime.toISOString(),
             timezone: userTimezone
@@ -329,60 +397,98 @@ export function SchedulePostModal({
             )}
           </div>
 
-          {/* Post Preview */}
-          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
-            <h4 className="font-semibold text-gray-800 dark:text-white mb-3">Post Preview:</h4>
+          {/* Edit Post Content */}
+          <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-4">
+            <h4 className="font-semibold text-gray-800 dark:text-white">Edit Post Content:</h4>
             
-            {/* Image Preview */}
+            {/* Media Preview */}
             {postData.imageUrl && (
               <div className="mb-3 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-600">
-                <img 
-                  src={postData.imageUrl} 
-                  alt="Post" 
-                  className="w-full h-48 object-cover"
-                />
+                {postData.imageUrl.includes('video') || postData.imageUrl.includes('.mp4') ? (
+                  <video 
+                    src={postData.imageUrl} 
+                    controls
+                    className="w-full max-h-64 bg-black"
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                ) : (
+                  <img 
+                    src={postData.imageUrl} 
+                    alt="Post" 
+                    className="w-full h-48 object-cover"
+                  />
+                )}
               </div>
             )}
             
-            {/* Text */}
-            <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-3 mb-2">
-              {postData.text}
-            </p>
+            {/* Editable Text */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Post Text:
+              </label>
+              <textarea
+                value={editableText}
+                onChange={(e) => setEditableText(e.target.value)}
+                rows={4}
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-purple-500 dark:focus:border-purple-400 focus:outline-none transition resize-none"
+                placeholder="Enter your post text..."
+              />
+            </div>
             
-            {/* Hashtags */}
-            <div className="flex flex-wrap gap-1">
-              {postData.hashtags.slice(0, 5).map((tag, i) => (
-                <span key={i} className="text-xs text-blue-600 dark:text-blue-400">
-                  #{tag}
-                </span>
-              ))}
-              {postData.hashtags.length > 5 && (
-                <span className="text-xs text-gray-500">+{postData.hashtags.length - 5} more</span>
-              )}
+            {/* Editable Hashtags */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Hashtags (separate with spaces):
+              </label>
+              <input
+                type="text"
+                value={editableHashtags}
+                onChange={(e) => setEditableHashtags(e.target.value)}
+                className="w-full px-3 py-2 border-2 border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-purple-500 dark:focus:border-purple-400 focus:outline-none transition"
+                placeholder="#AI #VideoTranslation #Dubbing"
+              />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                Enter hashtags with or without # symbol
+              </p>
             </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 p-6 border-t dark:border-gray-700">
+        <div className="flex justify-between items-center gap-3 p-6 border-t dark:border-gray-700">
           <button
-            onClick={onClose}
-            className="px-6 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-medium transition"
+            onClick={handleSaveToLibrary}
+            disabled={isSaving}
+            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
           >
-            Cancel
+            {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+            </svg>
+            Save to Library
           </button>
-          <button
-            onClick={handleSchedule}
-            disabled={
-              isPosting || 
-              selectedPlatforms.length === 0 ||
-              (scheduleType === 'later' && (!scheduledDate || !scheduledTime))
-            }
-            className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
-          >
-            {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
-            {scheduleType === 'now' ? 'Post Now' : 'Schedule Post'}
-          </button>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-6 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-medium transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSchedule}
+              disabled={
+                isPosting || 
+                selectedPlatforms.length === 0 ||
+                (scheduleType === 'later' && (!scheduledDate || !scheduledTime))
+              }
+              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
+            >
+              {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
+              {scheduleType === 'now' ? 'Post Now' : 'Schedule Post'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
