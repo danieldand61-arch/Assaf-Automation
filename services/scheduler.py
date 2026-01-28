@@ -104,6 +104,7 @@ async def publish_post(post: dict):
         # Publish to each platform
         published_count = 0
         errors = []
+        successful_platforms = []  # Track which platforms succeeded
         
         for connection in connections:
             try:
@@ -130,18 +131,9 @@ async def publish_post(post: dict):
                     logger.warning(f"⚠️ Unsupported platform: {platform}")
                     continue
                 
-                # Save to post history
-                supabase.table("post_history").insert({
-                    "account_id": post["account_id"],
-                    "scheduled_post_id": post_id,
-                    "platform": platform,
-                    "text": text,
-                    "image_url": image_url,
-                    "platforms": [platform],
-                    "published_at": datetime.now(timezone.utc).isoformat()
-                }).execute()
-                
+                # Record successful publish
                 published_count += 1
+                successful_platforms.append(platform)
                 logger.info(f"  ✅ Published to {platform}")
                 
             except Exception as e:
@@ -155,7 +147,8 @@ async def publish_post(post: dict):
             supabase.table("scheduled_posts")\
                 .update({
                     "status": "published",
-                    "published_at": datetime.now(timezone.utc).isoformat()
+                    "published_at": datetime.now(timezone.utc).isoformat(),
+                    "platforms": successful_platforms  # Update to show only successful platforms
                 })\
                 .eq("id", post_id)\
                 .execute()
@@ -166,7 +159,8 @@ async def publish_post(post: dict):
                 .update({
                     "status": "published",
                     "published_at": datetime.now(timezone.utc).isoformat(),
-                    "error_message": f"Partial success: {'; '.join(errors)}"
+                    "platforms": successful_platforms,  # Update to show only successful platforms
+                    "error_message": f"Partial success. Failed: {'; '.join(errors)}"
                 })\
                 .eq("id", post_id)\
                 .execute()
