@@ -23,6 +23,7 @@ export function ScheduledPosts() {
   const [posts, setPosts] = useState<ScheduledPost[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'pending' | 'published' | 'failed'>('all')
+  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest')
 
   useEffect(() => {
     fetchScheduledPosts()
@@ -78,6 +79,13 @@ export function ScheduledPosts() {
   const filteredPosts = filter === 'all' 
     ? posts 
     : posts.filter(p => p.status === filter)
+  
+  // Sort posts by date
+  const sortedPosts = [...filteredPosts].sort((a, b) => {
+    const dateA = new Date(a.scheduled_time).getTime()
+    const dateB = new Date(b.scheduled_time).getTime()
+    return sortOrder === 'newest' ? dateB - dateA : dateA - dateB
+  })
 
   const getStatusBadge = (status: string) => {
     const badges = {
@@ -147,25 +155,57 @@ export function ScheduledPosts() {
         </button>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
-        {(['all', 'pending', 'published', 'failed'] as const).map((status) => (
+      {/* Filter Tabs and Sort */}
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+        <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
+          {(['all', 'pending', 'published', 'failed'] as const).map((status) => (
+            <button
+              key={status}
+              onClick={() => setFilter(status)}
+              className={`px-4 py-2 rounded-md font-medium transition capitalize ${
+                filter === status
+                  ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+              }`}
+            >
+              {status} ({status === 'all' ? posts.length : posts.filter(p => p.status === status).length})
+            </button>
+          ))}
+        </div>
+        
+        {/* Sort Button */}
+        <div className="flex gap-2 bg-gray-100 dark:bg-gray-800 rounded-lg p-1">
           <button
-            key={status}
-            onClick={() => setFilter(status)}
-            className={`px-4 py-2 rounded-md font-medium transition capitalize ${
-              filter === status
+            onClick={() => setSortOrder('newest')}
+            className={`px-4 py-2 rounded-md font-medium transition flex items-center gap-2 ${
+              sortOrder === 'newest'
                 ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm'
                 : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
             }`}
           >
-            {status} ({status === 'all' ? posts.length : posts.filter(p => p.status === status).length})
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+            </svg>
+            Newest First
           </button>
-        ))}
+          <button
+            onClick={() => setSortOrder('oldest')}
+            className={`px-4 py-2 rounded-md font-medium transition flex items-center gap-2 ${
+              sortOrder === 'oldest'
+                ? 'bg-white dark:bg-gray-700 text-purple-600 dark:text-purple-400 shadow-sm'
+                : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+            </svg>
+            Oldest First
+          </button>
+        </div>
       </div>
 
       {/* Posts List */}
-      {filteredPosts.length === 0 ? (
+      {sortedPosts.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl">
           <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-3" />
           <p className="text-gray-600 dark:text-gray-400">
@@ -174,7 +214,7 @@ export function ScheduledPosts() {
         </div>
       ) : (
         <div className="space-y-4">
-          {filteredPosts.map((post) => (
+          {sortedPosts.map((post) => (
             <div
               key={post.id}
               className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-md hover:shadow-lg transition"
