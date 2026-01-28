@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { getApiUrl } from '../lib/api'
 import { SchedulePostModal } from './SchedulePostModal'
+import { useAuth } from '../contexts/AuthContext'
 
 interface TranslationJob {
   job_id: string
@@ -32,6 +33,7 @@ const LANGUAGE_OPTIONS = [
 ]
 
 export function VideoTranslation() {
+  const { session } = useAuth()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
@@ -40,6 +42,7 @@ export function VideoTranslation() {
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
   const [selectedVideoForSchedule, setSelectedVideoForSchedule] = useState<{ url: string; lang: string } | null>(null)
+  const [savingToLibrary, setSavingToLibrary] = useState<Record<string, boolean>>({})
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -69,6 +72,47 @@ export function VideoTranslation() {
   const handleScheduleClick = (videoUrl: string, lang: string) => {
     setSelectedVideoForSchedule({ url: videoUrl, lang })
     setShowScheduleModal(true)
+  }
+  
+  const handleSaveToLibrary = async (videoUrl: string, lang: string) => {
+    if (!session) {
+      alert('Please sign in to save videos')
+      return
+    }
+    
+    setSavingToLibrary(prev => ({ ...prev, [lang]: true }))
+    
+    try {
+      const apiUrl = getApiUrl()
+      const langName = LANGUAGE_OPTIONS.find(l => l.code === lang)?.name || lang
+      
+      const response = await fetch(`${apiUrl}/api/saved-posts/save`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          text: `Video translated to ${langName}`,
+          hashtags: ['VideoTranslation', 'AI', 'Dubbing'],
+          call_to_action: 'Watch Now',
+          image_url: videoUrl,
+          platforms: []
+        })
+      })
+      
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.detail || 'Failed to save video')
+      }
+      
+      alert('✅ Video saved to library!')
+    } catch (error) {
+      console.error('Save error:', error)
+      alert(`❌ Failed to save video: ${error instanceof Error ? error.message : 'Unknown error'}`)
+    } finally {
+      setSavingToLibrary(prev => ({ ...prev, [lang]: false }))
+    }
   }
 
   const selectLanguage = (code: string) => {
@@ -435,11 +479,11 @@ export function VideoTranslation() {
                         </div>
                         
                         {/* Action Buttons */}
-                        <div className="flex gap-2 flex-wrap">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                           <a
                             href={fullUrl}
                             download
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -448,8 +492,26 @@ export function VideoTranslation() {
                           </a>
                           
                           <button
+                            onClick={() => handleSaveToLibrary(fullUrl, lang)}
+                            disabled={savingToLibrary[lang]}
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {savingToLibrary[lang] ? (
+                              <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                              </svg>
+                            )}
+                            Save to Library
+                          </button>
+                          
+                          <button
                             onClick={() => handleScheduleClick(fullUrl, lang)}
-                            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg transition-colors"
+                            className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg transition-colors"
                           >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

@@ -42,7 +42,6 @@ export function SchedulePostModal({
   const [scheduledDate, setScheduledDate] = useState('')
   const [scheduledTime, setScheduledTime] = useState('')
   const [isPosting, setIsPosting] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
   
   // Editable post data
   const [editableText, setEditableText] = useState(postData.text)
@@ -121,48 +120,6 @@ export function SchedulePostModal({
       ...postData,
       text: editableText,
       hashtags: hashtagArray
-    }
-  }
-
-  const handleSaveToLibrary = async () => {
-    if (!session) {
-      alert('Please sign in to save posts')
-      return
-    }
-
-    setIsSaving(true)
-    
-    try {
-      const apiUrl = getApiUrl()
-      const updatedPostData = getUpdatedPostData()
-      
-      const response = await fetch(`${apiUrl}/api/saved-posts/save`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`
-        },
-        body: JSON.stringify({
-          text: updatedPostData.text,
-          hashtags: updatedPostData.hashtags,
-          call_to_action: updatedPostData.cta || null,
-          image_url: updatedPostData.imageUrl || null,
-          platforms: []
-        })
-      })
-      
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.detail || 'Failed to save post')
-      }
-      
-      alert('✅ Post saved to library!')
-      onClose()
-    } catch (error) {
-      console.error('Save error:', error)
-      alert(`❌ Failed to save post: ${error instanceof Error ? error.message : 'Unknown error'}`)
-    } finally {
-      setIsSaving(false)
     }
   }
 
@@ -456,39 +413,25 @@ export function SchedulePostModal({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center gap-3 p-6 border-t dark:border-gray-700">
+        <div className="flex justify-end gap-3 p-6 border-t dark:border-gray-700">
           <button
-            onClick={handleSaveToLibrary}
-            disabled={isSaving}
-            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
+            onClick={onClose}
+            className="px-6 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-medium transition"
           >
-            {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-            </svg>
-            Save to Library
+            Cancel
           </button>
-          
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-6 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-medium transition"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSchedule}
-              disabled={
-                isPosting || 
-                selectedPlatforms.length === 0 ||
-                (scheduleType === 'later' && (!scheduledDate || !scheduledTime))
-              }
-              className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
-            >
-              {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
-              {scheduleType === 'now' ? 'Post Now' : 'Schedule Post'}
-            </button>
-          </div>
+          <button
+            onClick={handleSchedule}
+            disabled={
+              isPosting || 
+              selectedPlatforms.length === 0 ||
+              (scheduleType === 'later' && (!scheduledDate || !scheduledTime))
+            }
+            className="px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2"
+          >
+            {isPosting && <Loader2 className="w-4 h-4 animate-spin" />}
+            {scheduleType === 'now' ? 'Post Now' : 'Schedule Post'}
+          </button>
         </div>
       </div>
     </div>
