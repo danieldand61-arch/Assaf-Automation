@@ -91,13 +91,18 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             logger.info(f"📋 Publish ID: {publish_id}")
             logger.info(f"📤 Upload URL: {upload_url[:50]}...")
             
-            # Step 2: Upload video
+            # Step 2: Upload video in chunks (TikTok expects Content-Range header)
             logger.info(f"⬆️ Step 2: Uploading video ({video_size} bytes)...")
             
-            # TikTok inbox API expects raw binary data without extra headers
+            # TikTok expects chunked upload with Content-Range header
+            # For single chunk upload, use the full range
             upload_headers = {
-                "Content-Type": "video/mp4"
+                "Content-Type": "video/mp4",
+                "Content-Range": f"bytes 0-{video_size-1}/{video_size}"
             }
+            
+            logger.info(f"📋 Upload headers: {upload_headers}")
+            logger.info(f"📦 Video data size: {len(video_data)} bytes")
             
             # Use content parameter for raw binary upload
             upload_response = await client.put(
@@ -108,14 +113,16 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             )
             
             logger.info(f"📊 Upload response status: {upload_response.status_code}")
+            logger.info(f"📋 Response headers: {dict(upload_response.headers)}")
             
             if upload_response.status_code not in [200, 201, 204]:
                 error_text = upload_response.text
                 logger.error(f"❌ TikTok video upload failed: {upload_response.status_code} - {error_text}")
-                logger.error(f"📋 Response headers: {upload_response.headers}")
+                logger.error(f"📋 Full response: {upload_response.text}")
                 raise Exception(f"TikTok video upload failed: {error_text}")
             
             logger.info("✅ Video uploaded successfully to TikTok inbox")
+            logger.info(f"📋 Success response: {upload_response.text if upload_response.text else 'No content'}")
             
             logger.info(f"✅ Published to TikTok: {publish_id}")
             logger.info("⚠️ Note: Video is private (SELF_ONLY) due to Sandbox mode")
