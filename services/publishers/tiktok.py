@@ -66,10 +66,12 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             }
             
             # Prepare post info for direct publish
+            # Note: PUBLIC posts require TikTok Content Posting API review
+            # Using SELF_ONLY for now until review is approved
             init_payload = {
                 "post_info": {
                     "title": content[:150] if content else "Video from AI-Automation",  # TikTok has 150 char limit
-                    "privacy_level": "PUBLIC_TO_EVERYONE",  # Public post
+                    "privacy_level": "SELF_ONLY",  # Private until Content Posting Review approved
                     "disable_duet": False,
                     "disable_comment": False,
                     "disable_stitch": False,
@@ -84,6 +86,7 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             }
             
             logger.info("🔄 Step 1: Initializing TikTok direct publish...")
+            logger.info("⚠️ Using SELF_ONLY privacy - need Content Posting Review for public posts")
             init_response = await client.post(init_url, headers=init_headers, json=init_payload)
             
             if init_response.status_code != 200:
@@ -134,8 +137,10 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             logger.info("✅ Video uploaded successfully to TikTok")
             logger.info(f"📋 Success response: {upload_response.text if upload_response.text else 'No content'}")
             
-            logger.info(f"✅ Published publicly to TikTok: {publish_id}")
-            logger.info("🎉 Video will appear on your TikTok profile shortly!")
+            logger.info(f"✅ Published to TikTok: {publish_id}")
+            logger.info("⚠️ Note: Video is PRIVATE (SELF_ONLY)")
+            logger.info("📋 To make videos public, submit for TikTok Content Posting Review at:")
+            logger.info("   https://developers.tiktok.com/apps/your-app-id")
             
             return {
                 "success": True,
