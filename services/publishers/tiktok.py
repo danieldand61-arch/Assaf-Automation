@@ -57,26 +57,16 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             else:
                 raise Exception("Only HTTP(S) video URLs are supported")
             
-            # Step 1: Initialize direct video publish (not inbox)
-            # Direct publish will post the video immediately
-            init_url = "https://open.tiktokapis.com/v2/post/publish/video/init/"
+            # Step 1: Initialize video upload to TikTok Inbox
+            # Inbox API uploads to drafts, user can publish manually
+            # This doesn't require Content Posting Review
+            init_url = "https://open.tiktokapis.com/v2/post/publish/inbox/video/init/"
             init_headers = {
                 "Authorization": f"Bearer {access_token}",
                 "Content-Type": "application/json"
             }
             
-            # Prepare post info for direct publish
-            # Note: PUBLIC posts require TikTok Content Posting API review
-            # Using SELF_ONLY for now until review is approved
             init_payload = {
-                "post_info": {
-                    "title": content[:150] if content else "Video from AI-Automation",  # TikTok has 150 char limit
-                    "privacy_level": "SELF_ONLY",  # Private until Content Posting Review approved
-                    "disable_duet": False,
-                    "disable_comment": False,
-                    "disable_stitch": False,
-                    "video_cover_timestamp_ms": 1000
-                },
                 "source_info": {
                     "source": "FILE_UPLOAD",
                     "video_size": video_size,
@@ -85,8 +75,8 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
                 }
             }
             
-            logger.info("🔄 Step 1: Initializing TikTok direct publish...")
-            logger.info("⚠️ Using SELF_ONLY privacy - need Content Posting Review for public posts")
+            logger.info("🔄 Step 1: Initializing TikTok inbox upload...")
+            logger.info("📋 Video will be uploaded to TikTok drafts/inbox")
             init_response = await client.post(init_url, headers=init_headers, json=init_payload)
             
             if init_response.status_code != 200:
@@ -97,7 +87,7 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
             init_data = init_response.json()
             logger.info(f"✅ Upload initialized: {init_data}")
             
-            # For direct publish API, we get publish_id and upload_url
+            # For inbox API, we get publish_id and upload_url
             publish_id = init_data["data"]["publish_id"]
             upload_url = init_data["data"]["upload_url"]
             
@@ -134,13 +124,13 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
                 logger.error(f"📋 Full response: {upload_response.text}")
                 raise Exception(f"TikTok video upload failed: {error_text}")
             
-            logger.info("✅ Video uploaded successfully to TikTok")
+            logger.info("✅ Video uploaded successfully to TikTok inbox")
             logger.info(f"📋 Success response: {upload_response.text if upload_response.text else 'No content'}")
             
-            logger.info(f"✅ Published to TikTok: {publish_id}")
-            logger.info("⚠️ Note: Video is PRIVATE (SELF_ONLY)")
-            logger.info("📋 To make videos public, submit for TikTok Content Posting Review at:")
-            logger.info("   https://developers.tiktok.com/apps/your-app-id")
+            logger.info(f"✅ Published to TikTok inbox: {publish_id}")
+            logger.info("📱 Video uploaded to TikTok Creator Portal → Inbox")
+            logger.info("🎬 User can review and publish from TikTok app or https://www.tiktok.com/creator#/upload")
+            logger.info("💡 To enable auto-publish, apply for Content Posting API Review")
             
             return {
                 "success": True,
