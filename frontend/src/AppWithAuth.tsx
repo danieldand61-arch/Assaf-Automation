@@ -9,6 +9,7 @@ import { Library } from './pages/Library'
 import { Scheduled } from './pages/Scheduled'
 import { Privacy } from './pages/Privacy'
 import { Terms } from './pages/Terms'
+import { ChatInterface } from './components/ChatInterface'
 import App from './App'
 import { Loader2 } from 'lucide-react'
 
@@ -37,7 +38,8 @@ export function AppWithAuth() {
         <AccountProvider>
           <Routes>
             {/* Public Routes */}
-            <Route path="/" element={<App />} />
+            <Route path="/" element={<ChatInterface />} />
+            <Route path="/old" element={<App />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/library" element={<Library />} />

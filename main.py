@@ -159,6 +159,20 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Saved posts features will NOT be available!")
 
+# Try to load chats router
+logger.info("🔄 Attempting to import chats router...")
+try:
+    from routers import chats
+    logger.info("✅ Chats router imported successfully")
+    
+    logger.info("🔄 Registering chats router endpoints...")
+    app.include_router(chats.router)
+    logger.info("✅ Chats router registered")
+except Exception as e:
+    logger.error(f"❌ Chats router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Chat features will NOT be available!")
+
 logger.info("ℹ️ All routers loaded successfully!")
 
 # Log all requests middleware (after CORS)
