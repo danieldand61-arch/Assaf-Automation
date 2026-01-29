@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
 import { Plus, MessageSquare, Trash2, Video, FileText } from 'lucide-react'
@@ -79,8 +79,8 @@ export function ChatInterface() {
       
       setChats([newChat, ...chats])
       setActiveChat(newChat)
-      setMessages([])
       setActiveFeature(null)
+      setGeneratedContent(null)
     } catch (error) {
       console.error('Error creating chat:', error)
     }
@@ -238,7 +238,7 @@ export function ChatInterface() {
                 {isGenerating ? (
                   <LoadingState />
                 ) : generatedContent ? (
-                  <PreviewSection content={generatedContent} />
+                  <PreviewSection onReset={() => setGeneratedContent(null)} />
                 ) : (
                   <InputSection onGenerate={handleGenerate} />
                 )}
