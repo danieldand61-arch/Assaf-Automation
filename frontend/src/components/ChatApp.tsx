@@ -109,9 +109,11 @@ export function ChatApp() {
       const data = await response.json()
       const newChat = data.chat
       
+      // First chat - initialize
       setChats([newChat])
       setActiveChat(newChat)
       setShowChat(true)
+      setMessages([])
       
       return newChat
     } catch (error) {
@@ -125,11 +127,32 @@ export function ChatApp() {
   }
 
   const createNewChat = async () => {
-    const chat = await createFirstChat()
-    if (chat) {
+    if (!session) return
+    
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/chats/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({ title: 'New Chat' })
+      })
+      
+      if (!response.ok) throw new Error('Failed to create chat')
+      
+      const data = await response.json()
+      const newChat = data.chat
+      
+      // Add to existing chats
+      setChats(prevChats => [newChat, ...prevChats])
+      setActiveChat(newChat)
       setMessages([])
       setGeneratedContent(null)
       setActiveTool(null)
+    } catch (error) {
+      console.error('Error creating chat:', error)
     }
   }
 
@@ -157,8 +180,6 @@ export function ChatApp() {
           setMessages([])
         }
       }
-      
-      await loadChats()
     } catch (error) {
       console.error('Error deleting chat:', error)
     }
@@ -200,8 +221,6 @@ export function ChatApp() {
         data.user_message,
         data.assistant_message
       ])
-      
-      loadChats()
     } catch (error) {
       console.error('Error sending message:', error)
       alert('Failed to send message')

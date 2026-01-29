@@ -214,23 +214,38 @@ async def send_message(
         try:
             api_key = os.getenv("GOOGLE_AI_API_KEY")
             if not api_key:
+                logger.error("⚠️ GOOGLE_AI_API_KEY not configured")
                 raise Exception("GOOGLE_AI_API_KEY not configured")
             
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            
+            # Use stable Gemini model
+            model = genai.GenerativeModel(
+                'gemini-1.5-pro',
+                system_instruction="You are a helpful AI assistant for a social media automation platform. You help users create content, answer questions about social media, and provide creative ideas. Be conversational, friendly, and helpful."
+            )
+            
+            # Build proper history (exclude current message)
+            history = []
+            if len(conversation_history) > 1:
+                history = conversation_history[:-1]
+            
+            logger.info(f"📝 Chat history length: {len(history)}")
+            logger.info(f"💬 User message: {request.content[:100]}")
             
             # Start chat with history
-            chat_session = model.start_chat(history=conversation_history[:-1])  # Exclude last user message
+            chat_session = model.start_chat(history=history)
             
             # Send message
             response = chat_session.send_message(request.content)
             ai_content = response.text
             
-            logger.info(f"✅ Gemini API response received ({len(ai_content)} chars)")
+            logger.info(f"✅ Gemini API response: {ai_content[:200]}...")
             
         except Exception as e:
             logger.error(f"⚠️ Gemini API error: {str(e)}")
-            ai_content = "I'm here to help! Use the buttons below to generate posts or translate videos."
+            logger.exception("Full Gemini error:")
+            ai_content = f"I apologize, but I encountered an error. Please try again or use the buttons below to generate posts or translate videos."
         
         # Save AI response
         assistant_msg = supabase.table("chat_messages").insert({
