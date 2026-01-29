@@ -158,6 +158,108 @@ async def get_messages(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/{chat_id}/message")
+async def send_message(
+    chat_id: str,
+    request: SendMessageRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Send a message and get AI response from Gemini
+    """
+    try:
+        import google.generativeai as genai
+        import os
+        
+        supabase = get_supabase()
+        
+        # Verify chat belongs to user
+        chat = supabase.table("chats")\
+            .select("*")\
+            .eq("id", chat_id)\
+            .eq("user_id", current_user["user_id"])\
+            .single()\
+            .execute()
+        
+        if not chat.data:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        
+        # Save user message
+        user_msg = supabase.table("chat_messages").insert({
+            "chat_id": chat_id,
+            "role": "user",
+            "content": request.content,
+            "action_type": request.action_type,
+            "action_data": request.action_data
+        }).execute()
+        
+        # Get chat history for context
+        messages = supabase.table("chat_messages")\
+            .select("*")\
+            .eq("chat_id", chat_id)\
+            .order("created_at", desc=False)\
+            .limit(20)\
+            .execute()
+        
+        # Build conversation history for Gemini
+        conversation_history = []
+        for msg in (messages.data or []):
+            if msg["role"] in ["user", "assistant"]:
+                conversation_history.append({
+                    "role": "user" if msg["role"] == "user" else "model",
+                    "parts": [msg["content"]]
+                })
+        
+        # Call Gemini API
+        try:
+            api_key = os.getenv("GOOGLE_AI_API_KEY")
+            if not api_key:
+                raise Exception("GOOGLE_AI_API_KEY not configured")
+            
+            genai.configure(api_key=api_key)
+            model = genai.GenerativeModel('gemini-2.0-flash-exp')
+            
+            # Start chat with history
+            chat_session = model.start_chat(history=conversation_history[:-1])  # Exclude last user message
+            
+            # Send message
+            response = chat_session.send_message(request.content)
+            ai_content = response.text
+            
+            logger.info(f"✅ Gemini API response received ({len(ai_content)} chars)")
+            
+        except Exception as e:
+            logger.error(f"⚠️ Gemini API error: {str(e)}")
+            ai_content = "I'm here to help! Use the buttons below to generate posts or translate videos."
+        
+        # Save AI response
+        assistant_msg = supabase.table("chat_messages").insert({
+            "chat_id": chat_id,
+            "role": "assistant",
+            "content": ai_content
+        }).execute()
+        
+        # Update chat title if this is first message
+        if len(conversation_history) == 1:
+            title = request.content[:50]
+            supabase.table("chats")\
+                .update({"title": title})\
+                .eq("id", chat_id)\
+                .execute()
+        
+        return {
+            "success": True,
+            "user_message": user_msg.data[0],
+            "assistant_message": assistant_msg.data[0]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Send message error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/{chat_id}/action")
 async def log_action(
     chat_id: str,
