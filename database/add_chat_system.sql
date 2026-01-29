@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS chats (
     account_id UUID REFERENCES accounts(id) ON DELETE CASCADE,
     
     -- Chat metadata
-    title VARCHAR(255) DEFAULT 'New Chat',
+    title VARCHAR(255) DEFAULT 'New Workspace',
     
     -- Metadata
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -194,7 +194,7 @@ BEGIN
     ) THEN
         UPDATE chats 
         SET title = SUBSTRING(NEW.content FROM 1 FOR 50)
-        WHERE id = NEW.chat_id AND title = 'New Chat';
+        WHERE id = NEW.chat_id AND title = 'New Workspace';
     END IF;
     RETURN NEW;
 END;

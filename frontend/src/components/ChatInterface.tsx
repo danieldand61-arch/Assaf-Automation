@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
-import { Send, Plus, MessageSquare, Loader2, Trash2, Video, Image, FileText } from 'lucide-react'
+import { Plus, MessageSquare, Trash2, Video, FileText } from 'lucide-react'
 import { VideoTranslation } from '../components/VideoTranslation'
 import { InputSection } from '../components/InputSection'
 import { PreviewSection } from '../components/PreviewSection'
@@ -16,15 +16,6 @@ interface Chat {
   message_count: number
 }
 
-interface Message {
-  id: string
-  role: 'user' | 'assistant' | 'system'
-  content: string
-  action_type?: string
-  action_data?: any
-  created_at: string
-}
-
 type ActiveFeature = null | 'video_dubbing' | 'post_generation'
 
 export function ChatInterface() {
@@ -32,14 +23,9 @@ export function ChatInterface() {
   const { generatedContent, setGeneratedContent } = useContentStore()
   const [chats, setChats] = useState<Chat[]>([])
   const [activeChat, setActiveChat] = useState<Chat | null>(null)
-  const [messages, setMessages] = useState<Message[]>([])
-  const [inputMessage, setInputMessage] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
   const [activeFeature, setActiveFeature] = useState<ActiveFeature>(null)
   const [isGenerating, setIsGenerating] = useState(false)
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (session) {
@@ -47,19 +33,6 @@ export function ChatInterface() {
     }
   }, [session])
 
-  useEffect(() => {
-    if (activeChat) {
-      loadMessages(activeChat.id)
-    }
-  }, [activeChat])
-
-  useEffect(() => {
-    scrollToBottom()
-  }, [messages])
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
 
   const loadChats = async () => {
     try {
@@ -86,23 +59,6 @@ export function ChatInterface() {
     }
   }
 
-  const loadMessages = async (chatId: string) => {
-    try {
-      const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/api/chats/${chatId}/messages`, {
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`
-        }
-      })
-      
-      if (!response.ok) throw new Error('Failed to load messages')
-      
-      const data = await response.json()
-      setMessages(data.messages || [])
-    } catch (error) {
-      console.error('Error loading messages:', error)
-    }
-  }
 
   const createNewChat = async () => {
     try {
@@ -113,7 +69,7 @@ export function ChatInterface() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({ title: 'New Chat' })
+        body: JSON.stringify({ title: 'New Workspace' })
       })
       
       if (!response.ok) throw new Error('Failed to create chat')
@@ -130,39 +86,6 @@ export function ChatInterface() {
     }
   }
 
-  const sendMessage = async () => {
-    if (!inputMessage.trim() || !activeChat) return
-
-    setIsLoading(true)
-    const userMessage = inputMessage
-    setInputMessage('')
-
-    try {
-      const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/api/chats/${activeChat.id}/message`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify({ content: userMessage })
-      })
-      
-      if (!response.ok) throw new Error('Failed to send message')
-      
-      const data = await response.json()
-      
-      // Add both user and assistant messages
-      setMessages([...messages, data.user_message, data.assistant_message])
-      
-      // Reload chats to update last_message_at
-      loadChats()
-    } catch (error) {
-      console.error('Error sending message:', error)
-    } finally {
-      setIsLoading(false)
-    }
-  }
 
   const deleteChat = async (chatId: string) => {
     if (!confirm('Delete this chat?')) return
@@ -197,10 +120,6 @@ export function ChatInterface() {
 
   const closeFeature = () => {
     setActiveFeature(null)
-    // Reload messages to show any generated content
-    if (activeChat) {
-      loadMessages(activeChat.id)
-    }
   }
 
   const handleGenerate = async (formData: any) => {
@@ -222,23 +141,6 @@ export function ChatInterface() {
       const data = await response.json()
       setGeneratedContent(data)
       
-      // Save to chat history
-      if (activeChat) {
-        await fetch(`${apiUrl}/api/chats/${activeChat.id}/message`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${session?.access_token}`
-          },
-          body: JSON.stringify({
-            content: `Generated post: ${data.text.substring(0, 100)}...`,
-            action_type: 'post_generation',
-            action_data: data
-          })
-        })
-        
-        await loadMessages(activeChat.id)
-      }
       
     } catch (error) {
       console.error('Generation error:', error)
@@ -259,7 +161,7 @@ export function ChatInterface() {
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-medium transition"
           >
             <Plus className="w-5 h-5" />
-            New Chat
+            New Workspace
           </button>
         </div>
 
@@ -312,7 +214,7 @@ export function ChatInterface() {
               </svg>
             </button>
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              {activeChat?.title || 'AI Assistant'}
+              {activeChat?.title || 'Workspace'}
             </h1>
           </div>
           
@@ -322,7 +224,7 @@ export function ChatInterface() {
               onClick={closeFeature}
               className="px-4 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition"
             >
-              Back to Chat
+              Back to Workspace
             </button>
           )}
         </div>
@@ -345,139 +247,47 @@ export function ChatInterface() {
           </div>
         ) : (
           <>
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center">
-                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 rounded-full mb-6">
+            {/* Action Buttons Area */}
+            <div className="flex-1 flex flex-col items-center justify-center p-6">
+              <div className="max-w-4xl w-full">
+                <div className="text-center mb-8">
+                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 rounded-full mb-6 inline-block">
                     <MessageSquare className="w-12 h-12 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                    Welcome to AI Assistant
+                  <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                    {activeChat?.title || 'Workspace'}
                   </h2>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md">
-                    I can help you create content, translate videos, and manage your social media.
-                    Choose an action below or just chat with me!
+                  <p className="text-gray-600 dark:text-gray-400 text-lg">
+                    Choose an action to get started
                   </p>
-                  
-                  {/* Quick Action Buttons */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl w-full">
-                    <button
-                      onClick={() => handleFeatureClick('post_generation')}
-                      className="flex flex-col items-center gap-3 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition border-2 border-transparent hover:border-purple-500"
-                    >
-                      <div className="bg-purple-100 dark:bg-purple-900/30 p-4 rounded-full">
-                        <FileText className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">Generate Post</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Create social media content</p>
-                      </div>
-                    </button>
-
-                    <button
-                      onClick={() => handleFeatureClick('video_dubbing')}
-                      className="flex flex-col items-center gap-3 p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg hover:shadow-xl transition border-2 border-transparent hover:border-pink-500"
-                    >
-                      <div className="bg-pink-100 dark:bg-pink-900/30 p-4 rounded-full">
-                        <Video className="w-8 h-8 text-pink-600 dark:text-pink-400" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900 dark:text-white">AI Dubbing</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">Translate videos with AI</p>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-3xl px-6 py-4 rounded-2xl ${
-                          message.role === 'user'
-                            ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                            : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-md'
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap">{message.content}</p>
-                        
-                        {/* Show action buttons in assistant messages */}
-                        {message.role === 'assistant' && (
-                          <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <button
-                              onClick={() => handleFeatureClick('post_generation')}
-                              className="flex items-center gap-2 px-3 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition text-sm"
-                            >
-                              <FileText className="w-4 h-4" />
-                              Generate Post
-                            </button>
-                            <button
-                              onClick={() => handleFeatureClick('video_dubbing')}
-                              className="flex items-center gap-2 px-3 py-2 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 rounded-lg hover:bg-pink-200 dark:hover:bg-pink-900/50 transition text-sm"
-                            >
-                              <Video className="w-4 h-4" />
-                              AI Dubbing
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  
-                  {isLoading && (
-                    <div className="flex justify-start">
-                      <div className="bg-white dark:bg-gray-800 px-6 py-4 rounded-2xl shadow-md">
-                        <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div ref={messagesEndRef} />
-                </>
-              )}
-            </div>
-
-            {/* Input Area */}
-            <div className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 p-4">
-              <div className="max-w-4xl mx-auto">
-                <div className="flex gap-3">
-                  <input
-                    type="text"
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                    placeholder="Type your message..."
-                    className="flex-1 px-4 py-3 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    disabled={isLoading}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={isLoading || !inputMessage.trim()}
-                    className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
                 </div>
                 
-                {/* Quick Action Buttons */}
-                <div className="flex gap-2 mt-3">
+                {/* Action Buttons Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto">
                   <button
                     onClick={() => handleFeatureClick('post_generation')}
-                    className="flex items-center gap-2 px-3 py-2 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition text-sm"
+                    className="group flex flex-col items-center gap-4 p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all border-2 border-transparent hover:border-purple-500 hover:scale-105"
                   >
-                    <FileText className="w-4 h-4" />
-                    Generate Post
+                    <div className="bg-purple-100 dark:bg-purple-900/30 p-6 rounded-full group-hover:bg-purple-200 dark:group-hover:bg-purple-900/50 transition">
+                      <FileText className="w-12 h-12 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Generate Post</h3>
+                      <p className="text-gray-600 dark:text-gray-400">Create AI-powered social media content</p>
+                    </div>
                   </button>
+
                   <button
                     onClick={() => handleFeatureClick('video_dubbing')}
-                    className="flex items-center gap-2 px-3 py-2 bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 rounded-lg hover:bg-pink-200 dark:hover:bg-pink-900/50 transition text-sm"
+                    className="group flex flex-col items-center gap-4 p-8 bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all border-2 border-transparent hover:border-pink-500 hover:scale-105"
                   >
-                    <Video className="w-4 h-4" />
-                    AI Dubbing
+                    <div className="bg-pink-100 dark:bg-pink-900/30 p-6 rounded-full group-hover:bg-pink-200 dark:group-hover:bg-pink-900/50 transition">
+                      <Video className="w-12 h-12 text-pink-600 dark:text-pink-400" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">AI Dubbing</h3>
+                      <p className="text-gray-600 dark:text-gray-400">Translate videos with AI voice dubbing</p>
+                    </div>
                   </button>
                 </div>
               </div>

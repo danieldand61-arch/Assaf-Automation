@@ -158,14 +158,14 @@ async def get_messages(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{chat_id}/message")
-async def send_message(
+@router.post("/{chat_id}/action")
+async def log_action(
     chat_id: str,
     request: SendMessageRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Send a message to chat and get AI response
+    Log an action performed in the workspace (optional for history)
     """
     try:
         supabase = get_supabase()
@@ -181,53 +181,26 @@ async def send_message(
         if not chat.data:
             raise HTTPException(status_code=404, detail="Chat not found")
         
-        # Save user message
-        user_msg = supabase.table("chat_messages").insert({
+        # Save action log (optional)
+        action_log = supabase.table("chat_messages").insert({
             "chat_id": chat_id,
-            "role": "user",
+            "role": "system",
             "content": request.content,
             "action_type": request.action_type,
             "action_data": request.action_data
         }).execute()
         
-        # If this is an action request, don't call AI
-        if request.action_type:
-            logger.info(f"🎬 Action triggered: {request.action_type}")
-            return {
-                "success": True,
-                "message": user_msg.data[0],
-                "requires_action": True,
-                "action_type": request.action_type
-            }
-        
-        # Get chat history for context
-        messages = supabase.table("chat_messages")\
-            .select("*")\
-            .eq("chat_id", chat_id)\
-            .order("created_at", desc=False)\
-            .limit(20)\
-            .execute()
-        
-        # Call AI for response (will implement next)
-        ai_response = await get_ai_response(messages.data or [])
-        
-        # Save AI response
-        assistant_msg = supabase.table("chat_messages").insert({
-            "chat_id": chat_id,
-            "role": "assistant",
-            "content": ai_response
-        }).execute()
+        logger.info(f"🎬 Action logged: {request.action_type} in chat {chat_id}")
         
         return {
             "success": True,
-            "user_message": user_msg.data[0],
-            "assistant_message": assistant_msg.data[0]
+            "action": action_log.data[0]
         }
         
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Send message error: {str(e)}")
+        logger.error(f"❌ Log action error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -266,43 +239,3 @@ async def delete_chat(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-async def get_ai_response(messages: List[dict]) -> str:
-    """
-    Get AI response from Claude API (Anthropic)
-    """
-    try:
-        import anthropic
-        import os
-        
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            logger.warning("⚠️ ANTHROPIC_API_KEY not set, using fallback response")
-            return "I'm your AI assistant! I can help you with:\n\n• Generate social media posts\n• Translate videos with AI dubbing\n• Create images\n• Schedule posts\n\nWhat would you like to do?"
-        
-        # Convert messages to Claude format
-        claude_messages = []
-        for msg in messages:
-            if msg["role"] in ["user", "assistant"]:
-                claude_messages.append({
-                    "role": msg["role"],
-                    "content": msg["content"]
-                })
-        
-        # Call Claude API
-        client = anthropic.Anthropic(api_key=api_key)
-        
-        response = client.messages.create(
-            model="claude-3-5-sonnet-20241022",  # Claude 3.5 Sonnet (latest)
-            max_tokens=1024,
-            system="You are a helpful AI assistant for a social media automation platform. You help users with content creation, video translation, and social media management. Be concise, friendly, and helpful. When users ask about capabilities, mention: post generation, video dubbing/translation, image generation, and scheduling features.",
-            messages=claude_messages
-        )
-        
-        ai_content = response.content[0].text
-        logger.info(f"✅ Claude API response received ({len(ai_content)} chars)")
-        
-        return ai_content
-        
-    except Exception as e:
-        logger.error(f"❌ AI response error: {str(e)}")
-        return "I'm here to help! You can:\n\n• Generate social media posts\n• Translate videos with AI dubbing\n• Create images\n• Schedule posts\n\nClick one of the action buttons below or ask me anything!"

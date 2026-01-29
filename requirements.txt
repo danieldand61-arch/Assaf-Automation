@@ -23,6 +23,3 @@ apscheduler==3.10.4
 
 # Video Translation
 elevenlabs==1.9.0
-
-# AI Chat
-anthropic==0.40.0
