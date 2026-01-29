@@ -34,48 +34,65 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Saved Posts Library (moved from separate feature)
-CREATE TABLE IF NOT EXISTS saved_posts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
-    chat_id UUID REFERENCES chats(id) ON DELETE SET NULL, -- Optional: link to chat where it was generated
-    
-    -- Post Content
-    text TEXT NOT NULL,
-    hashtags JSONB DEFAULT '[]'::jsonb,
-    call_to_action TEXT,
-    
-    -- Media
-    image_url TEXT,
-    image_storage_path TEXT,
-    
-    -- Optional metadata
-    title VARCHAR(255),
-    notes TEXT,
-    source_url TEXT, -- If generated from a reference
-    
-    -- Target platforms (can be empty if not decided yet)
-    platforms JSONB DEFAULT '[]'::jsonb,
-    
-    -- Metadata
-    saved_at TIMESTAMPTZ DEFAULT NOW(),
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
+-- Saved Posts Library
+-- Check if table exists and create it or alter it
+DO $$ 
+BEGIN
+    -- Create table if it doesn't exist
+    IF NOT EXISTS (SELECT FROM pg_tables WHERE schemaname = 'public' AND tablename = 'saved_posts') THEN
+        CREATE TABLE saved_posts (
+            id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+            account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+            chat_id UUID REFERENCES chats(id) ON DELETE SET NULL,
+            
+            -- Post Content
+            text TEXT NOT NULL,
+            hashtags JSONB DEFAULT '[]'::jsonb,
+            call_to_action TEXT,
+            
+            -- Media
+            image_url TEXT,
+            image_storage_path TEXT,
+            
+            -- Optional metadata
+            title VARCHAR(255),
+            notes TEXT,
+            source_url TEXT,
+            
+            -- Target platforms
+            platforms JSONB DEFAULT '[]'::jsonb,
+            
+            -- Metadata
+            saved_at TIMESTAMPTZ DEFAULT NOW(),
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ DEFAULT NOW()
+        );
+    ELSE
+        -- Add chat_id column if it doesn't exist
+        IF NOT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'saved_posts' 
+            AND column_name = 'chat_id'
+        ) THEN
+            ALTER TABLE saved_posts ADD COLUMN chat_id UUID REFERENCES chats(id) ON DELETE SET NULL;
+        END IF;
+    END IF;
+END $$;
 
 -- =============================================
 -- INDEXES
 -- =============================================
 
-CREATE INDEX idx_chats_user_id ON chats(user_id);
-CREATE INDEX idx_chats_account_id ON chats(account_id);
-CREATE INDEX idx_chats_last_message ON chats(last_message_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chats_user_id ON chats(user_id);
+CREATE INDEX IF NOT EXISTS idx_chats_account_id ON chats(account_id);
+CREATE INDEX IF NOT EXISTS idx_chats_last_message ON chats(last_message_at DESC);
 
-CREATE INDEX idx_chat_messages_chat_id ON chat_messages(chat_id);
-CREATE INDEX idx_chat_messages_created_at ON chat_messages(created_at);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_chat_id ON chat_messages(chat_id);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at);
 
-CREATE INDEX idx_saved_posts_account_id ON saved_posts(account_id);
-CREATE INDEX idx_saved_posts_chat_id ON saved_posts(chat_id);
+CREATE INDEX IF NOT EXISTS idx_saved_posts_account_id ON saved_posts(account_id);
+CREATE INDEX IF NOT EXISTS idx_saved_posts_chat_id ON saved_posts(chat_id);
 
 -- =============================================
 -- ROW LEVEL SECURITY
@@ -86,38 +103,67 @@ ALTER TABLE chat_messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_posts ENABLE ROW LEVEL SECURITY;
 
 -- Chats: Users can only see their own chats
-CREATE POLICY "Users can manage their own chats"
-    ON chats FOR ALL
-    USING (user_id = auth.uid());
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'chats' 
+        AND policyname = 'Users can manage their own chats'
+    ) THEN
+        CREATE POLICY "Users can manage their own chats"
+            ON chats FOR ALL
+            USING (user_id = auth.uid());
+    END IF;
+END $$;
 
 -- Chat Messages: Users can only see messages from their chats
-CREATE POLICY "Users can manage messages in their chats"
-    ON chat_messages FOR ALL
-    USING (
-        chat_id IN (
-            SELECT id FROM chats WHERE user_id = auth.uid()
-        )
-    );
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT FROM pg_policies 
+        WHERE schemaname = 'public' 
+        AND tablename = 'chat_messages' 
+        AND policyname = 'Users can manage messages in their chats'
+    ) THEN
+        CREATE POLICY "Users can manage messages in their chats"
+            ON chat_messages FOR ALL
+            USING (
+                chat_id IN (
+                    SELECT id FROM chats WHERE user_id = auth.uid()
+                )
+            );
+    END IF;
+END $$;
 
--- Saved Posts: Users can manage posts for their accounts
-CREATE POLICY "Users can manage saved posts"
-    ON saved_posts FOR ALL
-    USING (
-        account_id IN (
-            SELECT id FROM accounts WHERE user_id = auth.uid()
-            UNION
-            SELECT account_id FROM team_members WHERE user_id = auth.uid()
-        )
-    );
+-- Saved Posts: Users can manage posts for their accounts (update existing or create)
+DO $$ 
+BEGIN
+    -- Drop old policy if exists
+    DROP POLICY IF EXISTS "Users can manage saved posts" ON saved_posts;
+    
+    -- Create new policy
+    CREATE POLICY "Users can manage saved posts"
+        ON saved_posts FOR ALL
+        USING (
+            account_id IN (
+                SELECT id FROM accounts WHERE user_id = auth.uid()
+                UNION
+                SELECT account_id FROM team_members WHERE user_id = auth.uid()
+            )
+        );
+END $$;
 
 -- =============================================
 -- TRIGGERS
 -- =============================================
 
--- Update updated_at timestamp
+-- Update updated_at timestamp (drop and recreate to avoid conflicts)
+DROP TRIGGER IF EXISTS update_chats_updated_at ON chats;
 CREATE TRIGGER update_chats_updated_at BEFORE UPDATE ON chats
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
+DROP TRIGGER IF EXISTS update_saved_posts_updated_at ON saved_posts;
 CREATE TRIGGER update_saved_posts_updated_at BEFORE UPDATE ON saved_posts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
@@ -132,6 +178,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS update_chat_last_message_trigger ON chat_messages;
 CREATE TRIGGER update_chat_last_message_trigger 
     AFTER INSERT ON chat_messages
     FOR EACH ROW EXECUTE FUNCTION update_chat_last_message();
@@ -153,6 +200,7 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+DROP TRIGGER IF EXISTS auto_generate_chat_title_trigger ON chat_messages;
 CREATE TRIGGER auto_generate_chat_title_trigger 
     AFTER INSERT ON chat_messages
     FOR EACH ROW EXECUTE FUNCTION auto_generate_chat_title();
