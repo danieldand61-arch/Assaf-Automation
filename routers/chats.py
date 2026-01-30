@@ -276,6 +276,8 @@ Key rules:
         # Update chat title if this is first message
         if len(conversation_history) == 1:
             title = request.content[:50]
+            if len(request.content) > 50:
+                title += "..."
             supabase.table("chats")\
                 .update({"title": title})\
                 .eq("id", chat_id)\
@@ -337,6 +339,42 @@ async def log_action(
         raise
     except Exception as e:
         logger.error(f"❌ Log action error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.patch("/{chat_id}")
+async def update_chat(
+    chat_id: str,
+    request: CreateChatRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Update chat title
+    """
+    try:
+        supabase = get_supabase()
+        
+        # Verify and update
+        result = supabase.table("chats")\
+            .update({"title": request.title})\
+            .eq("id", chat_id)\
+            .eq("user_id", current_user["user_id"])\
+            .execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        
+        logger.info(f"✏️ Updated chat {chat_id} title to: {request.title}")
+        
+        return {
+            "success": True,
+            "chat": result.data[0]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Update chat error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

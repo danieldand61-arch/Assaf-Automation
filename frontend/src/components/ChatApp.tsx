@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
-import { Plus, MessageSquare, Trash2, Send, Loader2, X } from 'lucide-react'
+import { Plus, MessageSquare, Trash2, Send, Loader2, X, Edit2, Check } from 'lucide-react'
 import { InputSection } from './InputSection'
 import { PreviewSection } from './PreviewSection'
 import { LoadingState } from './LoadingState'
@@ -18,9 +18,11 @@ interface Chat {
 
 interface Message {
   id: string
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant' | 'system' | 'tool'
   content: string
   created_at: string
+  action_type?: 'post_generation' | 'video_dubbing' | null
+  action_data?: any
 }
 
 type ActiveTool = null | 'post_generation' | 'video_dubbing'
@@ -37,8 +39,17 @@ export function ChatApp() {
   const [isLoading, setIsLoading] = useState(false)
   const [activeTool, setActiveTool] = useState<ActiveTool>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [editingChatId, setEditingChatId] = useState<string | null>(null)
+  const [editingTitle, setEditingTitle] = useState('')
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Load chats on mount
+  useEffect(() => {
+    if (session) {
+      loadChats()
+    }
+  }, [session])
 
   useEffect(() => {
     console.log('🔄 activeChat changed:', activeChat?.id)
@@ -61,6 +72,34 @@ export function ChatApp() {
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const loadChats = async () => {
+    if (!session) return
+    
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/chats/list`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      })
+      
+      if (!response.ok) throw new Error('Failed to load chats')
+      
+      const data = await response.json()
+      const loadedChats = data.chats || []
+      
+      setChats(loadedChats)
+      
+      // If we have chats, show chat interface and set first chat as active
+      if (loadedChats.length > 0) {
+        setShowChat(true)
+        setActiveChat(loadedChats[0])
+      }
+    } catch (error) {
+      console.error('Error loading chats:', error)
+    }
   }
 
   const loadMessages = async (chatId: string) => {
@@ -188,6 +227,46 @@ export function ChatApp() {
     }
   }
 
+  const startEditingChat = (chat: Chat) => {
+    setEditingChatId(chat.id)
+    setEditingTitle(chat.title)
+  }
+
+  const saveEditChat = async () => {
+    if (!editingChatId || !editingTitle.trim()) return
+
+    try {
+      const apiUrl = getApiUrl()
+      await fetch(`${apiUrl}/api/chats/${editingChatId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({ title: editingTitle.trim() })
+      })
+      
+      // Update local state
+      setChats(chats.map(c => 
+        c.id === editingChatId ? { ...c, title: editingTitle.trim() } : c
+      ))
+      
+      if (activeChat?.id === editingChatId) {
+        setActiveChat({ ...activeChat, title: editingTitle.trim() })
+      }
+      
+      setEditingChatId(null)
+      setEditingTitle('')
+    } catch (error) {
+      console.error('Error renaming chat:', error)
+    }
+  }
+
+  const cancelEditChat = () => {
+    setEditingChatId(null)
+    setEditingTitle('')
+  }
+
   const sendMessage = async () => {
     console.log('🚀 sendMessage called!')
     console.log('📝 Input message:', inputMessage)
@@ -272,12 +351,31 @@ export function ChatApp() {
     }
   }
 
-  const handleToolClick = (tool: ActiveTool) => {
+  const handleToolClick = async (tool: ActiveTool) => {
+    if (!tool || !activeChat) return
+    
+    // Add tool message to history
+    const toolMessage: Message = {
+      id: 'tool-' + Date.now(),
+      role: 'tool',
+      content: tool === 'post_generation' ? '🎨 Generate Post' : '🎬 AI Video Dubbing',
+      action_type: tool,
+      action_data: { status: 'active' },
+      created_at: new Date().toISOString()
+    }
+    
+    setMessages(prev => [...prev, toolMessage])
     setActiveTool(tool)
     setGeneratedContent(null)
   }
 
-  const handleCloseTool = () => {
+  const handleCloseTool = (toolId: string) => {
+    // Mark tool as closed in messages
+    setMessages(prev => prev.map(msg => 
+      msg.id === toolId 
+        ? { ...msg, action_data: { ...msg.action_data, status: 'closed' } }
+        : msg
+    ))
     setActiveTool(null)
     setGeneratedContent(null)
   }
@@ -421,9 +519,11 @@ export function ChatApp() {
             <div
               key={chat.id}
               onClick={() => {
-                setActiveChat(chat)
-                setActiveTool(null)
-                setGeneratedContent(null)
+                if (editingChatId !== chat.id) {
+                  setActiveChat(chat)
+                  setActiveTool(null)
+                  setGeneratedContent(null)
+                }
               }}
               className={`group flex items-center gap-3 p-3 rounded-lg cursor-pointer transition mb-1 ${
                 activeChat?.id === chat.id
@@ -433,19 +533,58 @@ export function ChatApp() {
             >
               <MessageSquare className="w-5 h-5 text-gray-400 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                  {chat.title}
-                </p>
+                {editingChatId === chat.id ? (
+                  <input
+                    type="text"
+                    value={editingTitle}
+                    onChange={(e) => setEditingTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') saveEditChat()
+                      if (e.key === 'Escape') cancelEditChat()
+                    }}
+                    onBlur={saveEditChat}
+                    className="w-full px-2 py-1 text-sm bg-white dark:bg-gray-700 border border-purple-300 dark:border-purple-600 rounded focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    autoFocus
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                ) : (
+                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                    {chat.title}
+                  </p>
+                )}
               </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  deleteChat(chat.id)
-                }}
-                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition"
-              >
-                <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
-              </button>
+              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
+                {editingChatId === chat.id ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      saveEditChat()
+                    }}
+                    className="p-1 hover:bg-green-100 dark:hover:bg-green-900/30 rounded transition"
+                  >
+                    <Check className="w-4 h-4 text-green-600 dark:text-green-400" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      startEditingChat(chat)
+                    }}
+                    className="p-1 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded transition"
+                  >
+                    <Edit2 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  </button>
+                )}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    deleteChat(chat.id)
+                  }}
+                  className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition"
+                >
+                  <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -464,65 +603,86 @@ export function ChatApp() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-            >
+          {messages.map((message) => {
+            // Tool messages - render inline forms
+            if (message.role === 'tool' && message.action_data?.status !== 'closed') {
+              const isActive = activeTool === message.action_type
+              
+              if (message.action_type === 'post_generation') {
+                return (
+                  <div key={message.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-2 border-purple-200 dark:border-purple-800">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{message.content}</h3>
+                      <button
+                        onClick={() => handleCloseTool(message.id)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    {isActive && isGenerating ? (
+                      <LoadingState />
+                    ) : isActive && generatedContent ? (
+                      <PreviewSection onReset={handleReset} />
+                    ) : isActive ? (
+                      <InputSection onGenerate={handleGenerate} />
+                    ) : (
+                      <div className="text-center text-gray-500 py-8">
+                        <p>Click to reopen tool</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+              
+              if (message.action_type === 'video_dubbing') {
+                return (
+                  <div key={message.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-2 border-pink-200 dark:border-pink-800">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{message.content}</h3>
+                      <button
+                        onClick={() => handleCloseTool(message.id)}
+                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    {isActive ? (
+                      <VideoTranslation />
+                    ) : (
+                      <div className="text-center text-gray-500 py-8">
+                        <p>Click to reopen tool</p>
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+            }
+            
+            // Regular messages
+            return (
               <div
-                className={`max-w-3xl px-6 py-4 rounded-2xl ${
-                  message.role === 'user'
-                    ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
-                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-md'
-                }`}
+                key={message.id}
+                className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <p className="whitespace-pre-wrap">{message.content}</p>
+                <div
+                  className={`max-w-3xl px-6 py-4 rounded-2xl ${
+                    message.role === 'user'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-md'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           
           {isLoading && (
             <div className="flex justify-start">
               <div className="bg-white dark:bg-gray-800 px-6 py-4 rounded-2xl shadow-md">
                 <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
               </div>
-            </div>
-          )}
-
-          {/* Active Tool Content */}
-          {activeTool === 'post_generation' && (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-2 border-purple-200 dark:border-purple-800">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">Generate Post</h3>
-                <button
-                  onClick={handleCloseTool}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              {isGenerating ? (
-                <LoadingState />
-              ) : generatedContent ? (
-                <PreviewSection onReset={handleReset} />
-              ) : (
-                <InputSection onGenerate={handleGenerate} />
-              )}
-            </div>
-          )}
-
-          {activeTool === 'video_dubbing' && (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-2 border-pink-200 dark:border-pink-800">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">AI Video Dubbing</h3>
-                <button
-                  onClick={handleCloseTool}
-                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <VideoTranslation />
             </div>
           )}
           
