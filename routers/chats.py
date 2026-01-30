@@ -227,8 +227,8 @@ async def send_message(
             genai.configure(api_key=api_key)
             logger.info(f"🔑 Gemini configured with API key: {api_key[:20]}...")
             
-            # Use Gemini Flash model (faster and more reliable)
-            model_name = 'gemini-1.5-flash-latest'
+            # Use Gemini 1.5 Pro (most capable and stable)
+            model_name = 'gemini-1.5-pro'
             logger.info(f"🤖 Using model: {model_name}")
             
             model = genai.GenerativeModel(
