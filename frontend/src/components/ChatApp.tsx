@@ -250,6 +250,14 @@ export function ChatApp() {
       
       const data = await response.json()
       console.log('✅ Response data:', data)
+      console.log('📧 User message:', data.user_message)
+      console.log('🤖 Assistant message:', data.assistant_message)
+      console.log('🤖 Assistant content:', data.assistant_message?.content)
+      
+      if (!data.user_message || !data.assistant_message) {
+        console.error('❌ Invalid response structure:', data)
+        throw new Error('Invalid response from server')
+      }
       
       setMessages(prev => [
         ...prev.filter(m => m.id !== tempUserMsg.id),
