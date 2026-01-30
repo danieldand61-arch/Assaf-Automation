@@ -41,10 +41,19 @@ export function ChatApp() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    console.log('🔄 activeChat changed:', activeChat?.id)
     if (session && activeChat) {
+      console.log('📥 Loading messages for chat:', activeChat.id)
       loadMessages(activeChat.id)
     }
   }, [activeChat])
+  
+  useEffect(() => {
+    console.log('👤 Session:', session ? 'exists' : 'null')
+    console.log('💬 Show chat:', showChat)
+    console.log('📋 Chats count:', chats.length)
+    console.log('🎯 Active chat:', activeChat?.id || 'none')
+  }, [session, showChat, chats, activeChat])
 
   useEffect(() => {
     scrollToBottom()
@@ -73,10 +82,16 @@ export function ChatApp() {
   }
 
   const createFirstChat = async () => {
-    if (!session) return null
+    console.log('🆕 Creating first chat...')
+    if (!session) {
+      console.log('❌ No session!')
+      return null
+    }
     
     try {
       const apiUrl = getApiUrl()
+      console.log('🔗 API URL:', apiUrl)
+      
       const response = await fetch(`${apiUrl}/api/chats/create`, {
         method: 'POST',
         headers: {
@@ -86,10 +101,14 @@ export function ChatApp() {
         body: JSON.stringify({ title: 'New Chat' })
       })
       
+      console.log('📥 Create chat response:', response.status)
+      
       if (!response.ok) throw new Error('Failed to create chat')
       
       const data = await response.json()
       const newChat = data.chat
+      
+      console.log('✅ Chat created:', newChat.id)
       
       // First chat - initialize
       setChats([newChat])
@@ -97,9 +116,11 @@ export function ChatApp() {
       setShowChat(true)
       setMessages([])
       
+      console.log('✅ State updated, showChat:', true, 'activeChat:', newChat.id)
+      
       return newChat
     } catch (error) {
-      console.error('Error creating chat:', error)
+      console.error('❌ Error creating chat:', error)
       return null
     }
   }
