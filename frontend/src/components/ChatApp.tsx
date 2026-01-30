@@ -168,11 +168,17 @@ export function ChatApp() {
   }
 
   const sendMessage = async () => {
-    if (!inputMessage.trim() || !activeChat) return
+    if (!inputMessage.trim() || !activeChat) {
+      console.log('❌ Cannot send: no message or no active chat')
+      return
+    }
 
     const userMessage = inputMessage
     setInputMessage('')
     setIsLoading(true)
+
+    console.log('📤 Sending message:', userMessage)
+    console.log('📍 Active chat:', activeChat.id)
 
     try {
       const apiUrl = getApiUrl()
@@ -185,6 +191,8 @@ export function ChatApp() {
       }
       setMessages(prev => [...prev, tempUserMsg])
 
+      console.log('🔗 API URL:', `${apiUrl}/api/chats/${activeChat.id}/message`)
+
       const response = await fetch(`${apiUrl}/api/chats/${activeChat.id}/message`, {
         method: 'POST',
         headers: {
@@ -194,9 +202,16 @@ export function ChatApp() {
         body: JSON.stringify({ content: userMessage })
       })
       
-      if (!response.ok) throw new Error('Failed to send message')
+      console.log('📥 Response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Response error:', errorText)
+        throw new Error(`Failed to send message: ${response.status}`)
+      }
       
       const data = await response.json()
+      console.log('✅ Response data:', data)
       
       setMessages(prev => [
         ...prev.filter(m => m.id !== tempUserMsg.id),
@@ -204,8 +219,8 @@ export function ChatApp() {
         data.assistant_message
       ])
     } catch (error) {
-      console.error('Error sending message:', error)
-      alert('Failed to send message')
+      console.error('❌ Error sending message:', error)
+      alert(`Failed to send message: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
     }
