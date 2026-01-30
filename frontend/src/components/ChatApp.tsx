@@ -189,8 +189,25 @@ export function ChatApp() {
   }
 
   const sendMessage = async () => {
-    if (!inputMessage.trim() || !activeChat) {
-      console.log('❌ Cannot send: no message or no active chat')
+    console.log('🚀 sendMessage called!')
+    console.log('📝 Input message:', inputMessage)
+    console.log('🎯 Active chat:', activeChat)
+    
+    if (!inputMessage.trim()) {
+      console.log('❌ Cannot send: empty message')
+      alert('Please type a message')
+      return
+    }
+    
+    if (!activeChat) {
+      console.log('❌ Cannot send: no active chat')
+      alert('No active chat found')
+      return
+    }
+    
+    if (!session?.access_token) {
+      console.log('❌ Cannot send: no session token')
+      alert('Please log in')
       return
     }
 
@@ -518,9 +535,13 @@ export function ChatApp() {
                 disabled={isLoading}
               />
               <button
-                onClick={sendMessage}
+                onClick={() => {
+                  console.log('🖱️ Send button clicked!')
+                  sendMessage()
+                }}
                 disabled={isLoading || !inputMessage.trim()}
                 className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                title={!activeChat ? 'No active chat' : !inputMessage.trim() ? 'Type a message' : 'Send'}
               >
                 <Send className="w-5 h-5" />
               </button>
