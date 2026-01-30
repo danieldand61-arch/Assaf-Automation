@@ -167,6 +167,9 @@ async def send_message(
     """
     Send a message and get AI response from Gemini
     """
+    logger.info(f"💬 Received message for chat {chat_id}")
+    logger.info(f"📝 Message content: {request.content[:100]}")
+    
     try:
         import google.generativeai as genai
         import os
@@ -174,6 +177,7 @@ async def send_message(
         supabase = get_supabase()
         
         # Verify chat belongs to user
+        logger.info(f"🔍 Verifying chat ownership for user {current_user['user_id']}")
         chat = supabase.table("chats")\
             .select("*")\
             .eq("id", chat_id)\
@@ -182,7 +186,10 @@ async def send_message(
             .execute()
         
         if not chat.data:
+            logger.error(f"❌ Chat {chat_id} not found for user {current_user['user_id']}")
             raise HTTPException(status_code=404, detail="Chat not found")
+        
+        logger.info(f"✅ Chat verified: {chat.data['title']}")
         
         # Save user message
         user_msg = supabase.table("chat_messages").insert({
@@ -218,10 +225,14 @@ async def send_message(
                 raise Exception("GOOGLE_AI_API_KEY not configured")
             
             genai.configure(api_key=api_key)
+            logger.info(f"🔑 Gemini configured with API key: {api_key[:20]}...")
             
-            # Use stable Gemini model with multilingual support
+            # Use Gemini Flash model (faster and more reliable)
+            model_name = 'gemini-1.5-flash-latest'
+            logger.info(f"🤖 Using model: {model_name}")
+            
             model = genai.GenerativeModel(
-                'gemini-1.5-pro',
+                model_name,
                 system_instruction="""You are a helpful AI assistant for a social media automation platform. 
                 
 Key rules:
