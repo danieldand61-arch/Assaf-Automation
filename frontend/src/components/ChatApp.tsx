@@ -431,6 +431,10 @@ export function ChatApp() {
         {/* Header */}
         <div className="border-b border-gray-200 dark:border-gray-700">
           <Header />
+          {/* Debug info */}
+          <div className="px-4 py-2 bg-yellow-100 dark:bg-yellow-900 text-xs">
+            DEBUG: Chat={activeChat?.id.substring(0, 8) || 'none'} | Messages={messages.length} | Session={session ? 'ok' : 'none'}
+          </div>
         </div>
 
         {/* Messages */}
