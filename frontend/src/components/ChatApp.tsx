@@ -271,7 +271,7 @@ export function ChatApp() {
         
         <div className="flex items-center justify-center p-6 min-h-[calc(100vh-80px)]">
           <div className="max-w-6xl mx-auto text-center">
-          <div className="mb-8">
+            <div className="mb-8">
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 rounded-full inline-block mb-6">
               <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
@@ -286,9 +286,9 @@ export function ChatApp() {
             <p className="text-xl text-gray-600 dark:text-gray-400 mb-12 max-w-3xl mx-auto">
               Transform any website into engaging social media content with AI. Generate posts, images, and captions tailored for Instagram, Facebook, LinkedIn, and more.
             </p>
-          </div>
+            </div>
           
-          <button
+            <button
             onClick={handleGetStarted}
             className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-lg font-medium rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
           >
@@ -296,14 +296,14 @@ export function ChatApp() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
             Generate Content
-          </button>
+            </button>
           
-          <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-            ✨ No credit card required • 🚀 Start generating in 30 seconds
-          </p>
+            <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
+              ✨ No credit card required • 🚀 Start generating in 30 seconds
+            </p>
 
-          {/* Features */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
+            {/* Features */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
             <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg">
               <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full inline-block mb-4">
                 <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -332,6 +332,7 @@ export function ChatApp() {
               </div>
               <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Custom Image Generation</h3>
               <p className="text-gray-600 dark:text-gray-400">AI creates unique images in any aspect ratio focusing on landscape, portrait, or your specs.</p>
+            </div>
             </div>
           </div>
         </div>
