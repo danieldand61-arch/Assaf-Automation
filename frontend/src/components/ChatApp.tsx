@@ -54,24 +54,6 @@ export function ChatApp() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  const loadChats = async () => {
-    try {
-      const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/api/chats/list`, {
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`
-        }
-      })
-      
-      if (!response.ok) throw new Error('Failed to load chats')
-      
-      const data = await response.json()
-      setChats(data.chats || [])
-    } catch (error) {
-      console.error('Error loading chats:', error)
-    }
-  }
-
   const loadMessages = async (chatId: string) => {
     try {
       const apiUrl = getApiUrl()
