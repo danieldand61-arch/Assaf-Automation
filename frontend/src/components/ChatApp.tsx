@@ -263,8 +263,14 @@ export function ChatApp() {
   // Landing Page
   if (!showChat) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-6">
-        <div className="max-w-6xl mx-auto text-center">
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        {/* Header */}
+        <div className="border-b border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
+          <Header />
+        </div>
+        
+        <div className="flex items-center justify-center p-6 min-h-[calc(100vh-80px)]">
+          <div className="max-w-6xl mx-auto text-center">
           <div className="mb-8">
             <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 rounded-full inline-block mb-6">
               <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

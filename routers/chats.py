@@ -219,10 +219,18 @@ async def send_message(
             
             genai.configure(api_key=api_key)
             
-            # Use stable Gemini model
+            # Use stable Gemini model with multilingual support
             model = genai.GenerativeModel(
                 'gemini-1.5-pro',
-                system_instruction="You are a helpful AI assistant for a social media automation platform. You help users create content, answer questions about social media, and provide creative ideas. Be conversational, friendly, and helpful."
+                system_instruction="""You are a helpful AI assistant for a social media automation platform. 
+                
+Key rules:
+- ALWAYS respond in the SAME LANGUAGE the user writes in
+- If user writes in Russian, respond in Russian
+- If user writes in English, respond in English
+- Be conversational, friendly, and helpful
+- Help with content creation, social media questions, and creative ideas
+- Keep responses concise but informative"""
             )
             
             # Build proper history (exclude current message)
