@@ -378,6 +378,54 @@ async def update_chat(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.patch("/{chat_id}/messages/{message_id}")
+async def update_message(
+    chat_id: str,
+    message_id: str,
+    request: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Update message action_data (for tool messages)
+    """
+    try:
+        supabase = get_supabase()
+        
+        # Verify chat belongs to user
+        chat = supabase.table("chats")\
+            .select("*")\
+            .eq("id", chat_id)\
+            .eq("user_id", current_user["user_id"])\
+            .single()\
+            .execute()
+        
+        if not chat.data:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        
+        # Update message action_data
+        result = supabase.table("chat_messages")\
+            .update({"action_data": request.get("action_data")})\
+            .eq("id", message_id)\
+            .eq("chat_id", chat_id)\
+            .execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        logger.info(f"✏️ Updated message {message_id} in chat {chat_id}")
+        
+        return {
+            "success": True,
+            "message": result.data[0]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Update message error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/{chat_id}")
 async def delete_chat(
     chat_id: str,

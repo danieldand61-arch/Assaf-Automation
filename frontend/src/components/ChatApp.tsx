@@ -59,16 +59,6 @@ export function ChatApp() {
       loadMessages(activeChat.id)
     }
   }, [activeChat])
-  
-  // Save tool messages to localStorage whenever messages change
-  useEffect(() => {
-    if (activeChat) {
-      const toolMessages = messages.filter(m => m.role === 'tool')
-      if (toolMessages.length > 0) {
-        localStorage.setItem(`chat_tools_${activeChat.id}`, JSON.stringify(toolMessages))
-      }
-    }
-  }, [messages, activeChat])
 
   useEffect(() => {
     scrollToBottom()
@@ -120,18 +110,7 @@ export function ChatApp() {
       if (!response.ok) throw new Error('Failed to load messages')
       
       const data = await response.json()
-      const dbMessages = data.messages || []
-      
-      // Load tool messages from localStorage
-      const savedToolMessages = localStorage.getItem(`chat_tools_${chatId}`)
-      const toolMessages = savedToolMessages ? JSON.parse(savedToolMessages) : []
-      
-      // Merge: DB messages + tool messages, sort by created_at
-      const allMessages = [...dbMessages, ...toolMessages].sort((a, b) => 
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      )
-      
-      setMessages(allMessages)
+      setMessages(data.messages || [])
     } catch (error) {
       console.error('Error loading messages:', error)
     }
@@ -215,9 +194,6 @@ export function ChatApp() {
           'Authorization': `Bearer ${session?.access_token}`
         }
       })
-      
-      // Clean up localStorage for this chat
-      localStorage.removeItem(`chat_tools_${chatId}`)
       
       const remainingChats = chats.filter(c => c.id !== chatId)
       setChats(remainingChats)
@@ -329,28 +305,60 @@ export function ChatApp() {
   }
 
   const handleToolClick = async (tool: 'post_generation' | 'video_dubbing') => {
-    if (!tool || !activeChat) return
+    if (!tool || !activeChat || !session) return
     
-    // Create unique tool message
-    const toolId = 'tool-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)
-    const toolMessage: Message = {
-      id: toolId,
-      role: 'tool',
-      content: tool === 'post_generation' ? `🎨 ${t('generatePost')}` : `🎬 ${t('aiDubbing')}`,
-      action_type: tool,
-      action_data: { status: 'active' },
-      created_at: new Date().toISOString()
+    try {
+      // Save tool message to database
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/chats/${activeChat.id}/action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({
+          content: tool === 'post_generation' ? `🎨 ${t('generatePost')}` : `🎬 ${t('aiDubbing')}`,
+          action_type: tool,
+          action_data: { status: 'active' }
+        })
+      })
+      
+      if (!response.ok) throw new Error('Failed to save tool')
+      
+      const data = await response.json()
+      const toolMessage = data.action
+      
+      setMessages(prev => [...prev, toolMessage])
+      setActiveToolId(toolMessage.id)
+    } catch (error) {
+      console.error('Error creating tool:', error)
     }
-    
-    setMessages(prev => [...prev, toolMessage])
-    setActiveToolId(toolId)
   }
 
-  const handleCloseTool = (toolId: string) => {
+  const handleCloseTool = async (toolId: string) => {
     // Save current generated content before closing
     const currentContent = generatedContent
     
-    // Mark tool as closed and save its content
+    // Update tool message in database
+    if (activeChat && session) {
+      try {
+        const apiUrl = getApiUrl()
+        await fetch(`${apiUrl}/api/chats/${activeChat.id}/messages/${toolId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`
+          },
+          body: JSON.stringify({
+            action_data: { status: 'closed', generatedContent: currentContent }
+          })
+        })
+      } catch (error) {
+        console.error('Error updating tool:', error)
+      }
+    }
+    
+    // Mark tool as closed and save its content locally
     setMessages(prev => prev.map(msg => 
       msg.id === toolId 
         ? { ...msg, action_data: { ...msg.action_data, status: 'closed', generatedContent: currentContent } }
@@ -418,7 +426,25 @@ export function ChatApp() {
         request_params: formData
       }
       
-      // Save generated content to the active tool message
+      // Update tool message in database with generated content
+      if (activeChat && session) {
+        try {
+          await fetch(`${apiUrl}/api/chats/${activeChat.id}/messages/${activeToolId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`
+            },
+            body: JSON.stringify({
+              action_data: { status: 'active', generatedContent }
+            })
+          })
+        } catch (error) {
+          console.error('Error saving generated content:', error)
+        }
+      }
+      
+      // Save generated content to the active tool message locally
       setMessages(prev => prev.map(msg => 
         msg.id === activeToolId 
           ? { ...msg, action_data: { ...msg.action_data, generatedContent } }
