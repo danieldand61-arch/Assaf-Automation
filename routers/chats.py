@@ -241,17 +241,25 @@ async def send_message(
             model_name = 'gemini-3-flash-preview'
             logger.info(f"🤖 Using model: {model_name}")
             
+            # Get current date
+            current_date = datetime.now().strftime("%B %d, %Y")
+            
             model = genai.GenerativeModel(
                 model_name,
-                system_instruction="""You are a helpful AI assistant for a social media automation platform. 
+                system_instruction=f"""You are a helpful AI assistant for a social media automation platform.
+
+IMPORTANT: Today's date is {current_date}. You are living in 2026, not 2024 or 2025.
+Your training data includes information up to late 2025.
                 
 Key rules:
 - ALWAYS respond in the SAME LANGUAGE the user writes in
 - If user writes in Russian, respond in Russian
 - If user writes in English, respond in English
+- If user writes in Hebrew, respond in Hebrew
 - Be conversational, friendly, and helpful
 - Help with content creation, social media questions, and creative ideas
-- Keep responses concise but informative"""
+- Keep responses concise but informative
+- When discussing current events, remember that 2024 and 2025 are in the past"""
             )
             
             # Build proper history (exclude current message)
