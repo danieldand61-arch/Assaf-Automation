@@ -28,7 +28,7 @@ interface Message {
   action_data?: any
 }
 
-// Removed ActiveTool type - now using activeToolId per message
+// Removed ActiveTool type - each tool manages its own state independently
 
 export function ChatApp() {
   const { session } = useAuth()
@@ -432,12 +432,6 @@ export function ChatApp() {
     
     // Remove from local state
     setMessages(prev => prev.filter(msg => msg.id !== toolId))
-    
-    // Clear active tool if it's the one being deleted
-    if (activeToolId === toolId) {
-      setActiveToolId(null)
-      setGeneratedContent(null)
-    }
   }
 
   const handleReopenTool = (toolId: string) => {
@@ -465,83 +459,7 @@ export function ChatApp() {
     ))
   }
 
-  const handleGenerate = async (formData: any) => {
-    if (!activeToolId) return
-    
-    setIsGenerating(true)
-    
-    const apiUrl = getApiUrl()
-    
-    try {
-      const response = await fetch(`${apiUrl}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
-      
-      if (!response.ok) {
-        throw new Error(`Server returned ${response.status}`)
-      }
-      
-      const data = await response.json()
-      
-      if (!data || !data.variations || data.variations.length === 0) {
-        throw new Error('No content generated')
-      }
-      
-      const generatedContent = {
-        ...data,
-        website_data: data.website_data,
-        request_params: formData
-      }
-      
-      // Update tool message in database with generated content
-      if (activeChat && session) {
-        try {
-          await fetch(`${apiUrl}/api/chats/${activeChat.id}/messages/${activeToolId}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${session?.access_token}`
-            },
-            body: JSON.stringify({
-              action_data: { status: 'active', generatedContent }
-            })
-          })
-        } catch (error) {
-          console.error('Error saving generated content:', error)
-        }
-      }
-      
-      // Save generated content to the active tool message locally
-      setMessages(prev => prev.map(msg => 
-        msg.id === activeToolId 
-          ? { ...msg, action_data: { ...msg.action_data, generatedContent } }
-          : msg
-      ))
-      
-      // Also update global store for PreviewSection
-      setGeneratedContent(generatedContent)
-    } catch (error) {
-      console.error('Generation error:', error)
-      alert('Failed to generate content')
-    } finally {
-      setIsGenerating(false)
-    }
-  }
-
-  const handleReset = () => {
-    if (!activeToolId) return
-    
-    // Clear generated content from the active tool message
-    setMessages(prev => prev.map(msg => 
-      msg.id === activeToolId 
-        ? { ...msg, action_data: { ...msg.action_data, generatedContent: null } }
-        : msg
-    ))
-    
-    setGeneratedContent(null)
-  }
+  // Removed handleGenerate and handleReset - now each tool has its own handlers
 
   // Landing Page
   if (!showChat) {
@@ -726,9 +644,73 @@ export function ChatApp() {
             // Tool messages - render inline forms
             if (message.role === 'tool') {
               const isCollapsed = message.action_data?.status === 'collapsed'
-              const isExpanded = !isCollapsed  // Tools are expanded by default
               
               if (message.action_type === 'post_generation') {
+                const thisToolGeneratedContent = message.action_data?.generatedContent
+                
+                const handlePostGenerate = async (formData: any) => {
+                  setIsGenerating(true)
+                  const apiUrl = getApiUrl()
+                  
+                  try {
+                    const response = await fetch(`${apiUrl}/api/generate`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(formData)
+                    })
+                    
+                    if (!response.ok) throw new Error(`Server returned ${response.status}`)
+                    
+                    const data = await response.json()
+                    if (!data || !data.variations || data.variations.length === 0) {
+                      throw new Error('No content generated')
+                    }
+                    
+                    const generatedContent = {
+                      ...data,
+                      website_data: data.website_data,
+                      request_params: formData
+                    }
+                    
+                    // Save to message
+                    setMessages(prev => prev.map(msg => 
+                      msg.id === message.id 
+                        ? { ...msg, action_data: { ...msg.action_data, generatedContent } }
+                        : msg
+                    ))
+                    
+                    // Save to DB
+                    if (activeChat && session) {
+                      await fetch(`${apiUrl}/api/chats/${activeChat.id}/messages/${message.id}`, {
+                        method: 'PATCH',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${session?.access_token}`
+                        },
+                        body: JSON.stringify({
+                          action_data: { status: 'expanded', generatedContent }
+                        })
+                      }).catch(console.error)
+                    }
+                    
+                    setGeneratedContent(generatedContent)
+                  } catch (error) {
+                    console.error('Generation error:', error)
+                    alert('Failed to generate content')
+                  } finally {
+                    setIsGenerating(false)
+                  }
+                }
+                
+                const handlePostReset = () => {
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === message.id 
+                      ? { ...msg, action_data: { ...msg.action_data, generatedContent: null } }
+                      : msg
+                  ))
+                  setGeneratedContent(null)
+                }
+                
                 return (
                   <div key={message.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-2 border-purple-200 dark:border-purple-800">
                     <div className="flex items-center justify-between mb-4">
@@ -759,10 +741,10 @@ export function ChatApp() {
                       </button>
                     ) : isGenerating ? (
                       <LoadingState />
-                    ) : generatedContent ? (
-                      <PreviewSection onReset={handleReset} />
+                    ) : thisToolGeneratedContent ? (
+                      <PreviewSection onReset={handlePostReset} />
                     ) : (
-                      <InputSection onGenerate={handleGenerate} />
+                      <InputSection onGenerate={handlePostGenerate} />
                     )}
                   </div>
                 )
