@@ -13,7 +13,7 @@ async def generate_posts(
     language: str = "en",
     include_emojis: bool = True
 ) -> List[PostVariation]:
-    """Generates social media post variations using Gemini 2.5 Pro"""
+    """Generates social media post variations using Gemini 3 Flash Preview"""
     
     import logging
     logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ def _build_prompt(
     language: str,
     include_emojis: bool
 ) -> str:
-    """Builds prompt for Gemini 2.5 Pro with marketing psychology integration"""
+    """Builds prompt for Gemini 3 Flash Preview with marketing psychology integration"""
     
     # Language names for prompt
     language_names = {

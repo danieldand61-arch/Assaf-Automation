@@ -2,7 +2,7 @@ export const translations = {
   en: {
     // Header
     title: "Social Media AI Generator",
-    poweredBy: "Powered by Google Gemini 2.5 Pro & Nano Banana 🍌",
+    poweredBy: "Powered by Google Gemini 3 Flash Preview 🚀",
     
     // Hero
     heroTitle: "Create Professional Posts in Seconds",
@@ -101,7 +101,7 @@ export const translations = {
   he: {
     // Header
     title: "מחולל תוכן AI לרשתות חברתיות",
-    poweredBy: "מופעל על ידי Google Gemini 2.5 Pro & Nano Banana 🍌",
+    poweredBy: "מופעל על ידי Google Gemini 3 Flash Preview 🚀",
     
     // Hero
     heroTitle: "צור פוסטים מקצועיים בשניות",
