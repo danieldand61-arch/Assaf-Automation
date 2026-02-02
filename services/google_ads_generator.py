@@ -143,27 +143,30 @@ POLICY REQUIREMENTS (STRICT):
 ═══════════════════════════════════════════════════════════════
 🎯 HEADLINES DIVERSITY REQUIREMENTS (15 TOTAL):
 ═══════════════════════════════════════════════════════════════
-1-3: Primary keywords focus ("Water Damage Repair LA")
-4-6: Benefits/Value props ("Fast 24/7 Emergency Service")
-7-9: Strong CTAs ("Call Now For Free Quote")
-10-12: Unique selling points ("IICRC Certified Experts")
-13-14: Urgency/Scarcity ("Limited Time Offer")
-15: Social proof/Trust ("5-Star Rated Company")
+1-3: Primary keywords focus ("Water Damage Repair LA") - 25-30 chars
+4-6: Benefits/Value props ("Fast 24/7 Emergency Service") - 25-30 chars
+7-9: Strong CTAs ("Call Now For Free Quote") - 20-28 chars
+10-12: Unique selling points ("IICRC Certified Experts") - 22-28 chars
+13-14: Urgency/Scarcity ("Limited Time Offer") - 18-25 chars
+15: Social proof/Trust ("5-Star Rated Company") - 20-28 chars
 
 Each headline MUST:
-- Be under 30 characters (including spaces)
+- Be EXACTLY 30 characters or less (including spaces) - AIM FOR 25-29 for safety
 - Be meaningfully different from others
 - Not repeat exact phrases
 - Follow Google Ads policies
+- Be a complete phrase (no cut-off words)
 
 ═══════════════════════════════════════════════════════════════
 📝 DESCRIPTIONS REQUIREMENTS (4 TOTAL):
 ═══════════════════════════════════════════════════════════════
-D1: Primary UVP (why choose you) - 90 chars max
-D2: Service details (what you offer) - 90 chars max
-D3: Process/Education (how it works) - 90 chars max
-D4: Strong CTA with urgency (why act now) - 90 chars max
+D1: Primary UVP (why choose you) - 85-90 chars (aim for 85-88)
+D2: Service details (what you offer) - 85-90 chars (aim for 85-88)
+D3: Process/Education (how it works) - 85-90 chars (aim for 85-88)
+D4: Strong CTA with urgency (why act now) - 85-90 chars (aim for 85-88)
 
+CRITICAL: Each description MUST be a COMPLETE sentence with proper ending.
+Do NOT exceed 90 characters. Aim for 85-88 to ensure clean endings.
 All must be unique, non-repetitive, and follow policies.
 
 ═══════════════════════════════════════════════════════════════
@@ -278,16 +281,28 @@ def _parse_google_ads_response(content: str) -> Dict:
         if len(descriptions) != 4:
             logger.warning(f"⚠️ Expected 4 descriptions, got {len(descriptions)}")
         
-        # Validate character limits
+        # Validate character limits - smart truncation at word boundaries
         for i, h in enumerate(headlines):
             if len(h) > 30:
                 logger.warning(f"⚠️ Headline {i+1} exceeds 30 chars: {len(h)}")
-                headlines[i] = h[:30]  # Truncate
+                # Find last space before 30 chars
+                truncated = h[:30]
+                last_space = truncated.rfind(' ')
+                if last_space > 20:  # Only if space is reasonably close
+                    headlines[i] = h[:last_space].rstrip()
+                else:
+                    headlines[i] = h[:30].rstrip()
         
         for i, d in enumerate(descriptions):
             if len(d) > 90:
                 logger.warning(f"⚠️ Description {i+1} exceeds 90 chars: {len(d)}")
-                descriptions[i] = d[:90]  # Truncate
+                # Find last space before 90 chars to avoid cutting mid-word
+                truncated = d[:90]
+                last_space = truncated.rfind(' ')
+                if last_space > 75:  # Only if space is reasonably close (within 15 chars)
+                    descriptions[i] = d[:last_space].rstrip()
+                else:
+                    descriptions[i] = d[:90].rstrip()
         
         # Ensure we return exactly what's required
         return {
