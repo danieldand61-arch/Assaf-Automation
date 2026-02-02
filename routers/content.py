@@ -9,6 +9,7 @@ import logging
 from models import PostVariation
 from services.content_generator import generate_posts
 from services.image_generator import generate_images
+from services.google_ads_generator import generate_google_ads
 from services.scraper import scrape_website
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,12 @@ class EditTextRequest(BaseModel):
     text: str
     action: str  # "shorten", "lengthen", "add_emojis", "remove_emojis", "change_tone"
     tone: Optional[str] = None  # for "change_tone" action
+    language: str = "en"
+
+class GenerateGoogleAdsRequest(BaseModel):
+    website_data: dict
+    keywords: str
+    target_location: Optional[str] = ""
     language: str = "en"
 
 @router.post("/regenerate-text")
@@ -149,4 +156,29 @@ async def edit_text(request: EditTextRequest):
         
     except Exception as e:
         logger.error(f"❌ Error editing text: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/generate-google-ads")
+async def generate_google_ads_endpoint(request: GenerateGoogleAdsRequest):
+    """
+    Generate complete Google Ads RSA package
+    Returns 15 headlines, 4 descriptions, and all extensions
+    """
+    try:
+        logger.info("🎯 Generating Google Ads RSA")
+        
+        ads_package = await generate_google_ads(
+            website_data=request.website_data,
+            keywords=request.keywords,
+            target_location=request.target_location,
+            language=request.language
+        )
+        
+        return {
+            "success": True,
+            "ads_package": ads_package
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error generating Google Ads: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
