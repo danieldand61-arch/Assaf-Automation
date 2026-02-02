@@ -4,6 +4,7 @@ import { Loader2, Copy, Download, Check } from 'lucide-react'
 
 interface GoogleAdsGenerationProps {
   onGenerate?: (data: any) => void
+  initialData?: GoogleAdsPackage | null
 }
 
 interface GoogleAdsPackage {
@@ -21,12 +22,12 @@ interface GoogleAdsPackage {
   }
 }
 
-export function GoogleAdsGeneration({ onGenerate }: GoogleAdsGenerationProps) {
+export function GoogleAdsGeneration({ onGenerate, initialData }: GoogleAdsGenerationProps) {
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [keywords, setKeywords] = useState('')
   const [targetLocation, setTargetLocation] = useState('')
   const [isGenerating, setIsGenerating] = useState(false)
-  const [adsPackage, setAdsPackage] = useState<GoogleAdsPackage | null>(null)
+  const [adsPackage, setAdsPackage] = useState<GoogleAdsPackage | null>(initialData || null)
   const [copiedField, setCopiedField] = useState<string | null>(null)
 
   const handleGenerate = async () => {
@@ -96,10 +97,11 @@ export function GoogleAdsGeneration({ onGenerate }: GoogleAdsGenerationProps) {
       const data = await adsResponse.json()
       console.log('✅ Google Ads generated successfully:', data)
       
-      setAdsPackage(data.ads_package)
+      const adsPackageData = data.ads_package
+      setAdsPackage(adsPackageData)
       
       if (onGenerate) {
-        onGenerate(data.ads_package)
+        onGenerate(adsPackageData)
       }
     } catch (error) {
       console.error('❌ Error:', error)

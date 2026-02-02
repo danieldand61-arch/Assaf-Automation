@@ -426,6 +426,53 @@ async def update_message(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.delete("/{chat_id}/messages/{message_id}")
+async def delete_message(
+    chat_id: str,
+    message_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Delete a specific message (typically a tool message)
+    """
+    try:
+        supabase = get_supabase()
+        
+        # Verify chat belongs to user
+        chat = supabase.table("chats")\
+            .select("*")\
+            .eq("id", chat_id)\
+            .eq("user_id", current_user["user_id"])\
+            .single()\
+            .execute()
+        
+        if not chat.data:
+            raise HTTPException(status_code=404, detail="Chat not found")
+        
+        # Delete message
+        result = supabase.table("chat_messages")\
+            .delete()\
+            .eq("id", message_id)\
+            .eq("chat_id", chat_id)\
+            .execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Message not found")
+        
+        logger.info(f"🗑️ Deleted message {message_id} from chat {chat_id}")
+        
+        return {
+            "success": True,
+            "message": "Message deleted"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Delete message error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.delete("/{chat_id}")
 async def delete_chat(
     chat_id: str,

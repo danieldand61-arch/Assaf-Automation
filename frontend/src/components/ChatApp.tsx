@@ -371,6 +371,10 @@ export function ChatApp() {
     // Save current generated content before closing
     const currentContent = generatedContent
     
+    // Get the specific tool message to save its data
+    const toolMessage = messages.find(m => m.id === toolId)
+    const contentToSave = toolMessage?.action_data?.generatedContent || currentContent
+    
     // Update tool message in database
     if (activeChat && session) {
       try {
@@ -382,7 +386,7 @@ export function ChatApp() {
             'Authorization': `Bearer ${session?.access_token}`
           },
           body: JSON.stringify({
-            action_data: { status: 'closed', generatedContent: currentContent }
+            action_data: { status: 'closed', generatedContent: contentToSave }
           })
         })
       } catch (error) {
@@ -393,11 +397,39 @@ export function ChatApp() {
     // Mark tool as closed and save its content locally
     setMessages(prev => prev.map(msg => 
       msg.id === toolId 
-        ? { ...msg, action_data: { ...msg.action_data, status: 'closed', generatedContent: currentContent } }
+        ? { ...msg, action_data: { ...msg.action_data, status: 'closed', generatedContent: contentToSave } }
         : msg
     ))
     
     // Clear active tool if it's the one being closed
+    if (activeToolId === toolId) {
+      setActiveToolId(null)
+      setGeneratedContent(null)
+    }
+  }
+
+  const handleDeleteTool = async (toolId: string) => {
+    if (!confirm('Delete this tool and its results? This cannot be undone.')) return
+    
+    // Delete from database
+    if (activeChat && session) {
+      try {
+        const apiUrl = getApiUrl()
+        await fetch(`${apiUrl}/api/chats/${activeChat.id}/messages/${toolId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`
+          }
+        })
+      } catch (error) {
+        console.error('Error deleting tool:', error)
+      }
+    }
+    
+    // Remove from local state
+    setMessages(prev => prev.filter(msg => msg.id !== toolId))
+    
+    // Clear active tool if it's the one being deleted
     if (activeToolId === toolId) {
       setActiveToolId(null)
       setGeneratedContent(null)
@@ -696,12 +728,22 @@ export function ChatApp() {
                   <div key={message.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-2 border-purple-200 dark:border-purple-800">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">{message.content}</h3>
-                      <button
-                        onClick={() => handleCloseTool(message.id)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleCloseTool(message.id)}
+                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+                          title="Minimize"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTool(message.id)}
+                          className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                     {isClosed ? (
                       <button
@@ -733,12 +775,22 @@ export function ChatApp() {
                   <div key={message.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-2 border-pink-200 dark:border-pink-800">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">{message.content}</h3>
-                      <button
-                        onClick={() => handleCloseTool(message.id)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleCloseTool(message.id)}
+                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+                          title="Minimize"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTool(message.id)}
+                          className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                     {isClosed ? (
                       <button
@@ -762,16 +814,56 @@ export function ChatApp() {
               }
               
               if (message.action_type === 'google_ads') {
+                const handleGoogleAdsGenerate = async (adsPackage: any) => {
+                  // Save Google Ads results to message action_data
+                  const updatedMessages = messages.map(msg => 
+                    msg.id === message.id 
+                      ? { ...msg, action_data: { ...msg.action_data, generatedContent: adsPackage } }
+                      : msg
+                  )
+                  setMessages(updatedMessages)
+                  
+                  // Also save to database
+                  if (activeChat && session) {
+                    try {
+                      const apiUrl = getApiUrl()
+                      await fetch(`${apiUrl}/api/chats/${activeChat.id}/messages/${message.id}`, {
+                        method: 'PATCH',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${session?.access_token}`
+                        },
+                        body: JSON.stringify({
+                          action_data: { status: 'active', generatedContent: adsPackage }
+                        })
+                      })
+                      console.log('✅ Google Ads results saved to database')
+                    } catch (error) {
+                      console.error('Error saving Google Ads results:', error)
+                    }
+                  }
+                }
+                
                 return (
                   <div key={message.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-2 border-blue-200 dark:border-blue-800">
                     <div className="flex items-center justify-between mb-4">
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">{message.content}</h3>
-                      <button
-                        onClick={() => handleCloseTool(message.id)}
-                        className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleCloseTool(message.id)}
+                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+                          title="Minimize"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTool(message.id)}
+                          className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
                     </div>
                     {isClosed ? (
                       <button
@@ -781,7 +873,10 @@ export function ChatApp() {
                         {t('clickToReopenTool')}
                       </button>
                     ) : isActive ? (
-                      <GoogleAdsGeneration />
+                      <GoogleAdsGeneration 
+                        onGenerate={handleGoogleAdsGenerate}
+                        initialData={message.action_data?.generatedContent}
+                      />
                     ) : (
                       <button
                         onClick={() => handleActivateTool(message.id)}
