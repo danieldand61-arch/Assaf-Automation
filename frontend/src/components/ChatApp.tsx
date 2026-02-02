@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
-import { Plus, MessageSquare, Trash2, Send, Loader2, X, Edit2, Check } from 'lucide-react'
+import { Plus, MessageSquare, Trash2, Send, Loader2, Minimize2, Maximize2, Edit2, Check } from 'lucide-react'
 import { InputSection } from './InputSection'
 import { PreviewSection } from './PreviewSection'
 import { LoadingState } from './LoadingState'
@@ -445,7 +445,8 @@ export function ChatApp() {
     const savedContent = toolMessage?.action_data?.generatedContent
     
     if (savedContent) {
-      console.log('✅ Restoring saved content')
+      console.log('✅ Restoring saved content to store')
+      setGeneratedContent(savedContent)
     } else {
       console.log('⚠️ No saved content to restore')
     }
@@ -646,6 +647,14 @@ export function ChatApp() {
               if (message.action_type === 'post_generation') {
                 const thisToolGeneratedContent = message.action_data?.generatedContent
                 
+                // Load saved content into store when tool is visible
+                useEffect(() => {
+                  if (thisToolGeneratedContent && !isCollapsed) {
+                    console.log('📦 Loading saved post content into store')
+                    setGeneratedContent(thisToolGeneratedContent)
+                  }
+                }, [thisToolGeneratedContent, isCollapsed])
+                
                 const handlePostGenerate = async (formData: any) => {
                   setIsGenerating(true)
                   const apiUrl = getApiUrl()
@@ -719,7 +728,7 @@ export function ChatApp() {
                           className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                           title="Minimize"
                         >
-                          <X className="w-5 h-5" />
+                          <Minimize2 className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteTool(message.id)}
@@ -733,8 +742,9 @@ export function ChatApp() {
                     {isCollapsed ? (
                       <button
                         onClick={() => handleReopenTool(message.id)}
-                        className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 py-8 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition"
+                        className="w-full flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 py-8 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition"
                       >
+                        <Maximize2 className="w-5 h-5" />
                         {t('clickToReopenTool')}
                       </button>
                     ) : isGenerating ? (
@@ -759,7 +769,7 @@ export function ChatApp() {
                           className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                           title="Minimize"
                         >
-                          <X className="w-5 h-5" />
+                          <Minimize2 className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteTool(message.id)}
@@ -773,8 +783,9 @@ export function ChatApp() {
                     {isCollapsed ? (
                       <button
                         onClick={() => handleReopenTool(message.id)}
-                        className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 py-8 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-lg transition"
+                        className="w-full flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 py-8 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-lg transition"
                       >
+                        <Maximize2 className="w-5 h-5" />
                         {t('clickToReopenTool')}
                       </button>
                     ) : (
@@ -849,7 +860,7 @@ export function ChatApp() {
                           className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                           title="Minimize"
                         >
-                          <X className="w-5 h-5" />
+                          <Minimize2 className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteTool(message.id)}
@@ -863,8 +874,9 @@ export function ChatApp() {
                     {isCollapsed ? (
                       <button
                         onClick={() => handleReopenTool(message.id)}
-                        className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 py-8 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
+                        className="w-full flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 py-8 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
                       >
+                        <Maximize2 className="w-5 h-5" />
                         {t('clickToReopenTool')}
                       </button>
                     ) : (
