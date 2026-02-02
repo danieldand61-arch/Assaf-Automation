@@ -694,19 +694,20 @@ export function ChatApp() {
                   }`}
                 >
                   {message.role === 'assistant' ? (
-                    <ReactMarkdown
-                      className="prose prose-sm dark:prose-invert max-w-none"
-                      components={{
-                        p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                        strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
-                        em: ({node, ...props}) => <em className="italic" {...props} />,
-                        ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2" {...props} />,
-                        ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2" {...props} />,
-                        li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                      }}
-                    >
-                      {message.content}
-                    </ReactMarkdown>
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <ReactMarkdown
+                        components={{
+                          p: ({node, ...props}) => <p className="mb-2 last:mb-0" {...props} />,
+                          strong: ({node, ...props}) => <strong className="font-bold" {...props} />,
+                          em: ({node, ...props}) => <em className="italic" {...props} />,
+                          ul: ({node, ...props}) => <ul className="list-disc list-inside mb-2" {...props} />,
+                          ol: ({node, ...props}) => <ol className="list-decimal list-inside mb-2" {...props} />,
+                          li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                   ) : (
                     <p className="whitespace-pre-wrap">{message.content}</p>
                   )}
