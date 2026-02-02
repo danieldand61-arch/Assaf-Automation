@@ -25,7 +25,7 @@ interface Message {
   action_data?: any
 }
 
-type ActiveTool = null | 'post_generation' | 'video_dubbing'
+// Removed ActiveTool type - now using activeToolId per message
 
 export function ChatApp() {
   const { session } = useAuth()
@@ -37,10 +37,10 @@ export function ChatApp() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [activeTool, setActiveTool] = useState<ActiveTool>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
+  const [activeToolId, setActiveToolId] = useState<string | null>(null)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -52,19 +52,10 @@ export function ChatApp() {
   }, [session])
 
   useEffect(() => {
-    console.log('🔄 activeChat changed:', activeChat?.id)
     if (session && activeChat) {
-      console.log('📥 Loading messages for chat:', activeChat.id)
       loadMessages(activeChat.id)
     }
   }, [activeChat])
-  
-  useEffect(() => {
-    console.log('👤 Session:', session ? 'exists' : 'null')
-    console.log('💬 Show chat:', showChat)
-    console.log('📋 Chats count:', chats.length)
-    console.log('🎯 Active chat:', activeChat?.id || 'none')
-  }, [session, showChat, chats, activeChat])
 
   useEffect(() => {
     scrollToBottom()
@@ -121,15 +112,10 @@ export function ChatApp() {
   }
 
   const createFirstChat = async () => {
-    console.log('🆕 Creating first chat...')
-    if (!session) {
-      console.log('❌ No session!')
-      return null
-    }
+    if (!session) return null
     
     try {
       const apiUrl = getApiUrl()
-      console.log('🔗 API URL:', apiUrl)
       
       const response = await fetch(`${apiUrl}/api/chats/create`, {
         method: 'POST',
@@ -140,14 +126,10 @@ export function ChatApp() {
         body: JSON.stringify({ title: 'New Chat' })
       })
       
-      console.log('📥 Create chat response:', response.status)
-      
       if (!response.ok) throw new Error('Failed to create chat')
       
       const data = await response.json()
       const newChat = data.chat
-      
-      console.log('✅ Chat created:', newChat.id)
       
       // First chat - initialize
       setChats([newChat])
@@ -155,11 +137,9 @@ export function ChatApp() {
       setShowChat(true)
       setMessages([])
       
-      console.log('✅ State updated, showChat:', true, 'activeChat:', newChat.id)
-      
       return newChat
     } catch (error) {
-      console.error('❌ Error creating chat:', error)
+      console.error('Error creating chat:', error)
       return null
     }
   }
@@ -192,7 +172,7 @@ export function ChatApp() {
       setActiveChat(newChat)
       setMessages([])
       setGeneratedContent(null)
-      setActiveTool(null)
+      setActiveToolId(null)
     } catch (error) {
       console.error('Error creating chat:', error)
     }
@@ -268,34 +248,13 @@ export function ChatApp() {
   }
 
   const sendMessage = async () => {
-    console.log('🚀 sendMessage called!')
-    console.log('📝 Input message:', inputMessage)
-    console.log('🎯 Active chat:', activeChat)
-    
-    if (!inputMessage.trim()) {
-      console.log('❌ Cannot send: empty message')
-      alert('Please type a message')
-      return
-    }
-    
-    if (!activeChat) {
-      console.log('❌ Cannot send: no active chat')
-      alert('No active chat found')
-      return
-    }
-    
-    if (!session?.access_token) {
-      console.log('❌ Cannot send: no session token')
-      alert('Please log in')
+    if (!inputMessage.trim() || !activeChat || !session?.access_token) {
       return
     }
 
     const userMessage = inputMessage
     setInputMessage('')
     setIsLoading(true)
-
-    console.log('📤 Sending message:', userMessage)
-    console.log('📍 Active chat:', activeChat.id)
 
     try {
       const apiUrl = getApiUrl()
@@ -308,8 +267,6 @@ export function ChatApp() {
       }
       setMessages(prev => [...prev, tempUserMsg])
 
-      console.log('🔗 API URL:', `${apiUrl}/api/chats/${activeChat.id}/message`)
-
       const response = await fetch(`${apiUrl}/api/chats/${activeChat.id}/message`, {
         method: 'POST',
         headers: {
@@ -319,22 +276,13 @@ export function ChatApp() {
         body: JSON.stringify({ content: userMessage })
       })
       
-      console.log('📥 Response status:', response.status)
-      
       if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ Response error:', errorText)
         throw new Error(`Failed to send message: ${response.status}`)
       }
       
       const data = await response.json()
-      console.log('✅ Response data:', data)
-      console.log('📧 User message:', data.user_message)
-      console.log('🤖 Assistant message:', data.assistant_message)
-      console.log('🤖 Assistant content:', data.assistant_message?.content)
       
       if (!data.user_message || !data.assistant_message) {
-        console.error('❌ Invalid response structure:', data)
         throw new Error('Invalid response from server')
       }
       
@@ -344,19 +292,20 @@ export function ChatApp() {
         data.assistant_message
       ])
     } catch (error) {
-      console.error('❌ Error sending message:', error)
+      console.error('Error sending message:', error)
       alert(`Failed to send message: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
     }
   }
 
-  const handleToolClick = async (tool: ActiveTool) => {
+  const handleToolClick = async (tool: 'post_generation' | 'video_dubbing') => {
     if (!tool || !activeChat) return
     
-    // Add tool message to history
+    // Create unique tool message
+    const toolId = 'tool-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9)
     const toolMessage: Message = {
-      id: 'tool-' + Date.now(),
+      id: toolId,
       role: 'tool',
       content: tool === 'post_generation' ? '🎨 Generate Post' : '🎬 AI Video Dubbing',
       action_type: tool,
@@ -365,8 +314,7 @@ export function ChatApp() {
     }
     
     setMessages(prev => [...prev, toolMessage])
-    setActiveTool(tool)
-    setGeneratedContent(null)
+    setActiveToolId(toolId)
   }
 
   const handleCloseTool = (toolId: string) => {
@@ -376,7 +324,22 @@ export function ChatApp() {
         ? { ...msg, action_data: { ...msg.action_data, status: 'closed' } }
         : msg
     ))
-    setActiveTool(null)
+    
+    // Clear active tool if it's the one being closed
+    if (activeToolId === toolId) {
+      setActiveToolId(null)
+      setGeneratedContent(null)
+    }
+  }
+
+  const handleReopenTool = (toolId: string) => {
+    // Reopen closed tool
+    setMessages(prev => prev.map(msg => 
+      msg.id === toolId 
+        ? { ...msg, action_data: { ...msg.action_data, status: 'active' } }
+        : msg
+    ))
+    setActiveToolId(toolId)
     setGeneratedContent(null)
   }
 
@@ -521,7 +484,7 @@ export function ChatApp() {
               onClick={() => {
                 if (editingChatId !== chat.id) {
                   setActiveChat(chat)
-                  setActiveTool(null)
+                  setActiveToolId(null)
                   setGeneratedContent(null)
                 }
               }}
@@ -595,18 +558,15 @@ export function ChatApp() {
         {/* Header */}
         <div className="border-b border-gray-200 dark:border-gray-700">
           <Header />
-          {/* Debug info */}
-          <div className="px-4 py-2 bg-yellow-100 dark:bg-yellow-900 text-xs">
-            DEBUG: Chat={activeChat?.id.substring(0, 8) || 'none'} | Messages={messages.length} | Session={session ? 'ok' : 'none'}
-          </div>
         </div>
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.map((message) => {
             // Tool messages - render inline forms
-            if (message.role === 'tool' && message.action_data?.status !== 'closed') {
-              const isActive = activeTool === message.action_type
+            if (message.role === 'tool') {
+              const isActive = activeToolId === message.id
+              const isClosed = message.action_data?.status === 'closed'
               
               if (message.action_type === 'post_generation') {
                 return (
@@ -620,16 +580,26 @@ export function ChatApp() {
                         <X className="w-5 h-5" />
                       </button>
                     </div>
-                    {isActive && isGenerating ? (
+                    {isClosed ? (
+                      <button
+                        onClick={() => handleReopenTool(message.id)}
+                        className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 py-8 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition"
+                      >
+                        Click to reopen tool
+                      </button>
+                    ) : isActive && isGenerating ? (
                       <LoadingState />
                     ) : isActive && generatedContent ? (
                       <PreviewSection onReset={handleReset} />
                     ) : isActive ? (
                       <InputSection onGenerate={handleGenerate} />
                     ) : (
-                      <div className="text-center text-gray-500 py-8">
-                        <p>Click to reopen tool</p>
-                      </div>
+                      <button
+                        onClick={() => setActiveToolId(message.id)}
+                        className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 py-8 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition"
+                      >
+                        Click to use this tool
+                      </button>
                     )}
                   </div>
                 )
@@ -647,12 +617,22 @@ export function ChatApp() {
                         <X className="w-5 h-5" />
                       </button>
                     </div>
-                    {isActive ? (
+                    {isClosed ? (
+                      <button
+                        onClick={() => handleReopenTool(message.id)}
+                        className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 py-8 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-lg transition"
+                      >
+                        Click to reopen tool
+                      </button>
+                    ) : isActive ? (
                       <VideoTranslation />
                     ) : (
-                      <div className="text-center text-gray-500 py-8">
-                        <p>Click to reopen tool</p>
-                      </div>
+                      <button
+                        onClick={() => setActiveToolId(message.id)}
+                        className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 py-8 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-lg transition"
+                      >
+                        Click to use this tool
+                      </button>
                     )}
                   </div>
                 )
@@ -703,27 +683,19 @@ export function ChatApp() {
                 disabled={isLoading}
               />
               <button
-                onClick={() => {
-                  console.log('🖱️ Send button clicked!')
-                  sendMessage()
-                }}
+                onClick={sendMessage}
                 disabled={isLoading || !inputMessage.trim()}
                 className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
-                title={!activeChat ? 'No active chat' : !inputMessage.trim() ? 'Type a message' : 'Send'}
               >
                 <Send className="w-5 h-5" />
               </button>
             </div>
             
-            {/* Tool Buttons - Inactive until clicked */}
+            {/* Tool Buttons */}
             <div className="flex gap-2 justify-center">
               <button
                 onClick={() => handleToolClick('video_dubbing')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  activeTool === 'video_dubbing'
-                    ? 'bg-pink-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-pink-100 dark:hover:bg-pink-900/30 hover:text-pink-700 dark:hover:text-pink-300'
-                }`}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-pink-100 dark:hover:bg-pink-900/30 hover:text-pink-700 dark:hover:text-pink-300"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
@@ -732,11 +704,7 @@ export function ChatApp() {
               </button>
               <button
                 onClick={() => handleToolClick('post_generation')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                  activeTool === 'post_generation'
-                    ? 'bg-purple-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 hover:text-purple-700 dark:hover:text-purple-300'
-                }`}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg transition bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-purple-100 dark:hover:bg-purple-900/30 hover:text-purple-700 dark:hover:text-purple-300"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
