@@ -64,6 +64,24 @@ export function ChatApp() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+  
+  // Load saved content from post_generation tools into store
+  useEffect(() => {
+    const postGenTools = messages.filter(m => 
+      m.role === 'tool' && 
+      m.action_type === 'post_generation' &&
+      m.action_data?.status !== 'collapsed' &&
+      m.action_data?.generatedContent
+    )
+    
+    if (postGenTools.length > 0) {
+      const latestTool = postGenTools[postGenTools.length - 1]
+      if (latestTool.action_data?.generatedContent && generatedContent !== latestTool.action_data.generatedContent) {
+        console.log('📦 Loading saved post content into store from tool:', latestTool.id)
+        setGeneratedContent(latestTool.action_data.generatedContent)
+      }
+    }
+  }, [messages])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -646,14 +664,6 @@ export function ChatApp() {
               
               if (message.action_type === 'post_generation') {
                 const thisToolGeneratedContent = message.action_data?.generatedContent
-                
-                // Load saved content into store when tool is visible
-                useEffect(() => {
-                  if (thisToolGeneratedContent && !isCollapsed) {
-                    console.log('📦 Loading saved post content into store')
-                    setGeneratedContent(thisToolGeneratedContent)
-                  }
-                }, [thisToolGeneratedContent, isCollapsed])
                 
                 const handlePostGenerate = async (formData: any) => {
                   setIsGenerating(true)
