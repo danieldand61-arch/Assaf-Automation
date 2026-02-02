@@ -44,7 +44,7 @@ export function ChatApp() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [editingChatId, setEditingChatId] = useState<string | null>(null)
   const [editingTitle, setEditingTitle] = useState('')
-  const [activeToolId, setActiveToolId] = useState<string | null>(null)
+  // Removed activeToolId - now each tool manages its own expanded/collapsed state
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -369,9 +369,8 @@ export function ChatApp() {
       const toolMessage = data.action
       
       setMessages(prev => [...prev, toolMessage])
-      setActiveToolId(toolMessage.id)
       
-      console.log('✅ Tool activated:', toolMessage.id)
+      console.log('✅ Tool added:', toolMessage.id)
     } catch (error) {
       console.error('❌ Error creating tool:', error)
       alert(`Failed to open tool: ${error}`)
@@ -379,12 +378,11 @@ export function ChatApp() {
   }
 
   const handleCloseTool = async (toolId: string) => {
-    // Save current generated content before closing
-    const currentContent = generatedContent
+    console.log('🔽 Collapsing tool:', toolId)
     
     // Get the specific tool message to save its data
     const toolMessage = messages.find(m => m.id === toolId)
-    const contentToSave = toolMessage?.action_data?.generatedContent || currentContent
+    const contentToSave = toolMessage?.action_data?.generatedContent || generatedContent
     
     // Update tool message in database
     if (activeChat && session) {
@@ -397,26 +395,21 @@ export function ChatApp() {
             'Authorization': `Bearer ${session?.access_token}`
           },
           body: JSON.stringify({
-            action_data: { status: 'closed', generatedContent: contentToSave }
+            action_data: { status: 'collapsed', generatedContent: contentToSave }
           })
         })
+        console.log('✅ Tool collapsed in DB')
       } catch (error) {
         console.error('Error updating tool:', error)
       }
     }
     
-    // Mark tool as closed and save its content locally
+    // Mark tool as collapsed and save its content locally
     setMessages(prev => prev.map(msg => 
       msg.id === toolId 
-        ? { ...msg, action_data: { ...msg.action_data, status: 'closed', generatedContent: contentToSave } }
+        ? { ...msg, action_data: { ...msg.action_data, status: 'collapsed', generatedContent: contentToSave } }
         : msg
     ))
-    
-    // Clear active tool if it's the one being closed
-    if (activeToolId === toolId) {
-      setActiveToolId(null)
-      setGeneratedContent(null)
-    }
   }
 
   const handleDeleteTool = async (toolId: string) => {
@@ -464,23 +457,12 @@ export function ChatApp() {
       console.log('⚠️ No saved content to restore')
     }
     
-    // Reopen closed tool
+    // Expand collapsed tool
     setMessages(prev => prev.map(msg => 
       msg.id === toolId 
-        ? { ...msg, action_data: { ...msg.action_data, status: 'active' } }
+        ? { ...msg, action_data: { ...msg.action_data, status: 'expanded' } }
         : msg
     ))
-    setActiveToolId(toolId)
-    setGeneratedContent(savedContent || null)
-  }
-  
-  const handleActivateTool = (toolId: string) => {
-    // Activate tool and load its saved content
-    const toolMessage = messages.find(msg => msg.id === toolId)
-    const savedContent = toolMessage?.action_data?.generatedContent
-    
-    setActiveToolId(toolId)
-    setGeneratedContent(savedContent || null)
   }
 
   const handleGenerate = async (formData: any) => {
@@ -743,8 +725,8 @@ export function ChatApp() {
           {messages.map((message) => {
             // Tool messages - render inline forms
             if (message.role === 'tool') {
-              const isActive = activeToolId === message.id
-              const isClosed = message.action_data?.status === 'closed'
+              const isCollapsed = message.action_data?.status === 'collapsed'
+              const isExpanded = !isCollapsed  // Tools are expanded by default
               
               if (message.action_type === 'post_generation') {
                 return (
@@ -768,26 +750,19 @@ export function ChatApp() {
                         </button>
                       </div>
                     </div>
-                    {isClosed ? (
+                    {isCollapsed ? (
                       <button
                         onClick={() => handleReopenTool(message.id)}
                         className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 py-8 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition"
                       >
                         {t('clickToReopenTool')}
                       </button>
-                    ) : isActive && isGenerating ? (
+                    ) : isGenerating ? (
                       <LoadingState />
-                    ) : isActive && generatedContent ? (
+                    ) : generatedContent ? (
                       <PreviewSection onReset={handleReset} />
-                    ) : isActive ? (
-                      <InputSection onGenerate={handleGenerate} />
                     ) : (
-                      <button
-                        onClick={() => handleActivateTool(message.id)}
-                        className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 py-8 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition"
-                      >
-                        {t('clickToUseTool')}
-                      </button>
+                      <InputSection onGenerate={handleGenerate} />
                     )}
                   </div>
                 )
@@ -815,22 +790,39 @@ export function ChatApp() {
                         </button>
                       </div>
                     </div>
-                    {isClosed ? (
+                    {isCollapsed ? (
                       <button
                         onClick={() => handleReopenTool(message.id)}
                         className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 py-8 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-lg transition"
                       >
                         {t('clickToReopenTool')}
                       </button>
-                    ) : isActive ? (
-                      <VideoTranslation />
                     ) : (
-                      <button
-                        onClick={() => handleActivateTool(message.id)}
-                        className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 py-8 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-lg transition"
-                      >
-                        {t('clickToUseTool')}
-                      </button>
+                      <VideoTranslation 
+                        initialJob={message.action_data?.generatedContent}
+                        onJobUpdate={(job) => {
+                          // Save job state to message
+                          setMessages(prev => prev.map(msg => 
+                            msg.id === message.id 
+                              ? { ...msg, action_data: { ...msg.action_data, generatedContent: job } }
+                              : msg
+                          ))
+                          // Also save to DB
+                          if (activeChat && session) {
+                            const apiUrl = getApiUrl()
+                            fetch(`${apiUrl}/api/chats/${activeChat.id}/messages/${message.id}`, {
+                              method: 'PATCH',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${session?.access_token}`
+                              },
+                              body: JSON.stringify({
+                                action_data: { status: 'expanded', generatedContent: job }
+                              })
+                            }).catch(console.error)
+                          }
+                        }}
+                      />
                     )}
                   </div>
                 )
@@ -888,25 +880,18 @@ export function ChatApp() {
                         </button>
                       </div>
                     </div>
-                    {isClosed ? (
+                    {isCollapsed ? (
                       <button
                         onClick={() => handleReopenTool(message.id)}
                         className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 py-8 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
                       >
                         {t('clickToReopenTool')}
                       </button>
-                    ) : isActive ? (
+                    ) : (
                       <GoogleAdsGeneration 
                         onGenerate={handleGoogleAdsGenerate}
                         initialData={message.action_data?.generatedContent}
                       />
-                    ) : (
-                      <button
-                        onClick={() => handleActivateTool(message.id)}
-                        className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 py-8 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
-                      >
-                        {t('clickToUseTool')}
-                      </button>
                     )}
                   </div>
                 )

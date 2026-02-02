@@ -32,12 +32,17 @@ const LANGUAGE_OPTIONS = [
   { code: 'tr', name: 'Turkish (Türkçe)', flag: '🇹🇷', alpha: false, disabled: false },
 ]
 
-export function VideoTranslation() {
+interface VideoTranslationProps {
+  initialJob?: TranslationJob | null
+  onJobUpdate?: (job: TranslationJob | null) => void
+}
+
+export function VideoTranslation({ initialJob, onJobUpdate }: VideoTranslationProps = {}) {
   const { session } = useAuth()
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
-  const [currentJob, setCurrentJob] = useState<TranslationJob | null>(null)
+  const [currentJob, setCurrentJob] = useState<TranslationJob | null>(initialJob || null)
   const [error, setError] = useState<string | null>(null)
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null)
   const [showScheduleModal, setShowScheduleModal] = useState(false)
@@ -174,6 +179,7 @@ export function VideoTranslation() {
         
         const job: TranslationJob = await response.json()
         setCurrentJob(job)
+        if (onJobUpdate) onJobUpdate(job)
         
         if (job.status === 'processing') {
           setTimeout(poll, 5000) // Poll every 5 seconds
