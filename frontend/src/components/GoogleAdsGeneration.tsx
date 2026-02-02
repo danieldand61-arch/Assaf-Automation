@@ -36,21 +36,44 @@ export function GoogleAdsGeneration({ onGenerate }: GoogleAdsGenerationProps) {
     }
 
     setIsGenerating(true)
+    console.log('🎯 Starting Google Ads generation...')
+    console.log('🎯 Website URL:', websiteUrl)
+    console.log('🎯 Keywords:', keywords)
 
     try {
       // First, scrape website
       const apiUrl = getApiUrl()
+      console.log('🎯 API URL:', apiUrl)
+      console.log('🎯 Scraping website...')
+      
       const scrapeResponse = await fetch(`${apiUrl}/api/scrape`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: websiteUrl })
       })
 
-      if (!scrapeResponse.ok) throw new Error('Failed to scrape website')
+      console.log('🎯 Scrape response status:', scrapeResponse.status)
 
-      const websiteData = await scrapeResponse.json()
+      let websiteData
+      
+      if (!scrapeResponse.ok) {
+        console.warn('⚠️ Scraping failed, using fallback data')
+        // Fallback: use basic data from URL
+        websiteData = {
+          title: websiteUrl.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, ''),
+          description: keywords,
+          products: keywords.split(',').map(k => k.trim()),
+          key_features: [],
+          industry: 'general'
+        }
+        console.log('🎯 Using fallback website data:', websiteData)
+      } else {
+        websiteData = await scrapeResponse.json()
+        console.log('✅ Website scraped successfully:', websiteData)
+      }
 
       // Then, generate Google Ads
+      console.log('🎯 Calling Google Ads generation endpoint...')
       const adsResponse = await fetch(`${apiUrl}/api/content/generate-google-ads`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -62,17 +85,25 @@ export function GoogleAdsGeneration({ onGenerate }: GoogleAdsGenerationProps) {
         })
       })
 
-      if (!adsResponse.ok) throw new Error('Failed to generate Google Ads')
+      console.log('🎯 Ads generation response status:', adsResponse.status)
+
+      if (!adsResponse.ok) {
+        const errorText = await adsResponse.text()
+        console.error('❌ Ads generation error response:', errorText)
+        throw new Error(`Failed to generate Google Ads: ${errorText}`)
+      }
 
       const data = await adsResponse.json()
+      console.log('✅ Google Ads generated successfully:', data)
+      
       setAdsPackage(data.ads_package)
       
       if (onGenerate) {
         onGenerate(data.ads_package)
       }
     } catch (error) {
-      console.error('Error:', error)
-      alert('Failed to generate Google Ads. Please try again.')
+      console.error('❌ Error:', error)
+      alert(`Failed to generate Google Ads: ${error}`)
     } finally {
       setIsGenerating(false)
     }
