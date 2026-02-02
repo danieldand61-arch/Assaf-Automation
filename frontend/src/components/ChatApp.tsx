@@ -47,6 +47,7 @@ export function ChatApp() {
   // Removed activeToolId - now each tool manages its own expanded/collapsed state
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const prevMessagesLengthRef = useRef<number>(0)
 
   // Load chats on mount
   useEffect(() => {
@@ -61,8 +62,12 @@ export function ChatApp() {
     }
   }, [activeChat])
 
+  // Only scroll to bottom when NEW messages are added, not when existing messages are updated
   useEffect(() => {
-    scrollToBottom()
+    if (messages.length > prevMessagesLengthRef.current) {
+      scrollToBottom()
+    }
+    prevMessagesLengthRef.current = messages.length
   }, [messages])
   
   // REMOVED: useEffect for loading post content into global store
