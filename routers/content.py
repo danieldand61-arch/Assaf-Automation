@@ -165,7 +165,11 @@ async def generate_google_ads_endpoint(request: GenerateGoogleAdsRequest):
     Returns 15 headlines, 4 descriptions, and all extensions
     """
     try:
-        logger.info("🎯 Generating Google Ads RSA")
+        logger.info("🎯 ===== GOOGLE ADS GENERATION START =====")
+        logger.info(f"🎯 Website data keys: {list(request.website_data.keys())}")
+        logger.info(f"🎯 Keywords: {request.keywords}")
+        logger.info(f"🎯 Target location: {request.target_location}")
+        logger.info(f"🎯 Language: {request.language}")
         
         ads_package = await generate_google_ads(
             website_data=request.website_data,
@@ -174,11 +178,18 @@ async def generate_google_ads_endpoint(request: GenerateGoogleAdsRequest):
             language=request.language
         )
         
+        logger.info(f"✅ Generated {len(ads_package.get('headlines', []))} headlines")
+        logger.info(f"✅ Generated {len(ads_package.get('descriptions', []))} descriptions")
+        logger.info("🎯 ===== GOOGLE ADS GENERATION SUCCESS =====")
+        
         return {
             "success": True,
             "ads_package": ads_package
         }
         
     except Exception as e:
-        logger.error(f"❌ Error generating Google Ads: {str(e)}")
+        logger.error(f"❌ ===== GOOGLE ADS GENERATION FAILED =====")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        logger.error(f"❌ Error message: {str(e)}")
+        logger.exception("❌ Full traceback:")
         raise HTTPException(status_code=500, detail=str(e))

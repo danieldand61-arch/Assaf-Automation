@@ -42,6 +42,7 @@ try:
     logger.info("   📝 POST /api/content/edit-text")
     logger.info("   📝 POST /api/content/regenerate-text")
     logger.info("   🖼️  POST /api/content/regenerate-image")
+    logger.info("   🎯 POST /api/content/generate-google-ads")
 except Exception as e:
     logger.error(f"❌ Content router failed to load: {str(e)}")
     logger.exception("Full import/registration traceback:")

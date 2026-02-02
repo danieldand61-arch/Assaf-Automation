@@ -20,20 +20,32 @@ async def generate_google_ads(
     Returns: 15 headlines, 4 descriptions, extensions
     """
     
-    logger.info("🎯 Generating Google Ads RSA with MAXIMUM assets")
+    logger.info("🎯 ===== GOOGLE ADS SERVICE START =====")
+    logger.info(f"🎯 Website data: title={website_data.get('title', 'N/A')}")
+    logger.info(f"🎯 Keywords: {keywords}")
+    logger.info(f"🎯 Location: {target_location}")
     
     # Build comprehensive prompt
-    prompt = _build_google_ads_prompt(
-        website_data, keywords, target_location, language
-    )
+    try:
+        logger.info("🎯 Building prompt...")
+        prompt = _build_google_ads_prompt(
+            website_data, keywords, target_location, language
+        )
+        logger.info(f"✅ Prompt built (length: {len(prompt)} chars)")
+    except Exception as e:
+        logger.error(f"❌ Error building prompt: {str(e)}")
+        raise
     
     # Use Gemini 2.5 Flash
     model_name = 'gemini-2.5-flash'
     logger.info(f"🔍 Using model: {model_name}")
     
     try:
+        logger.info("🎯 Creating Gemini model...")
         model = genai.GenerativeModel(model_name)
+        logger.info("✅ Model created")
         
+        logger.info("🎯 Calling Gemini API...")
         response = model.generate_content(
             prompt,
             generation_config={
@@ -43,18 +55,25 @@ async def generate_google_ads(
                 "max_output_tokens": 8192,
             }
         )
+        logger.info("✅ Gemini API responded")
         
         content = response.text
-        logger.info(f"✅ Received Google Ads response")
+        logger.info(f"✅ Received response (length: {len(content)} chars)")
+        logger.info(f"🎯 Response preview: {content[:200]}...")
         
         # Parse response
+        logger.info("🎯 Parsing response...")
         ads_package = _parse_google_ads_response(content)
-        logger.info(f"✅ Parsed Google Ads package with {len(ads_package['headlines'])} headlines")
+        logger.info(f"✅ Parsed: {len(ads_package['headlines'])} headlines, {len(ads_package['descriptions'])} descriptions")
+        logger.info("🎯 ===== GOOGLE ADS SERVICE SUCCESS =====")
         
         return ads_package
         
     except Exception as e:
-        logger.error(f"❌ Google Ads generation error: {str(e)}")
+        logger.error(f"❌ ===== GOOGLE ADS SERVICE FAILED =====")
+        logger.error(f"❌ Error type: {type(e).__name__}")
+        logger.error(f"❌ Error message: {str(e)}")
+        logger.exception("❌ Full traceback:")
         raise
 
 
