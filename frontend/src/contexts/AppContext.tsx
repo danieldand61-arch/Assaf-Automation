@@ -36,7 +36,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem('language', language)
-    document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr'
+    // Don't change text direction for Hebrew - keep LTR layout
     document.documentElement.lang = language
   }, [language])
 

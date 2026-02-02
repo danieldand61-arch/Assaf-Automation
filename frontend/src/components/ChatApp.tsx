@@ -81,13 +81,15 @@ export function ChatApp() {
       const data = await response.json()
       const loadedChats = data.chats || []
       
-      setChats(loadedChats)
-      
-      // If we have chats, show chat interface and set first chat as active
-      if (loadedChats.length > 0) {
-        setShowChat(true)
-        setActiveChat(loadedChats[0])
+      // If no chats exist, create first chat automatically
+      if (loadedChats.length === 0) {
+        await createFirstChat()
+        return
       }
+      
+      setChats(loadedChats)
+      setShowChat(true)
+      setActiveChat(loadedChats[0])
     } catch (error) {
       console.error('Error loading chats:', error)
     }
@@ -145,7 +147,8 @@ export function ChatApp() {
   }
 
   const handleGetStarted = async () => {
-    await createFirstChat()
+    // loadChats will handle creating first chat if needed
+    setShowChat(true)
   }
 
   const createNewChat = async () => {
@@ -171,7 +174,6 @@ export function ChatApp() {
       setChats(prevChats => [newChat, ...prevChats])
       setActiveChat(newChat)
       setMessages([])
-      setGeneratedContent(null)
       setActiveToolId(null)
     } catch (error) {
       console.error('Error creating chat:', error)
@@ -318,10 +320,13 @@ export function ChatApp() {
   }
 
   const handleCloseTool = (toolId: string) => {
-    // Mark tool as closed in messages
+    // Save current generated content before closing
+    const currentContent = generatedContent
+    
+    // Mark tool as closed and save its content
     setMessages(prev => prev.map(msg => 
       msg.id === toolId 
-        ? { ...msg, action_data: { ...msg.action_data, status: 'closed' } }
+        ? { ...msg, action_data: { ...msg.action_data, status: 'closed', generatedContent: currentContent } }
         : msg
     ))
     
@@ -333,6 +338,10 @@ export function ChatApp() {
   }
 
   const handleReopenTool = (toolId: string) => {
+    // Find the message and restore its generated content
+    const toolMessage = messages.find(msg => msg.id === toolId)
+    const savedContent = toolMessage?.action_data?.generatedContent
+    
     // Reopen closed tool
     setMessages(prev => prev.map(msg => 
       msg.id === toolId 
@@ -340,10 +349,21 @@ export function ChatApp() {
         : msg
     ))
     setActiveToolId(toolId)
-    setGeneratedContent(null)
+    setGeneratedContent(savedContent || null)
+  }
+  
+  const handleActivateTool = (toolId: string) => {
+    // Activate tool and load its saved content
+    const toolMessage = messages.find(msg => msg.id === toolId)
+    const savedContent = toolMessage?.action_data?.generatedContent
+    
+    setActiveToolId(toolId)
+    setGeneratedContent(savedContent || null)
   }
 
   const handleGenerate = async (formData: any) => {
+    if (!activeToolId) return
+    
     setIsGenerating(true)
     
     const apiUrl = getApiUrl()
@@ -365,11 +385,21 @@ export function ChatApp() {
         throw new Error('No content generated')
       }
       
-      setGeneratedContent({
+      const generatedContent = {
         ...data,
         website_data: data.website_data,
         request_params: formData
-      })
+      }
+      
+      // Save generated content to the active tool message
+      setMessages(prev => prev.map(msg => 
+        msg.id === activeToolId 
+          ? { ...msg, action_data: { ...msg.action_data, generatedContent } }
+          : msg
+      ))
+      
+      // Also update global store for PreviewSection
+      setGeneratedContent(generatedContent)
     } catch (error) {
       console.error('Generation error:', error)
       alert('Failed to generate content')
@@ -379,6 +409,15 @@ export function ChatApp() {
   }
 
   const handleReset = () => {
+    if (!activeToolId) return
+    
+    // Clear generated content from the active tool message
+    setMessages(prev => prev.map(msg => 
+      msg.id === activeToolId 
+        ? { ...msg, action_data: { ...msg.action_data, generatedContent: null } }
+        : msg
+    ))
+    
     setGeneratedContent(null)
   }
 
@@ -485,7 +524,6 @@ export function ChatApp() {
                 if (editingChatId !== chat.id) {
                   setActiveChat(chat)
                   setActiveToolId(null)
-                  setGeneratedContent(null)
                 }
               }}
               className={`group flex items-center gap-3 p-3 rounded-lg cursor-pointer transition mb-1 ${
@@ -595,7 +633,7 @@ export function ChatApp() {
                       <InputSection onGenerate={handleGenerate} />
                     ) : (
                       <button
-                        onClick={() => setActiveToolId(message.id)}
+                        onClick={() => handleActivateTool(message.id)}
                         className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-purple-600 dark:hover:text-purple-400 py-8 hover:bg-purple-50 dark:hover:bg-purple-900/20 rounded-lg transition"
                       >
                         Click to use this tool
@@ -628,7 +666,7 @@ export function ChatApp() {
                       <VideoTranslation />
                     ) : (
                       <button
-                        onClick={() => setActiveToolId(message.id)}
+                        onClick={() => handleActivateTool(message.id)}
                         className="w-full text-center text-gray-500 dark:text-gray-400 hover:text-pink-600 dark:hover:text-pink-400 py-8 hover:bg-pink-50 dark:hover:bg-pink-900/20 rounded-lg transition"
                       >
                         Click to use this tool
