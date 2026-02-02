@@ -146,6 +146,16 @@ async def get_messages(
             .order("created_at", desc=False)\
             .execute()
         
+        logger.info(f"📤 Returning {len(result.data or [])} messages for chat {chat_id}")
+        
+        # Log tool messages with action_data
+        tool_messages = [m for m in (result.data or []) if m.get('role') == 'tool']
+        if tool_messages:
+            logger.info(f"🔧 Tool messages: {len(tool_messages)}")
+            for tm in tool_messages:
+                has_content = bool(tm.get('action_data', {}).get('generatedContent'))
+                logger.info(f"  - {tm.get('id')}: type={tm.get('action_type')}, has_content={has_content}")
+        
         return {
             "chat": chat.data,
             "messages": result.data or []

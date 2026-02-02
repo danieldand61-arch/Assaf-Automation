@@ -101,6 +101,8 @@ export function ChatApp() {
 
   const loadMessages = async (chatId: string) => {
     try {
+      console.log('📥 Loading messages for chat:', chatId)
+      
       const apiUrl = getApiUrl()
       const response = await fetch(`${apiUrl}/api/chats/${chatId}/messages`, {
         headers: {
@@ -111,6 +113,15 @@ export function ChatApp() {
       if (!response.ok) throw new Error('Failed to load messages')
       
       const data = await response.json()
+      console.log('📥 Received messages:', data.messages)
+      
+      // Log tool messages specifically
+      const toolMessages = (data.messages || []).filter((m: any) => m.role === 'tool')
+      console.log('🔧 Tool messages:', toolMessages)
+      toolMessages.forEach((tm: any) => {
+        console.log(`  - ${tm.id}: action_type=${tm.action_type}, has_content=${!!tm.action_data?.generatedContent}`)
+      })
+      
       setMessages(data.messages || [])
     } catch (error) {
       console.error('Error loading messages:', error)
@@ -437,9 +448,21 @@ export function ChatApp() {
   }
 
   const handleReopenTool = (toolId: string) => {
+    console.log('🔄 Reopening tool:', toolId)
+    
     // Find the message and restore its generated content
     const toolMessage = messages.find(msg => msg.id === toolId)
+    console.log('🔄 Tool message found:', toolMessage)
+    console.log('🔄 action_data:', toolMessage?.action_data)
+    console.log('🔄 generatedContent:', toolMessage?.action_data?.generatedContent)
+    
     const savedContent = toolMessage?.action_data?.generatedContent
+    
+    if (savedContent) {
+      console.log('✅ Restoring saved content')
+    } else {
+      console.log('⚠️ No saved content to restore')
+    }
     
     // Reopen closed tool
     setMessages(prev => prev.map(msg => 
