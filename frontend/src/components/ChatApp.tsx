@@ -65,23 +65,9 @@ export function ChatApp() {
     scrollToBottom()
   }, [messages])
   
-  // Load saved content from post_generation tools into store
-  useEffect(() => {
-    const postGenTools = messages.filter(m => 
-      m.role === 'tool' && 
-      m.action_type === 'post_generation' &&
-      m.action_data?.status !== 'collapsed' &&
-      m.action_data?.generatedContent
-    )
-    
-    if (postGenTools.length > 0) {
-      const latestTool = postGenTools[postGenTools.length - 1]
-      if (latestTool.action_data?.generatedContent && generatedContent !== latestTool.action_data.generatedContent) {
-        console.log('📦 Loading saved post content into store from tool:', latestTool.id)
-        setGeneratedContent(latestTool.action_data.generatedContent)
-      }
-    }
-  }, [messages])
+  // REMOVED: useEffect for loading post content into global store
+  // Each tool now uses its own local content prop instead of global store
+  // This prevents conflicts when multiple post_generation tools are open
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -760,7 +746,10 @@ export function ChatApp() {
                     ) : isGenerating ? (
                       <LoadingState />
                     ) : thisToolGeneratedContent ? (
-                      <PreviewSection onReset={handlePostReset} />
+                      <PreviewSection 
+                        onReset={handlePostReset}
+                        content={thisToolGeneratedContent}
+                      />
                     ) : (
                       <InputSection onGenerate={handlePostGenerate} />
                     )}

@@ -12,10 +12,14 @@ import { getApiUrl } from '../lib/api'
 
 interface PreviewSectionProps {
   onReset: () => void
+  content?: any // Optional: if provided, use this instead of global store
 }
 
-export function PreviewSection({ onReset }: PreviewSectionProps) {
-  const { generatedContent, updateVariation, updateImage } = useContentStore()
+export function PreviewSection({ onReset, content }: PreviewSectionProps) {
+  const { generatedContent: globalContent, updateVariation, updateImage } = useContentStore()
+  
+  // Use provided content or fall back to global store
+  const generatedContent = content || globalContent
   const { t } = useApp()
   const { session } = useAuth()
   const [selectedVariation, setSelectedVariation] = useState(0)
