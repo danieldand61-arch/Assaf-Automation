@@ -45,7 +45,7 @@ export function PreviewSection({ onReset, content }: PreviewSectionProps) {
       const zip = new JSZip()
       
       // Add post text as TXT file
-      const postText = `${variation.text}\n\n${variation.hashtags.map(tag => `#${tag}`).join(' ')}\n\n${variation.call_to_action}`
+      const postText = `${variation.text}\n\n${variation.hashtags.map((tag: string) => `#${tag}`).join(' ')}\n\n${variation.call_to_action}`
       zip.file('post.txt', postText)
       
       // Add image
@@ -187,7 +187,7 @@ export function PreviewSection({ onReset, content }: PreviewSectionProps) {
         <div className="space-y-4">
           <h3 className="text-xl font-bold text-gray-800 dark:text-white">{t('postVariations')}</h3>
           
-          {generatedContent.variations.map((v, idx) => (
+          {generatedContent.variations.map((v: any, idx: number) => (
             <div
               key={idx}
               onClick={() => setSelectedVariation(idx)}
@@ -217,7 +217,7 @@ export function PreviewSection({ onReset, content }: PreviewSectionProps) {
               )}
               
               <div className="flex flex-wrap gap-1 mb-3">
-                {v.hashtags.slice(0, 5).map((tag, i) => (
+                {v.hashtags.slice(0, 5).map((tag: string, i: number) => (
                   <span key={i} className="text-xs bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 px-2 py-1 rounded">
                     #{tag}
                   </span>
@@ -245,7 +245,7 @@ export function PreviewSection({ onReset, content }: PreviewSectionProps) {
               <div>
                 <span className="text-gray-600 dark:text-gray-400">{t('colors')}: </span>
                 <div className="flex gap-2 mt-1">
-                  {generatedContent.brand_colors.map((color, i) => (
+                  {generatedContent.brand_colors.map((color: string, i: number) => (
                     <div
                       key={i}
                       className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-700 shadow"
@@ -299,7 +299,7 @@ export function PreviewSection({ onReset, content }: PreviewSectionProps) {
               </p>
               
               <div className="flex flex-wrap gap-1 mb-4">
-                {variation.hashtags.map((tag, i) => (
+                {variation.hashtags.map((tag: string, i: number) => (
                   <span key={i} className="text-sm text-blue-600 dark:text-blue-400">
                     #{tag}
                   </span>
@@ -318,7 +318,7 @@ export function PreviewSection({ onReset, content }: PreviewSectionProps) {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-5 shadow-md">
             <h4 className="font-bold text-gray-800 dark:text-white mb-3">{t('generatedImages')} ({generatedContent.images.length})</h4>
             <div className="grid grid-cols-2 gap-3">
-              {generatedContent.images.map((img, idx) => (
+              {generatedContent.images.map((img: any, idx: number) => (
                 <div 
                   key={idx} 
                   className={`relative group cursor-pointer border-2 rounded-lg ${
@@ -376,7 +376,7 @@ export function PreviewSection({ onReset, content }: PreviewSectionProps) {
         isOpen={isPostingToSocial}
         onClose={() => setIsPostingToSocial(false)}
         prefilledData={{
-          text: `${variation.text}\n\n${variation.hashtags.map(tag => `#${tag}`).join(' ')}\n\n${variation.call_to_action}`,
+          text: `${variation.text}\n\n${variation.hashtags.map((tag: string) => `#${tag}`).join(' ')}\n\n${variation.call_to_action}`,
           imageUrl: image.url
         }}
       />
