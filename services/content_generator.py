@@ -25,7 +25,7 @@ async def generate_posts(
     )
     
     # Use Gemini 2.5 Flash (as requested)
-    model_name = 'gemini-2.5-flash'
+    model_name = 'gemini-3-flash-preview'
     logger.info(f"🔍 DEBUG: Using model: {model_name}")
     
     try:

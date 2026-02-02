@@ -37,7 +37,7 @@ async def generate_google_ads(
         raise
     
     # Use Gemini 2.5 Flash
-    model_name = 'gemini-2.5-flash'
+    model_name = 'gemini-3-flash-preview'
     logger.info(f"🔍 Using model: {model_name}")
     
     try:

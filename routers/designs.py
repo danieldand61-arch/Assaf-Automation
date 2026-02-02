@@ -110,7 +110,7 @@ async def analyze_design_style(
         import google.generativeai as genai
         
         # Use Gemini Vision to analyze the image
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-3-flash-preview')
         
         prompt = """
         Analyze this image and describe its visual style in detail.

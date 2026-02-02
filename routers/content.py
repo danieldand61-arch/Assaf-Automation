@@ -138,7 +138,7 @@ async def edit_text(request: EditTextRequest):
         lang_name = language_names.get(request.language, "English")
         prompt = f"Respond in {lang_name}. {prompt}"
         
-        model = genai.GenerativeModel('gemini-2.5-flash')
+        model = genai.GenerativeModel('gemini-3-flash-preview')
         response = model.generate_content(prompt)
         
         edited_text = response.text.strip()
