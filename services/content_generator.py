@@ -68,7 +68,7 @@ def _build_prompt(
     language: str,
     include_emojis: bool
 ) -> str:
-    """Builds prompt for Gemini 2.5 Pro with multi-language support"""
+    """Builds prompt for Gemini 2.5 Pro with marketing psychology integration"""
     
     # Language names for prompt
     language_names = {
@@ -79,14 +79,33 @@ def _build_prompt(
     }
     language_name = language_names.get(language, "English")
     
-    emoji_instruction = "Use emojis for more emotional impact." if include_emojis else "Don't use emojis."
+    emoji_instruction = "Use emojis strategically for emotional impact." if include_emojis else "Don't use emojis."
     
     platforms_str = " and ".join(platforms)
     
+    # Determine if B2B or B2C
+    is_b2b = target_audience.lower() in ["b2b", "business owners", "professionals", "enterprises"]
+    audience_guidance = """
+B2B FOCUS:
+- Address fear of failure and risk mitigation
+- Build trust and authority (social proof, credentials)
+- Provide rational justification (ROI, efficiency gains)
+- Help decision-maker look smart to their team
+- Use: "Proven system", "Industry leaders trust us", "Reduce costs by X%"
+""" if is_b2b else """
+B2C FOCUS:
+- Lead with lifestyle and identity transformation
+- Emotional connection and aspiration
+- Faster hooks and visual storytelling
+- Use: "Transform your...", "Feel amazing", "Join thousands who..."
+"""
+    
     prompt = f"""
-Create 4 post variations for {platforms_str} IN {language_name.upper()} based on the following information:
+Create 4 post variations for {platforms_str} IN {language_name.upper()} using PROVEN MARKETING PSYCHOLOGY principles.
 
-BRAND INFORMATION:
+═══════════════════════════════════════════════════════════════
+📊 BRAND INFORMATION:
+═══════════════════════════════════════════════════════════════
 - Name: {website_data.get('title', 'N/A')}
 - Description: {website_data.get('description', 'N/A')}
 - Main content: {website_data.get('content', 'N/A')[:500]}
@@ -94,24 +113,70 @@ BRAND INFORMATION:
 - Products/services: {', '.join(website_data.get('products', []))}
 - Key features: {', '.join(website_data.get('key_features', []))}
 
-POST REQUIREMENTS:
+═══════════════════════════════════════════════════════════════
+🎯 POST REQUIREMENTS:
+═══════════════════════════════════════════════════════════════
 - Language: {language_name} (ALL TEXT MUST BE IN {language_name.upper()})
 - Keywords: {keywords}
 - Style: {style}
 - Target audience: {target_audience}
 - {emoji_instruction}
 
-FOR EACH VARIATION CREATE:
-1. Main post text (hook + message + CTA)
-2. 8-12 relevant hashtags
-3. Strong call-to-action (CTA)
-4. Estimated engagement score (0-100)
+═══════════════════════════════════════════════════════════════
+🧠 MARKETING PSYCHOLOGY RULES (CRITICAL):
+═══════════════════════════════════════════════════════════════
 
-RESPONSE FORMAT - STRICT JSON (NO MARKDOWN, NO EXTRA TEXT):
+1. EMOTION FIRST, LOGIC SECOND (95% of decisions are emotional)
+   - Lead with emotional benefit ("Transform your business")
+   - Then add rational proof ("Proven system, 10,000+ users")
+
+2. LOSS AVERSION (2x more powerful than gain)
+   - Frame as "Don't miss/lose" rather than "Get/gain"
+   - Emphasize cost of inaction: "While you wait, competitors are..."
+
+3. PSYCHOLOGICAL TRIGGERS (use 1-3 per post):
+   - Social Proof: "10,000+ users", "Rated 4.9★", "Industry leaders use..."
+   - Scarcity: "Limited time", "Only 3 left", "Offer ends soon"
+   - Authority: "Expert-approved", "Certified", "Award-winning"
+   - Reciprocity: "Free guide", "Exclusive tip", "Bonus included"
+   - Unity: "Join our community", "We understand you", "You're not alone"
+
+4. POST STRUCTURE (Hook → Agitate → Solve → Prove → CTA):
+   - Hook: Emotional attention grabber (first 5-7 words are CRITICAL)
+   - Agitate: Amplify the problem they face
+   - Solve: Present your solution naturally
+   - Prove: Add credibility (numbers, testimonials, results)
+   - CTA: Clear, action-driven (use power words)
+
+5. POWER WORDS (use naturally):
+   - Free, Proven, Guaranteed, Limited, New, Instant, Exclusive
+   - Transform, Discover, Unlock, Master, Secret, Breakthrough
+
+6. AUDIENCE ADAPTATION:
+{audience_guidance}
+
+═══════════════════════════════════════════════════════════════
+📝 FOR EACH VARIATION CREATE:
+═══════════════════════════════════════════════════════════════
+1. Hook (first line MUST grab attention emotionally)
+2. Body (agitate problem → present solution → add proof)
+3. Strong CTA with power words
+4. 8-12 strategic hashtags (mix popular + niche)
+5. Engagement score (0-100) based on psychology applied
+
+VARIATION DIVERSITY:
+- Variation 1: Social Proof dominant ("10,000+ users transformed...")
+- Variation 2: Scarcity/Urgency focus ("Limited time: Don't miss...")
+- Variation 3: Educational value + soft CTA ("Here's how to...")
+- Variation 4: Emotional transformation ("Imagine waking up...")
+
+═══════════════════════════════════════════════════════════════
+📤 RESPONSE FORMAT - STRICT JSON (NO MARKDOWN):
+═══════════════════════════════════════════════════════════════
 {{
   "variations": [
     {{
-      "text": "Full post text here",
+      "text": "Full post text (Hook + Agitate + Solve + Prove + CTA)",
       "hashtags": ["hashtag1", "hashtag2", "hashtag3"],
       "call_to_action": "Shop Now",
       "engagement_score": 85
@@ -119,19 +184,20 @@ RESPONSE FORMAT - STRICT JSON (NO MARKDOWN, NO EXTRA TEXT):
   ]
 }}
 
-CRITICAL RULES:
+CRITICAL TECHNICAL RULES:
 - Return ONLY valid JSON, nothing else
 - NO markdown code blocks (no ```json)
 - NO trailing commas in arrays
 - ALL hashtags MUST be inside the hashtags array
 - Engagement score must be a NUMBER not string
 - Create exactly 4 variations
+- Each variation MUST use different psychological approach
 
-IMPORTANT:
-- {"For Instagram: more hashtags, visual focus" if "instagram" in platforms else ""}
-- {"For Facebook: longer text, focus on storytelling" if "facebook" in platforms else ""}
-- First line must GRAB attention
-- Each variation should be unique in approach
+PLATFORM-SPECIFIC:
+- {"Instagram: More visual hooks, lifestyle focus, 8-15 hashtags" if "instagram" in platforms else ""}
+- {"Facebook: Longer storytelling, community angle, conversational" if "facebook" in platforms else ""}
+- {"LinkedIn: Professional value, thought leadership, B2B focus" if "linkedin" in platforms else ""}
+- {"Twitter: Punchy hooks, urgency, trending topics" if "twitter" in platforms else ""}
 """
     
     return prompt

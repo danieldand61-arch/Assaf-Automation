@@ -276,14 +276,14 @@ def _get_aspect_ratio(dimensions: str) -> str:
 
 
 def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_prompt: str = None) -> str:
-    """Creates prompt for image generation"""
+    """Creates prompt for image generation with marketing psychology visual principles"""
     
     # If custom prompt is provided, use it instead
     if custom_prompt:
         logger.info(f"🎨 Using custom prompt: {custom_prompt[:100]}...")
         return custom_prompt.strip()
     
-    # Otherwise, build automatic prompt
+    # Otherwise, build automatic prompt with visual psychology
     brand_colors = website_data.get('colors', [])
     colors_str = f"using brand colors: {', '.join(brand_colors[:3])}" if brand_colors else ""
     
@@ -291,26 +291,126 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
     description = website_data.get('description', '')
     industry = website_data.get('industry', 'business')
     
+    # Determine visual psychology based on content
+    # Extract emotion keywords from variation text
+    text_lower = variation.text.lower()
+    
+    # Color psychology guidance
+    color_psychology = ""
+    if any(word in text_lower for word in ['urgent', 'now', 'limited', 'sale', 'offer']):
+        color_psychology = "Use RED accents for urgency and action-driving elements."
+    elif any(word in text_lower for word in ['trust', 'secure', 'professional', 'reliable']):
+        color_psychology = "Use BLUE tones for trust, stability, and professionalism."
+    elif any(word in text_lower for word in ['growth', 'eco', 'health', 'natural', 'money']):
+        color_psychology = "Use GREEN for health, nature, growth, or financial success."
+    elif any(word in text_lower for word in ['luxury', 'premium', 'exclusive', 'elegant']):
+        color_psychology = "Use BLACK/GOLD for luxury, sophistication, and premium positioning."
+    elif any(word in text_lower for word in ['energy', 'fun', 'creative', 'exciting']):
+        color_psychology = "Use ORANGE for enthusiasm, creativity, and energy."
+    
     prompt = f"""
-Create a modern, professional social media post image for {title}.
+Create a modern, scroll-stopping social media image for {title} applying VISUAL MARKETING PSYCHOLOGY.
 
-Style: Clean, eye-catching, modern design with professional photography or illustration.
+═══════════════════════════════════════════════════════════════
+🎨 VISUAL PSYCHOLOGY PRINCIPLES (CRITICAL):
+═══════════════════════════════════════════════════════════════
+
+1. HUMAN FACES increase engagement by 38%
+   - Include authentic human faces when relevant
+   - Eye direction matters: eyes looking toward product/CTA area
+   - Genuine expressions (not stock photo smiles)
+
+2. TRANSFORMATION APPEAL (Before/After concept)
+   - Show aspirational outcome or lifestyle
+   - Suggest positive change visually
+   - Create desire through visual storytelling
+
+3. COLOR PSYCHOLOGY (Strategic use):
+   {color_psychology if color_psychology else "Use colors that match brand identity and content emotion."}
+   {colors_str}
+
+4. SHAPE PSYCHOLOGY:
+   - ROUNDED SHAPES = friendly, approachable, safe
+   - ANGULAR SHAPES = powerful, dynamic, bold
+   - Choose based on brand personality
+
+5. VISUAL HIERARCHY:
+   - Main focus (hero element) should be IMMEDIATELY clear
+   - Guide eye movement toward action/value
+   - Use depth and contrast for attention
+
+6. PREMIUM vs CASUAL:
+   - Premium: Matte finishes, minimalist, sophisticated
+   - Casual: Vibrant, energetic, textured
+   - Healthy/Natural: Organic textures, natural lighting
+
+7. SOCIAL PROOF VISUAL CUES:
+   - Show crowds, groups, or community (unity principle)
+   - Display trust badges or ratings visually
+   - Include implied testimonial scenarios
+
+═══════════════════════════════════════════════════════════════
+📊 CONTENT SPECIFICATIONS:
+═══════════════════════════════════════════════════════════════
 Industry: {industry}
-{colors_str}
+Brand: {title}
+Message: {description[:200]}
+Post emotion: {variation.text[:150]}
 
-Content focus: {description[:200]}
+═══════════════════════════════════════════════════════════════
+✨ IMAGE REQUIREMENTS:
+═══════════════════════════════════════════════════════════════
+- SCROLL-STOPPING and eye-catching
+- Professional photography or high-quality illustration
+- Emotional connection (not just product showcase)
+- Clear visual hierarchy and focus
+- Suitable for social media (optimized for mobile viewing)
+- NO text overlays (will be added by user)
+- High quality, crisp, and vibrant
+- Authentic and relatable (avoid overly staged stock photos)
 
-The image should be:
-- Visually striking and scroll-stopping
-- Professional but engaging
-- Suitable for social media
-- No text overlays (will be added later)
-- High quality, crisp and clear
+MOOD & FEELING:
+- Primary: {_extract_emotion(variation.text)}
+- Secondary: Trustworthy, modern, aspirational
+- Visual style: Contemporary, engaging, human-centered
 
-Mood: Inspiring, trustworthy, modern
+AVOID:
+- Generic stock photos
+- Cluttered compositions
+- Poor lighting
+- Disconnected imagery that doesn't support the message
+- Purely product-focused (show lifestyle/benefit instead)
 """
     
     return prompt.strip()
+
+
+def _extract_emotion(text: str) -> str:
+    """Extracts dominant emotion from post text for image generation"""
+    text_lower = text.lower()
+    
+    # Emotion keywords mapping
+    emotions = {
+        'inspiring': ['transform', 'achieve', 'dream', 'success', 'inspire', 'breakthrough'],
+        'exciting': ['amazing', 'incredible', 'exciting', 'wow', 'discover', 'new'],
+        'trustworthy': ['proven', 'reliable', 'trusted', 'secure', 'professional'],
+        'urgent': ['now', 'today', 'limited', 'hurry', 'don\'t miss', 'last chance'],
+        'educational': ['learn', 'how to', 'guide', 'tips', 'secret', 'strategy'],
+        'empowering': ['you can', 'master', 'control', 'unlock', 'potential'],
+        'reassuring': ['easy', 'simple', 'guaranteed', 'risk-free', 'support']
+    }
+    
+    # Count emotion keywords
+    emotion_scores = {}
+    for emotion, keywords in emotions.items():
+        score = sum(1 for keyword in keywords if keyword in text_lower)
+        if score > 0:
+            emotion_scores[emotion] = score
+    
+    # Return dominant emotion or default
+    if emotion_scores:
+        return max(emotion_scores, key=emotion_scores.get)
+    return 'inspiring'
 
 
 async def _overlay_logo(main_image: Image.Image, logo_url: str) -> Image.Image:
