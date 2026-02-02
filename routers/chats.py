@@ -303,7 +303,7 @@ async def log_action(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Log an action performed in the workspace (optional for history)
+    Create a tool message in the chat (for post generation, dubbing, etc)
     """
     try:
         supabase = get_supabase()
@@ -319,16 +319,16 @@ async def log_action(
         if not chat.data:
             raise HTTPException(status_code=404, detail="Chat not found")
         
-        # Save action log (optional)
+        # Save tool message
         action_log = supabase.table("chat_messages").insert({
             "chat_id": chat_id,
-            "role": "system",
+            "role": "tool",  # Changed from "system" to "tool"
             "content": request.content,
             "action_type": request.action_type,
-            "action_data": request.action_data
+            "action_data": request.action_data or {}
         }).execute()
         
-        logger.info(f"🎬 Action logged: {request.action_type} in chat {chat_id}")
+        logger.info(f"🎬 Tool message created: {request.action_type} in chat {chat_id}")
         
         return {
             "success": True,
@@ -338,7 +338,7 @@ async def log_action(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"❌ Log action error: {str(e)}")
+        logger.error(f"❌ Create tool message error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

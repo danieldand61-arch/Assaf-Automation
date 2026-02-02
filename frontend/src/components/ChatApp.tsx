@@ -306,11 +306,19 @@ export function ChatApp() {
   }
 
   const handleToolClick = async (tool: 'post_generation' | 'video_dubbing' | 'google_ads') => {
-    if (!tool || !activeChat || !session) return
+    console.log('🎯 handleToolClick called with:', tool)
+    console.log('🎯 activeChat:', activeChat)
+    console.log('🎯 session:', session ? 'exists' : 'missing')
+    
+    if (!tool || !activeChat || !session) {
+      console.error('❌ Missing required data:', { tool, activeChat: !!activeChat, session: !!session })
+      return
+    }
     
     try {
       // Save tool message to database
       const apiUrl = getApiUrl()
+      console.log('🎯 API URL:', apiUrl)
       
       const toolLabels = {
         'post_generation': `🎨 ${t('generatePost')}`,
@@ -318,28 +326,44 @@ export function ChatApp() {
         'google_ads': `🎯 ${t('generateGoogleAds')}`
       }
       
+      const requestBody = {
+        content: toolLabels[tool],
+        action_type: tool,
+        action_data: { status: 'active' }
+      }
+      
+      console.log('🎯 Request body:', requestBody)
+      console.log('🎯 Calling endpoint:', `${apiUrl}/api/chats/${activeChat.id}/action`)
+      
       const response = await fetch(`${apiUrl}/api/chats/${activeChat.id}/action`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({
-          content: toolLabels[tool],
-          action_type: tool,
-          action_data: { status: 'active' }
-        })
+        body: JSON.stringify(requestBody)
       })
       
-      if (!response.ok) throw new Error('Failed to save tool')
+      console.log('🎯 Response status:', response.status)
+      
+      if (!response.ok) {
+        const errorText = await response.text()
+        console.error('❌ Response error:', errorText)
+        throw new Error(`Failed to save tool: ${response.status} ${errorText}`)
+      }
       
       const data = await response.json()
+      console.log('✅ Tool message created:', data)
+      
       const toolMessage = data.action
       
       setMessages(prev => [...prev, toolMessage])
       setActiveToolId(toolMessage.id)
+      
+      console.log('✅ Tool activated:', toolMessage.id)
     } catch (error) {
-      console.error('Error creating tool:', error)
+      console.error('❌ Error creating tool:', error)
+      alert(`Failed to open tool: ${error}`)
     }
   }
 
