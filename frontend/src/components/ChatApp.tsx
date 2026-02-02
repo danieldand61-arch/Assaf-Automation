@@ -189,7 +189,6 @@ export function ChatApp() {
       setChats(prevChats => [newChat, ...prevChats])
       setActiveChat(newChat)
       setMessages([])
-      setActiveToolId(null)
     } catch (error) {
       console.error('Error creating chat:', error)
     }
@@ -563,7 +562,6 @@ export function ChatApp() {
               onClick={() => {
                 if (editingChatId !== chat.id) {
                   setActiveChat(chat)
-                  setActiveToolId(null)
                 }
               }}
               className={`group flex items-center gap-3 p-3 rounded-lg cursor-pointer transition mb-1 ${
