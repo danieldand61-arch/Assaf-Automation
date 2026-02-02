@@ -59,6 +59,16 @@ export function ChatApp() {
       loadMessages(activeChat.id)
     }
   }, [activeChat])
+  
+  // Save tool messages to localStorage whenever messages change
+  useEffect(() => {
+    if (activeChat) {
+      const toolMessages = messages.filter(m => m.role === 'tool')
+      if (toolMessages.length > 0) {
+        localStorage.setItem(`chat_tools_${activeChat.id}`, JSON.stringify(toolMessages))
+      }
+    }
+  }, [messages, activeChat])
 
   useEffect(() => {
     scrollToBottom()
@@ -110,7 +120,18 @@ export function ChatApp() {
       if (!response.ok) throw new Error('Failed to load messages')
       
       const data = await response.json()
-      setMessages(data.messages || [])
+      const dbMessages = data.messages || []
+      
+      // Load tool messages from localStorage
+      const savedToolMessages = localStorage.getItem(`chat_tools_${chatId}`)
+      const toolMessages = savedToolMessages ? JSON.parse(savedToolMessages) : []
+      
+      // Merge: DB messages + tool messages, sort by created_at
+      const allMessages = [...dbMessages, ...toolMessages].sort((a, b) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      )
+      
+      setMessages(allMessages)
     } catch (error) {
       console.error('Error loading messages:', error)
     }
@@ -194,6 +215,9 @@ export function ChatApp() {
           'Authorization': `Bearer ${session?.access_token}`
         }
       })
+      
+      // Clean up localStorage for this chat
+      localStorage.removeItem(`chat_tools_${chatId}`)
       
       const remainingChats = chats.filter(c => c.id !== chatId)
       setChats(remainingChats)
