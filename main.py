@@ -146,6 +146,23 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Social posting features will NOT be available!")
 
+# Try to load Google Ads router
+logger.info("🔄 Attempting to import Google Ads router...")
+try:
+    from routers import google_ads
+    logger.info("✅ Google Ads router imported successfully")
+    
+    logger.info("🔄 Registering Google Ads router endpoints...")
+    app.include_router(google_ads.router)
+    logger.info("✅ Google Ads router registered")
+    logger.info("   🔗 POST /api/google-ads/connect")
+    logger.info("   📊 GET /api/google-ads/campaigns")
+    logger.info("   📝 POST /api/google-ads/create-rsa")
+except Exception as e:
+    logger.error(f"❌ Google Ads router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Google Ads features will NOT be available!")
+
 # Try to load saved posts router
 logger.info("🔄 Attempting to import saved posts router...")
 try:

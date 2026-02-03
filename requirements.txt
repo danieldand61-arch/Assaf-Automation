@@ -23,3 +23,6 @@ apscheduler==3.10.4
 
 # Video Translation
 elevenlabs==1.9.0
+
+# Google Ads API
+google-ads==25.1.0
