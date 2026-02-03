@@ -126,8 +126,8 @@ CHARACTER LIMITS (MUST FOLLOW EXACTLY):
 MANDATORY ASSET COUNTS (ALWAYS CREATE MAXIMUM):
 ✅ EXACTLY 15 headlines (not 10, not 12 - EXACTLY 15)
 ✅ EXACTLY 4 descriptions (use all 4 slots)
-✅ 10-12 callout extensions (25 characters each)
-✅ 8-10 sitelinks (25 character text + 35 char descriptions)
+✅ 10-15 callout extensions (25 characters each) - MORE IS BETTER
+✅ 8-12 sitelinks (25 character text + 35 char descriptions) - MORE IS BETTER
 ✅ 8-10 structured snippet values (25 characters each)
 
 POLICY REQUIREMENTS (STRICT):
@@ -173,20 +173,23 @@ All must be unique, non-repetitive, and follow policies.
 🔧 AD EXTENSIONS (MAXIMIZE AD REAL ESTATE):
 ═══════════════════════════════════════════════════════════════
 
-CALLOUT EXTENSIONS (10-12 required):
+CALLOUT EXTENSIONS (10-15 required for MAXIMUM performance):
 - 25 characters maximum each
 - Highlight key benefits/features
+- Create 10-15 diverse callouts (more = better ad real estate)
 - Examples: "24/7 Emergency Service", "Licensed & Insured", "Free Estimates"
 
-SITELINKS (8-10 required):
+SITELINKS (8-12 required for MAXIMUM performance):
 - Link text: 25 characters max
 - Description 1: 35 characters max
 - Description 2: 35 characters max
+- Create 8-12 diverse sitelinks (more = better ad real estate)
 - Examples: "Emergency Services", "Service Areas", "Customer Reviews"
 
-STRUCTURED SNIPPETS (8-10 values):
-- Choose 1-2 headers (Services, Types, Brands, Amenities)
+STRUCTURED SNIPPETS (8-10 values per header):
+- Choose 1-2 headers from: Services, Types, Brands, Amenities, Models, Styles, etc.
 - Each value: 25 characters max
+- Create 8-10 values for EACH header (maximum 10 values per header per Google policy)
 - Examples under "Services": "Water Extraction", "Mold Removal", "Flood Cleanup"
 
 ═══════════════════════════════════════════════════════════════
@@ -213,14 +216,14 @@ STRUCTURED SNIPPETS (8-10 values):
     ...exactly 4 descriptions
   ],
   "display_paths": ["Path1", "Path2"],
-  "callouts": ["Callout 1", "Callout 2", ...10-12 callouts],
+  "callouts": ["Callout 1", "Callout 2", ...10-15 callouts],
   "sitelinks": [
     {{
       "text": "Link Text",
       "description1": "First line desc",
       "description2": "Second line desc"
     }},
-    ...8-10 sitelinks
+    ...8-12 sitelinks
   ],
   "structured_snippets": {{
     "Services": ["Value 1", "Value 2", ...8-10 values]
@@ -306,11 +309,11 @@ def _parse_google_ads_response(content: str) -> Dict:
         
         # Ensure we return exactly what's required
         return {
-            "headlines": headlines[:15],  # Ensure max 15
-            "descriptions": descriptions[:4],  # Ensure max 4
+            "headlines": headlines[:15],  # Ensure exactly 15
+            "descriptions": descriptions[:4],  # Ensure exactly 4
             "display_paths": data.get('display_paths', []),
-            "callouts": data.get('callouts', [])[:12],  # Max 12
-            "sitelinks": data.get('sitelinks', [])[:10],  # Max 10
+            "callouts": data.get('callouts', [])[:20],  # Max 20 per Google Ads policy
+            "sitelinks": data.get('sitelinks', [])[:20],  # Max 20 per Google Ads policy
             "structured_snippets": data.get('structured_snippets', {})
         }
         
