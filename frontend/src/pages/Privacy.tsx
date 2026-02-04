@@ -8,7 +8,7 @@ export function Privacy() {
         
         <div className="space-y-6 text-gray-700 dark:text-gray-300">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Last updated: January 22, 2026
+            Last updated: February 4, 2026
           </p>
 
           <section>
@@ -54,6 +54,29 @@ export function Privacy() {
               <li>We do NOT scrape or collect public data from social platforms</li>
               <li>You can disconnect accounts at any time</li>
             </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+              3.1. Google Ads API Usage
+            </h2>
+            <p>
+              When you connect your Google Ads account via OAuth 2.0:
+            </p>
+            <ul className="list-disc ml-6 mt-2 space-y-1">
+              <li><strong>Access scope:</strong> We request access to manage your Google Ads campaigns (scope: adwords)</li>
+              <li><strong>Data we access:</strong> Campaign data, ad groups, ads, keywords, and performance metrics</li>
+              <li><strong>What we do:</strong> Create and optimize ad campaigns, generate ad copy, manage budgets</li>
+              <li><strong>What we DON'T do:</strong> We do NOT access billing information, payment methods, or personal financial data</li>
+              <li><strong>Token storage:</strong> OAuth refresh tokens are encrypted and stored securely in our database</li>
+              <li><strong>Token usage:</strong> Tokens are ONLY used to make authorized API calls on your behalf</li>
+              <li><strong>Revoke access:</strong> You can disconnect Google Ads at any time from Settings</li>
+              <li><strong>Google's control:</strong> You can revoke app access anytime at <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Google Account Permissions</a></li>
+            </ul>
+            <p className="mt-3 text-sm bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
+              <strong>Note:</strong> We comply with Google API Services User Data Policy, including Limited Use requirements.
+              Your Google Ads data is used solely to provide ad management services and is not shared with third parties.
+            </p>
           </section>
 
           <section>

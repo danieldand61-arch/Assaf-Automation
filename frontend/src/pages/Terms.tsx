@@ -8,7 +8,7 @@ export function Terms() {
         
         <div className="space-y-6 text-gray-700 dark:text-gray-300">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Last updated: January 22, 2026
+            Last updated: February 4, 2026
           </p>
 
           <section>
@@ -60,6 +60,28 @@ export function Terms() {
               <li>You are responsible for the content you publish</li>
               <li>You can revoke access at any time</li>
             </ul>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">
+              4.1. Google Ads Integration
+            </h2>
+            <p>When connecting your Google Ads account:</p>
+            <ul className="list-disc ml-6 mt-2 space-y-1">
+              <li><strong>Authorization:</strong> You authorize us to access and manage your Google Ads account via Google Ads API</li>
+              <li><strong>Campaign management:</strong> We may create, modify, pause, or delete campaigns, ad groups, and ads as directed by you</li>
+              <li><strong>Budget control:</strong> You remain responsible for all advertising spend and budget limits</li>
+              <li><strong>Compliance:</strong> All ads must comply with Google Ads policies and local laws</li>
+              <li><strong>Liability:</strong> You are responsible for ad content and any policy violations</li>
+              <li><strong>Performance:</strong> We do not guarantee specific ad performance, CTR, conversions, or ROI</li>
+              <li><strong>Billing:</strong> All Google Ads charges are billed directly by Google to your payment method</li>
+              <li><strong>API limits:</strong> Subject to Google Ads API rate limits and quotas</li>
+            </ul>
+            <p className="mt-3 text-sm bg-yellow-50 dark:bg-yellow-900/20 p-3 rounded">
+              <strong>Important:</strong> By connecting Google Ads, you agree that automated changes to campaigns
+              (bids, budgets, ad status) may impact your advertising spend. Always monitor your campaigns
+              and set appropriate budget limits in Google Ads.
+            </p>
           </section>
 
           <section>
