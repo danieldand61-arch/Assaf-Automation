@@ -1,258 +1,179 @@
-# Google Ads API Integration Setup Guide
+# Google Ads API Setup Guide
 
-## 📋 Overview
+This guide will help you connect your Google Ads account to the platform.
 
-This guide walks you through setting up Google Ads API integration to publish ads directly from our platform.
+## Prerequisites
 
----
+- Active Google Ads account with campaigns
+- Admin access to Google Ads account
+- Google Cloud Console access
 
-## 🎯 What You'll Be Able To Do
+## Step 1: Setup Google Ads API Access
 
-After setup:
-- ✅ Generate Google Ads (15 headlines + 4 descriptions) with AI
-- ✅ Connect your Google Ads account
-- ✅ View your campaigns and ad groups
-- ✅ Publish RSA ads directly (one click!)
-- ✅ Add sitelink extensions automatically
-
----
-
-## 🔑 Prerequisites
-
-1. **Google Ads Account** (with active campaigns)
-2. **Google Cloud Project**
-3. **Manager Account (MCC)** - Recommended for API access
-4. **Time**: 1-2 weeks for Google's Developer Token approval
-
----
-
-## 📝 Step-by-Step Setup
-
-### Step 1: Create Google Cloud Project
-
+### 1.1 Enable Google Ads API
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
-2. Click "Select Project" → "New Project"
-3. Name it: "Assaf Automation Ads API"
-4. Click "Create"
+2. Create a new project or select existing one
+3. Enable **Google Ads API**:
+   - Navigate to "APIs & Services" → "Library"
+   - Search for "Google Ads API"
+   - Click "Enable"
 
-### Step 2: Enable Google Ads API
+### 1.2 Create OAuth 2.0 Credentials
+1. Go to "APIs & Services" → "Credentials"
+2. Click "Create Credentials" → "OAuth client ID"
+3. Configure OAuth consent screen if needed:
+   - User Type: External
+   - Add required scopes: `https://www.googleapis.com/auth/adwords`
+4. Select Application type: **Web application**
+5. Add Authorized redirect URIs:
+   ```
+   http://localhost
+   https://your-domain.com/auth/callback
+   ```
+6. Save and note down:
+   - **Client ID**
+   - **Client Secret**
 
-1. In your project, go to **APIs & Services** → **Library**
-2. Search for "Google Ads API"
-3. Click **Enable**
-
-### Step 3: Create OAuth 2.0 Credentials
-
-1. Go to **APIs & Services** → **Credentials**
-2. Click **+ CREATE CREDENTIALS** → **OAuth client ID**
-3. If prompted, configure **OAuth consent screen**:
-   - User Type: **External**
-   - App name: "Assaf Automation"
-   - User support email: your email
-   - Developer contact: your email
-   - Scopes: Add `https://www.googleapis.com/auth/adwords`
-   - Test users: Add your email
-4. Create **OAuth Client ID**:
-   - Application type: **Web application**
-   - Name: "Assaf Automation Web Client"
-   - Authorized redirect URIs:
-     ```
-     http://localhost:8000/api/google-ads/oauth/callback
-     https://your-production-domain.com/api/google-ads/oauth/callback
-     ```
-5. Click **Create**
-6. **SAVE** the Client ID and Client Secret
-
-### Step 4: Apply for Developer Token
-
-**⚠️ IMPORTANT: This requires approval and takes 1-2 weeks**
+## Step 2: Get Developer Token
 
 1. Go to [Google Ads](https://ads.google.com/)
-2. Navigate to **Tools & Settings** → **Setup** → **API Center**
-3. Click **Apply for Access** (or view existing token)
-4. Fill out the form:
-   - **Account type**: Manager account (MCC) recommended
-   - **Use case**: "Social media automation platform for creating and managing Google Ads campaigns"
-   - **API calls per day**: ~1,000
-   - **Features**: Creating RSA ads, managing campaigns
-5. Submit and **wait for approval** (1-2 weeks)
+2. Click Tools & Settings → Setup → API Center
+3. Apply for Basic or Standard access
+4. Copy your **Developer Token** (format: `XXXXXX-XXXXX-XXXXXX`)
 
-**While waiting:**
-- You can use a **Test Account** with limited access
-- Or proceed with a Manager Account (better approval rate)
+> **Note:** For testing, you can use Basic access. For production, you'll need Standard access (requires Google review).
 
-### Step 5: Get Your Customer ID
+## Step 3: Generate Refresh Token
 
-1. Go to [Google Ads](https://ads.google.com/)
-2. Look at the top right corner
-3. Your Customer ID is displayed (e.g., `123-456-7890`)
-4. **Remove dashes**: Use as `1234567890`
+### Option A: Using OAuth Playground (Easiest)
 
----
+1. Go to [Google OAuth 2.0 Playground](https://developers.google.com/oauthplayground/)
+2. Click ⚙️ (settings icon) in top right
+3. Check "Use your own OAuth credentials"
+4. Enter your Client ID and Client Secret
+5. In "Step 1", select:
+   ```
+   Google Ads API v15
+   https://www.googleapis.com/auth/adwords
+   ```
+6. Click "Authorize APIs"
+7. Sign in with Google account that has access to Google Ads
+8. Click "Exchange authorization code for tokens"
+9. Copy the **Refresh Token** (format: `1//0abc123...`)
 
-## 🔧 Configure Application
-
-### 1. Add to `.env` file:
-
-```env
-# Google Ads API Configuration
-GOOGLE_ADS_DEVELOPER_TOKEN=your-developer-token-here
-GOOGLE_ADS_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_ADS_CLIENT_SECRET=your-client-secret-here
-```
-
-### 2. Install Dependencies:
+### Option B: Using cURL
 
 ```bash
-pip install google-ads==25.1.0
+# 1. Get authorization code
+# Visit this URL in browser (replace CLIENT_ID):
+https://accounts.google.com/o/oauth2/auth?client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost&scope=https://www.googleapis.com/auth/adwords&response_type=code&access_type=offline&prompt=consent
+
+# 2. After authorization, you'll be redirected. Copy the 'code' from URL
+
+# 3. Exchange code for tokens:
+curl -X POST https://oauth2.googleapis.com/token \
+  -d "code=YOUR_AUTHORIZATION_CODE" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "client_secret=YOUR_CLIENT_SECRET" \
+  -d "redirect_uri=http://localhost" \
+  -d "grant_type=authorization_code"
+
+# Response will contain refresh_token
 ```
 
-### 3. Run Database Migration:
+## Step 4: Get Customer ID
 
-In Supabase SQL Editor, run:
-```sql
--- Execute database/google_ads_connections.sql
+1. Go to [Google Ads](https://ads.google.com/)
+2. Look at top-right corner for your **Customer ID**
+3. Format: `XXX-XXX-XXXX`
+4. **Remove dashes**: `1234567890` (10 digits)
+
+> **Important:** Use the Customer ID WITHOUT dashes in the platform
+
+## Step 5: Connect in Platform
+
+1. Go to **Settings** → **Social Media** tab
+2. Find **Google Ads** card
+3. Click **Connect**
+4. Enter:
+   - **OAuth Refresh Token**: `1//0abc123...`
+   - **Customer ID**: `1234567890` (no dashes)
+5. Click **Connect Google Ads**
+
+## Environment Variables (Backend)
+
+Make sure these are set in your `.env` file:
+
+```bash
+# Google Ads API Credentials
+GOOGLE_ADS_DEVELOPER_TOKEN=XXXXXX-XXXXX-XXXXXX
+GOOGLE_ADS_CLIENT_ID=your-client-id.apps.googleusercontent.com
+GOOGLE_ADS_CLIENT_SECRET=your-client-secret
+
+# Optional: Login Customer ID (if using manager account)
+GOOGLE_ADS_LOGIN_CUSTOMER_ID=1234567890
 ```
 
----
+## Troubleshooting
 
-## 🚀 Usage
+### Error: "Invalid refresh token"
+- **Cause:** Token expired or revoked
+- **Solution:** Generate new refresh token (Step 3)
 
-### Connect Google Ads Account
+### Error: "Customer ID not found"
+- **Cause:** Wrong Customer ID format
+- **Solution:** 
+  - Ensure 10 digits without dashes
+  - Verify in Google Ads interface
+  - If using manager account, use sub-account Customer ID
 
-**Frontend (in Settings or Google Ads tool):**
+### Error: "Developer token not approved"
+- **Cause:** Using test/basic access in production
+- **Solution:** 
+  - Apply for Standard access in Google Ads API Center
+  - Wait for Google approval (1-2 weeks)
 
-```typescript
-// User clicks "Connect Google Ads"
-// OAuth flow opens in popup
-// User authorizes access
-// Callback returns refresh_token and customer_id
+### Error: "Insufficient permissions"
+- **Cause:** OAuth scope missing
+- **Solution:** 
+  - Regenerate tokens with correct scope
+  - Ensure scope: `https://www.googleapis.com/auth/adwords`
 
-await fetch('/api/google-ads/connect', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    refresh_token: refreshToken,
-    customer_id: '1234567890'
-  })
-})
-```
+### Error: "API not enabled"
+- **Cause:** Google Ads API not enabled in project
+- **Solution:** Enable in Google Cloud Console (Step 1.1)
 
-### Get Campaigns
+## API Limits
 
-```typescript
-const response = await fetch('/api/google-ads/campaigns', {
-  headers: { 'Authorization': `Bearer ${accessToken}` }
-})
+- **Basic Access:** 15,000 operations/day
+- **Standard Access:** Higher limits (after approval)
 
-const { campaigns } = await response.json()
-// campaigns: [{ id, name, status, type }]
-```
+## Security Notes
 
-### Create RSA Ad
+- ✅ Refresh tokens are stored encrypted in database
+- ✅ Never share your refresh token or developer token
+- ✅ Use environment variables for backend credentials
+- ✅ Regularly rotate tokens for security
+- ✅ Monitor API usage in Google Cloud Console
 
-```typescript
-await fetch('/api/google-ads/create-rsa', {
-  method: 'POST',
-  headers: {
-    'Authorization': `Bearer ${accessToken}`,
-    'Content-Type': 'application/json'
-  },
-  body: JSON.stringify({
-    ad_group_id: 123456789,
-    headlines: [
-      "Premium Water Damage Repair",
-      "24/7 Emergency Service",
-      // ... 13 more headlines
-    ],
-    descriptions: [
-      "Expert water damage restoration with IICRC certified technicians available 24/7.",
-      // ... 3 more descriptions
-    ],
-    final_url: "https://example.com/water-damage",
-    path1: "Water-Damage",
-    path2: "LA"
-  })
-})
-```
+## Next Steps
 
----
+After connecting:
+1. View campaigns: Dashboard → Google Ads
+2. Generate RSA ads: Tools → Google Ads Generator
+3. Create campaigns: Coming soon with LLM platform
 
-## 📊 API Endpoints
+## Resources
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/google-ads/status` | GET | Check if account is connected |
-| `/api/google-ads/connect` | POST | Connect Google Ads account |
-| `/api/google-ads/campaigns` | GET | List all campaigns |
-| `/api/google-ads/campaigns/{id}/ad-groups` | GET | List ad groups for campaign |
-| `/api/google-ads/create-rsa` | POST | Create Responsive Search Ad |
-| `/api/google-ads/add-sitelinks` | POST | Add sitelink extensions |
-| `/api/google-ads/disconnect` | DELETE | Disconnect account |
-
----
-
-## 🔒 Security Notes
-
-1. **Refresh tokens are stored in database** - Consider encrypting them
-2. **RSA ads are created in PAUSED status** - User must activate manually
-3. **RLS policies** ensure users only see their own data
-4. **Rate limiting** - Google Ads API has strict rate limits
-
----
-
-## 🐛 Troubleshooting
-
-### "Developer token not approved"
-- **Solution**: Wait for Google's approval or use Test Account
-- **Timeline**: 1-2 weeks
-
-### "Customer ID not found"
-- **Solution**: Remove dashes from Customer ID (`123-456-7890` → `1234567890`)
-
-### "Insufficient permissions"
-- **Solution**: Ensure OAuth scope includes `https://www.googleapis.com/auth/adwords`
-- **Solution**: User must have admin access to Google Ads account
-
-### "RSA creation failed"
-- **Check**: Headlines < 30 chars, Descriptions < 90 chars
-- **Check**: 3-15 headlines, 2-4 descriptions
-- **Check**: No excessive punctuation or ALL CAPS
-
----
-
-## ✅ Testing Checklist
-
-- [ ] Google Cloud Project created
-- [ ] Google Ads API enabled
-- [ ] OAuth credentials created
-- [ ] Developer Token applied for (or approved)
-- [ ] Environment variables configured
-- [ ] Database migration run
-- [ ] Test account connected
-- [ ] Can fetch campaigns
-- [ ] Can create test RSA ad
-
----
-
-## 📚 Resources
-
-- [Google Ads API Docs](https://developers.google.com/google-ads/api/docs/start)
+- [Google Ads API Documentation](https://developers.google.com/google-ads/api/docs/start)
+- [OAuth 2.0 Guide](https://developers.google.com/google-ads/api/docs/oauth/overview)
+- [API Center](https://ads.google.com/aw/apicenter)
 - [Developer Token Guide](https://developers.google.com/google-ads/api/docs/get-started/dev-token)
-- [OAuth 2.0 Setup](https://developers.google.com/google-ads/api/docs/oauth/overview)
-- [Python Client Library](https://developers.google.com/google-ads/api/docs/client-libs/python/)
 
----
+## Support
 
-## 🎉 Success!
-
-Once configured, users can:
-1. Generate ad copy with AI
-2. Click "Publish to Google Ads"
-3. Select campaign/ad group
-4. One-click publish! ✨
-
-**The ad is created in PAUSED status for safety - user reviews and activates manually in Google Ads.**
+If you encounter issues:
+1. Check error logs in browser console
+2. Verify all credentials are correct
+3. Ensure API is enabled in Google Cloud
+4. Contact support with error details

@@ -14,7 +14,28 @@ interface Connection {
   connection_error?: string
 }
 
-const PLATFORMS = [
+interface Platform {
+  id: string
+  name: string
+  description: string
+  icon: JSX.Element
+  enabled: boolean
+  isAds?: boolean
+}
+
+const PLATFORMS: Platform[] = [
+  {
+    id: 'google_ads',
+    name: 'Google Ads',
+    description: 'Create and manage Google Ads campaigns with AI-powered automation',
+    icon: (
+      <svg className="w-10 h-10 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12.5 9.5m0 11.1c-2.4 0-4.3-2-4.3-4.4s2-4.4 4.3-4.4c1.3 0 2.4.5 3.2 1.4l.7.7-1.4 1.4-.7-.7c-.4-.4-1-.7-1.8-.7-1.5 0-2.7 1.2-2.7 2.8 0 1.5 1.2 2.8 2.7 2.8 1.1 0 1.9-.5 2.3-1.3h-2.3v-1.9h4.2l.1.6c0 .1 0 .3 0 .5 0 2.7-1.8 4.6-4.3 4.6zM12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/>
+      </svg>
+    ),
+    enabled: true,
+    isAds: true // Флаг для отдельной логики
+  },
   {
     id: 'facebook',
     name: 'Facebook',
@@ -82,6 +103,14 @@ export function Connections() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  
+  // Google Ads specific state
+  const [googleAdsConnected, setGoogleAdsConnected] = useState(false)
+  const [googleAdsCustomerId, setGoogleAdsCustomerId] = useState('')
+  const [showGoogleAdsModal, setShowGoogleAdsModal] = useState(false)
+  const [googleAdsRefreshToken, setGoogleAdsRefreshToken] = useState('')
+  const [googleAdsCustomerIdInput, setGoogleAdsCustomerIdInput] = useState('')
+  const [isConnectingGoogleAds, setIsConnectingGoogleAds] = useState(false)
 
   useEffect(() => {
     // Check for OAuth callback messages
@@ -113,8 +142,30 @@ export function Connections() {
     
     if (session) {
       fetchConnections()
+      fetchGoogleAdsStatus()
     }
   }, [user, activeAccount, session?.access_token, navigate])
+
+  const fetchGoogleAdsStatus = async () => {
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/google-ads/status`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setGoogleAdsConnected(data.connected)
+        if (data.customer_id) {
+          setGoogleAdsCustomerId(data.customer_id)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to check Google Ads status:', err)
+    }
+  }
 
   const fetchConnections = async () => {
     try {
@@ -178,6 +229,72 @@ export function Connections() {
       fetchConnections()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to disconnect')
+    }
+  }
+
+  const handleConnectGoogleAds = async () => {
+    if (!googleAdsRefreshToken || !googleAdsCustomerIdInput) {
+      setError('Please enter both Refresh Token and Customer ID')
+      return
+    }
+    
+    setIsConnectingGoogleAds(true)
+    setError(null)
+    
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/google-ads/connect`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          refresh_token: googleAdsRefreshToken,
+          customer_id: googleAdsCustomerIdInput
+        })
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.detail || 'Failed to connect Google Ads')
+      }
+      
+      const data = await response.json()
+      setGoogleAdsConnected(true)
+      setGoogleAdsCustomerId(googleAdsCustomerIdInput)
+      setSuccessMessage(`Google Ads connected successfully! Found ${data.campaigns_count} campaigns.`)
+      setShowGoogleAdsModal(false)
+      setGoogleAdsRefreshToken('')
+      setGoogleAdsCustomerIdInput('')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to connect Google Ads')
+    } finally {
+      setIsConnectingGoogleAds(false)
+    }
+  }
+
+  const handleDisconnectGoogleAds = async () => {
+    if (!confirm('Are you sure you want to disconnect Google Ads?')) {
+      return
+    }
+    
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/google-ads/disconnect`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      })
+      
+      if (!response.ok) throw new Error('Failed to disconnect Google Ads')
+      
+      setGoogleAdsConnected(false)
+      setGoogleAdsCustomerId('')
+      setSuccessMessage('Google Ads disconnected successfully')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect Google Ads')
     }
   }
 
@@ -245,6 +362,77 @@ export function Connections() {
       ) : activeAccount ? (
         <div className="space-y-4">
           {PLATFORMS.map((platform) => {
+            // Google Ads отдельная логика
+            if (platform.isAds) {
+              return (
+                <div
+                  key={platform.id}
+                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 transition-all hover:shadow-md"
+                >
+                  <div className="flex items-center justify-between">
+                    {/* Left: Icon + Info */}
+                    <div className="flex items-start gap-4 flex-1">
+                      <div className="flex-shrink-0">
+                        {platform.icon}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                          {platform.name}
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                          {platform.description}
+                        </p>
+                        <a 
+                          href="https://developers.google.com/google-ads/api/docs/oauth/overview" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          How to get credentials
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Right: Status + Actions */}
+                    <div className="flex items-center gap-4 ml-4">
+                      {googleAdsConnected ? (
+                        <>
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white">
+                              {googleAdsCustomerId}
+                            </p>
+                          </div>
+                          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm font-medium">
+                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            </svg>
+                            Connected
+                          </span>
+                          <button
+                            onClick={handleDisconnectGoogleAds}
+                            className="px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg font-semibold transition-all"
+                          >
+                            Disconnect
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          onClick={() => setShowGoogleAdsModal(true)}
+                          className="px-6 py-2.5 rounded-lg font-semibold transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md"
+                        >
+                          Connect
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            }
+
+            // Остальные платформы (социалки)
             const connection = getConnection(platform.id)
             const isConnected = connection?.is_connected
 
@@ -336,6 +524,138 @@ export function Connections() {
           })}
         </div>
       ) : null}
+
+      {/* Google Ads Connection Modal */}
+      {showGoogleAdsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  Connect Google Ads Account
+                </h3>
+                <button
+                  onClick={() => {
+                    setShowGoogleAdsModal(false)
+                    setGoogleAdsRefreshToken('')
+                    setGoogleAdsCustomerIdInput('')
+                  }}
+                  className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
+                  disabled={isConnectingGoogleAds}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Instructions */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-lg mb-6">
+                <div className="flex items-start gap-3">
+                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <div>
+                    <h4 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">
+                      How to get your Google Ads credentials:
+                    </h4>
+                    <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-decimal list-inside">
+                      <li>Go to <a href="https://developers.google.com/google-ads/api/docs/oauth/overview" target="_blank" rel="noopener noreferrer" className="underline">Google Ads API OAuth</a></li>
+                      <li>Complete OAuth flow to get Refresh Token</li>
+                      <li>Find your Customer ID in Google Ads (format: 1234567890, no dashes)</li>
+                      <li>Enter both values below</li>
+                    </ol>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form */}
+              <div className="space-y-4">
+                {/* Refresh Token */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    OAuth Refresh Token *
+                  </label>
+                  <textarea
+                    value={googleAdsRefreshToken}
+                    onChange={(e) => setGoogleAdsRefreshToken(e.target.value)}
+                    placeholder="1//0abc123..."
+                    rows={3}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                    disabled={isConnectingGoogleAds}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    Your OAuth2 refresh token from Google Ads API
+                  </p>
+                </div>
+
+                {/* Customer ID */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Customer ID *
+                  </label>
+                  <input
+                    type="text"
+                    value={googleAdsCustomerIdInput}
+                    onChange={(e) => setGoogleAdsCustomerIdInput(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="1234567890"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono"
+                    disabled={isConnectingGoogleAds}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    10-digit number without dashes (e.g., 1234567890)
+                  </p>
+                </div>
+
+                {/* Warning */}
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      <strong>Security Note:</strong> Your credentials are stored securely and only used to access your Google Ads account on your behalf.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setShowGoogleAdsModal(false)
+                      setGoogleAdsRefreshToken('')
+                      setGoogleAdsCustomerIdInput('')
+                    }}
+                    className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+                    disabled={isConnectingGoogleAds}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleConnectGoogleAds}
+                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    disabled={isConnectingGoogleAds || !googleAdsRefreshToken || !googleAdsCustomerIdInput}
+                  >
+                    {isConnectingGoogleAds ? (
+                      <>
+                        <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Connecting...
+                      </>
+                    ) : (
+                      'Connect Google Ads'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
