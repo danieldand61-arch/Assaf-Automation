@@ -47,7 +47,7 @@ async def google_ads_oauth_authorize(user = Depends(get_current_user)):
     Returns authorization URL for user to visit
     """
     try:
-        logger.info(f"🔐 Starting OAuth flow for user {user['id']}")
+        logger.info(f"🔐 Starting OAuth flow for user {user['user_id']}")
         
         client_id = os.getenv("GOOGLE_ADS_CLIENT_ID")
         redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{os.getenv('FRONTEND_URL')}/auth/google-ads/callback")
@@ -64,7 +64,7 @@ async def google_ads_oauth_authorize(user = Depends(get_current_user)):
             "&response_type=code"
             "&access_type=offline"
             "&prompt=consent"
-            f"&state={user['id']}"  # Pass user ID for callback
+            f"&state={user['user_id']}"  # Pass user ID for callback
         )
         
         logger.info(f"✅ OAuth URL generated")
@@ -150,7 +150,7 @@ async def complete_google_ads_connection(
     Called after OAuth flow when user enters customer ID
     """
     try:
-        logger.info(f"🔗 Completing Google Ads connection for user {user['id']}")
+        logger.info(f"🔗 Completing Google Ads connection for user {user['user_id']}")
         
         # Test connection by fetching campaigns
         ads_service = GoogleAdsService(
@@ -164,10 +164,10 @@ async def complete_google_ads_connection(
         supabase = get_supabase()
         
         # Check if connection exists
-        existing = supabase.table('google_ads_connections').select('*').eq('user_id', user['id']).execute()
+        existing = supabase.table('google_ads_connections').select('*').eq('user_id', user['user_id']).execute()
         
         connection_data = {
-            'user_id': user['id'],
+            'user_id': user['user_id'],
             'customer_id': request.customer_id,
             'refresh_token': request.refresh_token,  # TODO: Encrypt this
             'status': 'active'
@@ -175,7 +175,7 @@ async def complete_google_ads_connection(
         
         if existing.data:
             # Update existing
-            result = supabase.table('google_ads_connections').update(connection_data).eq('user_id', user['id']).execute()
+            result = supabase.table('google_ads_connections').update(connection_data).eq('user_id', user['user_id']).execute()
         else:
             # Insert new
             result = supabase.table('google_ads_connections').insert(connection_data).execute()
@@ -204,7 +204,7 @@ async def connect_google_ads(
     Store refresh token securely
     """
     try:
-        logger.info(f"🔗 Connecting Google Ads account for user {user['id']}")
+        logger.info(f"🔗 Connecting Google Ads account for user {user['user_id']}")
         
         # Test connection by fetching campaigns
         ads_service = GoogleAdsService(
@@ -218,10 +218,10 @@ async def connect_google_ads(
         supabase = get_supabase()
         
         # Check if connection exists
-        existing = supabase.table('google_ads_connections').select('*').eq('user_id', user['id']).execute()
+        existing = supabase.table('google_ads_connections').select('*').eq('user_id', user['user_id']).execute()
         
         connection_data = {
-            'user_id': user['id'],
+            'user_id': user['user_id'],
             'customer_id': request.customer_id,
             'refresh_token': request.refresh_token,  # TODO: Encrypt this
             'status': 'active'
@@ -229,7 +229,7 @@ async def connect_google_ads(
         
         if existing.data:
             # Update existing
-            result = supabase.table('google_ads_connections').update(connection_data).eq('user_id', user['id']).execute()
+            result = supabase.table('google_ads_connections').update(connection_data).eq('user_id', user['user_id']).execute()
         else:
             # Insert new
             result = supabase.table('google_ads_connections').insert(connection_data).execute()
@@ -254,11 +254,11 @@ async def get_campaigns(user = Depends(get_current_user)):
     Get all campaigns for connected Google Ads account
     """
     try:
-        logger.info(f"📊 Fetching campaigns for user {user['id']}")
+        logger.info(f"📊 Fetching campaigns for user {user['user_id']}")
         
         # Get connection from database
         supabase = get_supabase()
-        connection = supabase.table('google_ads_connections').select('*').eq('user_id', user['id']).eq('status', 'active').execute()
+        connection = supabase.table('google_ads_connections').select('*').eq('user_id', user['user_id']).eq('status', 'active').execute()
         
         if not connection.data:
             raise HTTPException(status_code=404, detail="Google Ads account not connected")
@@ -300,7 +300,7 @@ async def get_ad_groups(
         
         # Get connection
         supabase = get_supabase()
-        connection = supabase.table('google_ads_connections').select('*').eq('user_id', user['id']).eq('status', 'active').execute()
+        connection = supabase.table('google_ads_connections').select('*').eq('user_id', user['user_id']).eq('status', 'active').execute()
         
         if not connection.data:
             raise HTTPException(status_code=404, detail="Google Ads account not connected")
@@ -338,14 +338,14 @@ async def create_responsive_search_ad(
     Create a Responsive Search Ad (RSA) in Google Ads
     """
     try:
-        logger.info(f"📝 Creating RSA for user {user['id']}")
+        logger.info(f"📝 Creating RSA for user {user['user_id']}")
         logger.info(f"   Ad Group ID: {request.ad_group_id}")
         logger.info(f"   Headlines: {len(request.headlines)}")
         logger.info(f"   Descriptions: {len(request.descriptions)}")
         
         # Get connection
         supabase = get_supabase()
-        connection = supabase.table('google_ads_connections').select('*').eq('user_id', user['id']).eq('status', 'active').execute()
+        connection = supabase.table('google_ads_connections').select('*').eq('user_id', user['user_id']).eq('status', 'active').execute()
         
         if not connection.data:
             raise HTTPException(status_code=404, detail="Google Ads account not connected. Please connect first.")
@@ -391,7 +391,7 @@ async def add_sitelink_extensions(
         
         # Get connection
         supabase = get_supabase()
-        connection = supabase.table('google_ads_connections').select('*').eq('user_id', user['id']).eq('status', 'active').execute()
+        connection = supabase.table('google_ads_connections').select('*').eq('user_id', user['user_id']).eq('status', 'active').execute()
         
         if not connection.data:
             raise HTTPException(status_code=404, detail="Google Ads account not connected")
@@ -427,7 +427,7 @@ async def get_connection_status(user = Depends(get_current_user)):
     """
     try:
         supabase = get_supabase()
-        connection = supabase.table('google_ads_connections').select('*').eq('user_id', user['id']).eq('status', 'active').execute()
+        connection = supabase.table('google_ads_connections').select('*').eq('user_id', user['user_id']).eq('status', 'active').execute()
         
         if connection.data:
             return {
@@ -453,10 +453,10 @@ async def disconnect_google_ads(user = Depends(get_current_user)):
     Disconnect Google Ads account
     """
     try:
-        logger.info(f"🔌 Disconnecting Google Ads for user {user['id']}")
+        logger.info(f"🔌 Disconnecting Google Ads for user {user['user_id']}")
         
         supabase = get_supabase()
-        result = supabase.table('google_ads_connections').update({'status': 'inactive'}).eq('user_id', user['id']).execute()
+        result = supabase.table('google_ads_connections').update({'status': 'inactive'}).eq('user_id', user['user_id']).execute()
         
         logger.info(f"✅ Google Ads disconnected")
         
