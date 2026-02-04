@@ -116,16 +116,28 @@ export function Connections() {
     // Check for OAuth callback messages
     const success = searchParams.get('success')
     const errorParam = searchParams.get('error')
+    const googleAdsOAuth = searchParams.get('google_ads_oauth')
     
     if (success) {
       setSuccessMessage(`${success.charAt(0).toUpperCase() + success.slice(1)} connected successfully!`)
       // Clear URL parameters
-      window.history.replaceState({}, '', '/settings')
+      window.history.replaceState({}, '', '/settings?tab=connections')
     }
     
     if (errorParam) {
       setError(errorParam)
-      window.history.replaceState({}, '', '/settings')
+      window.history.replaceState({}, '', '/settings?tab=connections')
+    }
+
+    // Check if OAuth completed - open modal for customer ID
+    if (googleAdsOAuth === 'true') {
+      const tempToken = sessionStorage.getItem('google_ads_temp_token')
+      if (tempToken) {
+        setGoogleAdsRefreshToken(tempToken)
+        setShowGoogleAdsModal(true)
+        // Clear URL parameter
+        window.history.replaceState({}, '', '/settings?tab=connections')
+      }
     }
   }, [searchParams])
 
@@ -232,9 +244,36 @@ export function Connections() {
     }
   }
 
+  const startGoogleAdsOAuth = async () => {
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/google-ads/oauth/authorize`, {
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`
+        }
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to start OAuth flow')
+      }
+      
+      const data = await response.json()
+      // Open OAuth URL in same window
+      window.location.href = data.auth_url
+    } catch (err) {
+      console.error('Failed to start OAuth:', err)
+      setError(err instanceof Error ? err.message : 'Failed to start OAuth flow')
+    }
+  }
+
   const handleConnectGoogleAds = async () => {
-    if (!googleAdsRefreshToken || !googleAdsCustomerIdInput) {
-      setError('Please enter both Refresh Token and Customer ID')
+    if (!googleAdsCustomerIdInput) {
+      setError('Please enter Customer ID')
+      return
+    }
+
+    if (!googleAdsRefreshToken) {
+      setError('OAuth token missing. Please try connecting again.')
       return
     }
     
@@ -243,7 +282,7 @@ export function Connections() {
     
     try {
       const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/api/google-ads/connect`, {
+      const response = await fetch(`${apiUrl}/api/google-ads/oauth/complete`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${session?.access_token}`,
@@ -267,6 +306,12 @@ export function Connections() {
       setShowGoogleAdsModal(false)
       setGoogleAdsRefreshToken('')
       setGoogleAdsCustomerIdInput('')
+      
+      // Clear temp token from sessionStorage
+      sessionStorage.removeItem('google_ads_temp_token')
+      
+      // Refresh status
+      fetchGoogleAdsStatus()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect Google Ads')
     } finally {
@@ -420,10 +465,13 @@ export function Connections() {
                         </>
                       ) : (
                         <button
-                          onClick={() => setShowGoogleAdsModal(true)}
-                          className="px-6 py-2.5 rounded-lg font-semibold transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md"
+                          onClick={startGoogleAdsOAuth}
+                          className="px-6 py-2.5 rounded-lg font-semibold transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md flex items-center gap-2"
                         >
-                          Connect
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+                          </svg>
+                          Sign in with Google
                         </button>
                       )}
                     </div>
@@ -550,46 +598,25 @@ export function Connections() {
                 </button>
               </div>
 
-              {/* Instructions */}
-              <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-lg mb-6">
+              {/* Success Message */}
+              <div className="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 p-4 rounded-lg mb-6">
                 <div className="flex items-start gap-3">
-                  <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  <svg className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                   </svg>
                   <div>
-                    <h4 className="font-semibold text-blue-900 dark:text-blue-200 mb-2">
-                      How to get your Google Ads credentials:
+                    <h4 className="font-semibold text-green-900 dark:text-green-200 mb-1">
+                      ✅ Google authentication successful!
                     </h4>
-                    <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-decimal list-inside">
-                      <li>Go to <a href="https://developers.google.com/google-ads/api/docs/oauth/overview" target="_blank" rel="noopener noreferrer" className="underline">Google Ads API OAuth</a></li>
-                      <li>Complete OAuth flow to get Refresh Token</li>
-                      <li>Find your Customer ID in Google Ads (format: 1234567890, no dashes)</li>
-                      <li>Enter both values below</li>
-                    </ol>
+                    <p className="text-sm text-green-800 dark:text-green-300">
+                      Now enter your Google Ads Customer ID to complete the connection.
+                    </p>
                   </div>
                 </div>
               </div>
 
               {/* Form */}
               <div className="space-y-4">
-                {/* Refresh Token */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    OAuth Refresh Token *
-                  </label>
-                  <textarea
-                    value={googleAdsRefreshToken}
-                    onChange={(e) => setGoogleAdsRefreshToken(e.target.value)}
-                    placeholder="1//0abc123..."
-                    rows={3}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                    disabled={isConnectingGoogleAds}
-                  />
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    Your OAuth2 refresh token from Google Ads API
-                  </p>
-                </div>
-
                 {/* Customer ID */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -604,19 +631,26 @@ export function Connections() {
                     disabled={isConnectingGoogleAds}
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    10-digit number without dashes (e.g., 1234567890)
+                    10-digit number without dashes. Find it in Google Ads top-right corner.
                   </p>
                 </div>
 
-                {/* Warning */}
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 p-4 rounded-lg">
+                {/* Help */}
+                <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-lg">
                   <div className="flex items-start gap-3">
-                    <svg className="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                    <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                     </svg>
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                      <strong>Security Note:</strong> Your credentials are stored securely and only used to access your Google Ads account on your behalf.
-                    </p>
+                    <div>
+                      <h4 className="font-semibold text-blue-900 dark:text-blue-200 mb-1">
+                        Where to find Customer ID?
+                      </h4>
+                      <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-decimal list-inside">
+                        <li>Open <a href="https://ads.google.com" target="_blank" rel="noopener noreferrer" className="underline">Google Ads</a></li>
+                        <li>Look at the top-right corner for "XXX-XXX-XXXX"</li>
+                        <li>Remove dashes and enter here (e.g., 1234567890)</li>
+                      </ol>
+                    </div>
                   </div>
                 </div>
 

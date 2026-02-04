@@ -4,6 +4,7 @@ import { AccountProvider } from './contexts/AccountContext'
 import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
 import { AuthCallback } from './pages/AuthCallback'
+import { GoogleAdsCallback } from './pages/GoogleAdsCallback'
 import { Settings } from './pages/Settings'
 import { Library } from './pages/Library'
 import { Scheduled } from './pages/Scheduled'
@@ -41,6 +42,7 @@ export function AppWithAuth() {
             <Route path="/" element={<ChatApp />} />
             <Route path="/old" element={<App />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route path="/auth/google-ads/callback" element={<GoogleAdsCallback />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/library" element={<Library />} />
             <Route path="/scheduled" element={<Scheduled />} />

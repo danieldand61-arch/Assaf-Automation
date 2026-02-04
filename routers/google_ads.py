@@ -1,10 +1,13 @@
 """
 Google Ads API Router - Campaign and Ad Management
 """
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi.responses import RedirectResponse
 from typing import List, Optional
 from pydantic import BaseModel
 import logging
+import os
+import httpx
 from middleware.auth import get_current_user
 from database.supabase_client import get_supabase
 from services.google_ads_client import GoogleAdsService
@@ -30,6 +33,165 @@ class CreateRSARequest(BaseModel):
 class AddSitelinksRequest(BaseModel):
     campaign_id: int
     sitelinks: List[dict]  # [{"text": "", "description1": "", "description2": "", "final_url": ""}]
+
+
+class OAuthCompleteRequest(BaseModel):
+    refresh_token: str
+    customer_id: str
+
+
+@router.get("/oauth/authorize")
+async def google_ads_oauth_authorize(user = Depends(get_current_user)):
+    """
+    Start Google Ads OAuth flow
+    Returns authorization URL for user to visit
+    """
+    try:
+        logger.info(f"🔐 Starting OAuth flow for user {user['id']}")
+        
+        client_id = os.getenv("GOOGLE_ADS_CLIENT_ID")
+        redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{os.getenv('FRONTEND_URL')}/auth/google-ads/callback")
+        
+        if not client_id:
+            raise HTTPException(status_code=500, detail="Google Ads OAuth not configured")
+        
+        # Build OAuth URL
+        oauth_url = (
+            "https://accounts.google.com/o/oauth2/auth"
+            f"?client_id={client_id}"
+            f"&redirect_uri={redirect_uri}"
+            "&scope=https://www.googleapis.com/auth/adwords"
+            "&response_type=code"
+            "&access_type=offline"
+            "&prompt=consent"
+            f"&state={user['id']}"  # Pass user ID for callback
+        )
+        
+        logger.info(f"✅ OAuth URL generated")
+        
+        return {
+            "auth_url": oauth_url,
+            "redirect_uri": redirect_uri
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to generate OAuth URL: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to start OAuth: {str(e)}")
+
+
+@router.get("/oauth/callback")
+async def google_ads_oauth_callback(
+    code: str = Query(...),
+    state: str = Query(...)  # user_id
+):
+    """
+    Handle OAuth callback from Google
+    Exchange code for refresh token
+    """
+    try:
+        logger.info(f"🔄 OAuth callback received for user {state}")
+        
+        client_id = os.getenv("GOOGLE_ADS_CLIENT_ID")
+        client_secret = os.getenv("GOOGLE_ADS_CLIENT_SECRET")
+        redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{os.getenv('FRONTEND_URL')}/auth/google-ads/callback")
+        
+        if not client_id or not client_secret:
+            raise HTTPException(status_code=500, detail="Google Ads OAuth not configured")
+        
+        # Exchange authorization code for tokens
+        async with httpx.AsyncClient() as client:
+            token_response = await client.post(
+                "https://oauth2.googleapis.com/token",
+                data={
+                    "code": code,
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "redirect_uri": redirect_uri,
+                    "grant_type": "authorization_code"
+                }
+            )
+        
+        if token_response.status_code != 200:
+            logger.error(f"❌ Token exchange failed: {token_response.text}")
+            raise HTTPException(status_code=400, detail="Failed to exchange code for token")
+        
+        tokens = token_response.json()
+        refresh_token = tokens.get("refresh_token")
+        
+        if not refresh_token:
+            logger.error("❌ No refresh token in response")
+            raise HTTPException(status_code=400, detail="No refresh token received. Try again.")
+        
+        logger.info(f"✅ Refresh token obtained")
+        
+        # Redirect to frontend with token (will be saved after customer_id input)
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        return RedirectResponse(
+            url=f"{frontend_url}/settings?tab=connections&google_ads_token={refresh_token}&success=google_ads_oauth"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ OAuth callback error: {str(e)}")
+        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        return RedirectResponse(
+            url=f"{frontend_url}/settings?tab=connections&error=oauth_failed"
+        )
+
+
+@router.post("/oauth/complete")
+async def complete_google_ads_connection(
+    request: OAuthCompleteRequest,
+    user = Depends(get_current_user)
+):
+    """
+    Complete Google Ads connection with customer ID
+    Called after OAuth flow when user enters customer ID
+    """
+    try:
+        logger.info(f"🔗 Completing Google Ads connection for user {user['id']}")
+        
+        # Test connection by fetching campaigns
+        ads_service = GoogleAdsService(
+            refresh_token=request.refresh_token,
+            customer_id=request.customer_id
+        )
+        
+        campaigns = ads_service.get_campaigns()
+        
+        # Store connection in database
+        supabase = get_supabase()
+        
+        # Check if connection exists
+        existing = supabase.table('google_ads_connections').select('*').eq('user_id', user['id']).execute()
+        
+        connection_data = {
+            'user_id': user['id'],
+            'customer_id': request.customer_id,
+            'refresh_token': request.refresh_token,  # TODO: Encrypt this
+            'status': 'active'
+        }
+        
+        if existing.data:
+            # Update existing
+            result = supabase.table('google_ads_connections').update(connection_data).eq('user_id', user['id']).execute()
+        else:
+            # Insert new
+            result = supabase.table('google_ads_connections').insert(connection_data).execute()
+        
+        logger.info(f"✅ Google Ads connected: {len(campaigns)} campaigns found")
+        
+        return {
+            "success": True,
+            "customer_id": request.customer_id,
+            "campaigns_count": len(campaigns),
+            "message": "Google Ads account connected successfully"
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Failed to complete connection: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to connect Google Ads: {str(e)}")
 
 
 @router.post("/connect")
