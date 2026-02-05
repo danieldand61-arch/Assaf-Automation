@@ -1,54 +1,12 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
-import { getApiUrl } from '../lib/api'
 import { User, LogOut, Settings, ChevronDown, BookmarkPlus, Calendar, Link as LinkIcon } from 'lucide-react'
 
-interface SocialConnection {
-  platform: string
-  connected: boolean
-  username?: string
-}
-
 export function UserMenu() {
-  const { user, signOut, session } = useAuth()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
-  const [connections, setConnections] = useState<SocialConnection[]>([])
-  const [loadingConnections, setLoadingConnections] = useState(false)
-
-  useEffect(() => {
-    if (isOpen && session) {
-      loadConnections()
-    }
-  }, [isOpen, session])
-
-  const loadConnections = async () => {
-    setLoadingConnections(true)
-    try {
-      const apiUrl = getApiUrl()
-      const response = await fetch(`${apiUrl}/api/social/status`, {
-        headers: {
-          'Authorization': `Bearer ${session?.access_token}`
-        }
-      })
-      if (response.ok) {
-        const data = await response.json()
-        const platformsList = [
-          { platform: 'instagram', name: 'Instagram', connected: data.instagram?.connected || false, username: data.instagram?.username },
-          { platform: 'facebook', name: 'Facebook', connected: data.facebook?.connected || false, username: data.facebook?.username },
-          { platform: 'linkedin', name: 'LinkedIn', connected: data.linkedin?.connected || false, username: data.linkedin?.username },
-          { platform: 'twitter', name: 'Twitter', connected: data.twitter?.connected || false, username: data.twitter?.username },
-          { platform: 'tiktok', name: 'TikTok', connected: data.tiktok?.connected || false, username: data.tiktok?.username }
-        ]
-        setConnections(platformsList)
-      }
-    } catch (error) {
-      console.error('Failed to load connections:', error)
-    } finally {
-      setLoadingConnections(false)
-    }
-  }
 
   if (!user) return null
 
@@ -135,37 +93,17 @@ export function UserMenu() {
 
               <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
 
-              {/* Social Media Connections */}
-              <div className="px-4 py-2">
-                <div className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                  <LinkIcon className="w-3 h-3" />
-                  Social Media
-                </div>
-                
-                {loadingConnections ? (
-                  <div className="text-xs text-gray-500 dark:text-gray-400 py-2">Loading...</div>
-                ) : (
-                  <div className="space-y-1">
-                    {connections.map((conn) => (
-                      <button
-                        key={conn.platform}
-                        onClick={() => {
-                          navigate('/settings?tab=connections')
-                          setIsOpen(false)
-                        }}
-                        className="w-full flex items-center justify-between px-2 py-1.5 text-sm rounded hover:bg-gray-50 dark:hover:bg-gray-700 transition"
-                      >
-                        <span className="text-gray-700 dark:text-gray-300 capitalize">
-                          {conn.platform}
-                        </span>
-                        <span className={`text-xs ${conn.connected ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-500'}`}>
-                          {conn.connected ? '✓ Connected' : 'Not connected'}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              {/* Social Media Connections Link */}
+              <button
+                onClick={() => {
+                  navigate('/settings?tab=connections')
+                  setIsOpen(false)
+                }}
+                className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
+              >
+                <LinkIcon className="w-4 h-4" />
+                Social Media
+              </button>
 
               <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
 
