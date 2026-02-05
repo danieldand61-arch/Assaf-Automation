@@ -324,67 +324,6 @@ export function ChatApp() {
     }
   }
 
-  const handleToolClick = async (tool: 'post_generation' | 'video_dubbing' | 'google_ads') => {
-    console.log('🎯 handleToolClick called with:', tool)
-    console.log('🎯 activeChat:', activeChat)
-    console.log('🎯 session:', session ? 'exists' : 'missing')
-    
-    if (!tool || !activeChat || !session) {
-      console.error('❌ Missing required data:', { tool, activeChat: !!activeChat, session: !!session })
-      return
-    }
-    
-    try {
-      // Save tool message to database
-      const apiUrl = getApiUrl()
-      console.log('🎯 API URL:', apiUrl)
-      
-      const toolLabels = {
-        'post_generation': `🎨 ${t('generatePost')}`,
-        'video_dubbing': `🎬 ${t('aiDubbing')}`,
-        'google_ads': `🎯 ${t('generateGoogleAds')}`
-      }
-      
-      const requestBody = {
-        content: toolLabels[tool],
-        action_type: tool,
-        action_data: { status: 'active' }
-      }
-      
-      console.log('🎯 Request body:', requestBody)
-      console.log('🎯 Calling endpoint:', `${apiUrl}/api/chats/${activeChat.id}/action`)
-      
-      const response = await fetch(`${apiUrl}/api/chats/${activeChat.id}/action`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify(requestBody)
-      })
-      
-      console.log('🎯 Response status:', response.status)
-      
-      if (!response.ok) {
-        const errorText = await response.text()
-        console.error('❌ Response error:', errorText)
-        throw new Error(`Failed to save tool: ${response.status} ${errorText}`)
-      }
-      
-      const data = await response.json()
-      console.log('✅ Tool message created:', data)
-      
-      const toolMessage = data.action
-      
-      setMessages(prev => [...prev, toolMessage])
-      
-      console.log('✅ Tool added:', toolMessage.id)
-    } catch (error) {
-      console.error('❌ Error creating tool:', error)
-      alert(`Failed to open tool: ${error}`)
-    }
-  }
-
   const handleCloseTool = async (toolId: string) => {
     console.log('🔽 Collapsing tool:', toolId)
     
@@ -550,9 +489,9 @@ export function ChatApp() {
     )
   }
 
-  // Chat Interface
+  // Chat Interface (without header - used inside MainWorkspace)
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-full bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
       <div className="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
@@ -641,11 +580,6 @@ export function ChatApp() {
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <div className="border-b border-gray-200 dark:border-gray-700">
-          <Header />
-        </div>
-
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {messages.map((message) => {

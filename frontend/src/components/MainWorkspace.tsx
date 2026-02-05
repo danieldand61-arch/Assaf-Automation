@@ -51,11 +51,6 @@ export function MainWorkspace() {
     }
   ]
 
-  // For AI Chat, render ChatApp directly (it has its own layout)
-  if (activeTab === 'chat') {
-    return <ChatApp />
-  }
-
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
@@ -86,18 +81,35 @@ export function MainWorkspace() {
       </div>
 
       {/* Tab Content */}
-      <div className="flex-1 overflow-hidden flex">
-        {/* Left Panel - Tool */}
-        <div className={`${generatedContent && activeTab === 'social' ? 'w-1/2' : 'flex-1'} overflow-auto p-6`}>
-          {activeTab === 'social' && <InputSection onGenerate={handleGenerate} />}
-          {activeTab === 'ads' && <GoogleAdsGeneration />}
-          {activeTab === 'video' && <VideoTranslation />}
-        </div>
-
-        {/* Right Panel - Preview (only for social posts) */}
-        {generatedContent && activeTab === 'social' && (
-          <div className="w-1/2 border-l border-gray-200 dark:border-gray-700 overflow-auto p-6 bg-white dark:bg-gray-800">
-            <PreviewSection onReset={handleReset} />
+      <div className="flex-1 overflow-hidden">
+        {activeTab === 'chat' && (
+          <div className="h-full">
+            <ChatApp />
+          </div>
+        )}
+        
+        {activeTab === 'social' && (
+          <div className="flex h-full">
+            <div className={`${generatedContent ? 'w-1/2' : 'flex-1'} overflow-auto p-6`}>
+              <InputSection onGenerate={handleGenerate} />
+            </div>
+            {generatedContent && (
+              <div className="w-1/2 border-l border-gray-200 dark:border-gray-700 overflow-auto p-6 bg-white dark:bg-gray-800">
+                <PreviewSection onReset={handleReset} />
+              </div>
+            )}
+          </div>
+        )}
+        
+        {activeTab === 'ads' && (
+          <div className="h-full overflow-auto p-6">
+            <GoogleAdsGeneration />
+          </div>
+        )}
+        
+        {activeTab === 'video' && (
+          <div className="h-full overflow-auto p-6">
+            <VideoTranslation />
           </div>
         )}
       </div>
