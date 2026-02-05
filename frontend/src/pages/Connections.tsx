@@ -509,8 +509,7 @@ export function Connections() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Advertising Platforms</h2>
             <div className="space-y-4">
-              {ADVERTISING_PLATFORMS.map((platform) => {
-              return (
+              {ADVERTISING_PLATFORMS.map((platform) => (
                 <div
                   key={platform.id}
                   className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 transition-all hover:shadow-md"
