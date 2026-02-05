@@ -38,24 +38,34 @@ class GoogleAdsService:
         logger.info(f"✅ Google Ads client initialized for customer {customer_id}")
     
     
-    def get_campaigns(self) -> List[Dict]:
+    def get_campaigns(self, date_range: str = "LAST_30_DAYS") -> List[Dict]:
         """
-        Get all active campaigns
+        Get all campaigns with performance metrics
+        
+        Args:
+            date_range: Date range for metrics (TODAY, YESTERDAY, LAST_7_DAYS, LAST_30_DAYS, etc.)
         
         Returns:
-            List of campaigns with id, name, status
+            List of campaigns with id, name, status, and metrics
         """
         try:
             ga_service = self.client.get_service("GoogleAdsService")
             
-            query = """
+            query = f"""
                 SELECT 
                     campaign.id,
                     campaign.name,
                     campaign.status,
-                    campaign.advertising_channel_type
+                    campaign.advertising_channel_type,
+                    metrics.impressions,
+                    metrics.clicks,
+                    metrics.cost_micros,
+                    metrics.conversions,
+                    metrics.ctr,
+                    metrics.average_cpc
                 FROM campaign 
                 WHERE campaign.status != 'REMOVED'
+                  AND segments.date DURING {date_range}
                 ORDER BY campaign.name
             """
             
@@ -67,10 +77,16 @@ class GoogleAdsService:
                     "id": row.campaign.id,
                     "name": row.campaign.name,
                     "status": row.campaign.status.name,
-                    "type": row.campaign.advertising_channel_type.name
+                    "type": row.campaign.advertising_channel_type.name,
+                    "impressions": row.metrics.impressions,
+                    "clicks": row.metrics.clicks,
+                    "cost": row.metrics.cost_micros / 1_000_000,  # Convert micros to currency
+                    "conversions": row.metrics.conversions,
+                    "ctr": row.metrics.ctr * 100,  # Convert to percentage
+                    "avg_cpc": row.metrics.average_cpc / 1_000_000 if row.metrics.average_cpc else 0
                 })
             
-            logger.info(f"✅ Retrieved {len(campaigns)} campaigns")
+            logger.info(f"✅ Retrieved {len(campaigns)} campaigns for {date_range}")
             return campaigns
             
         except GoogleAdsException as ex:
@@ -123,6 +139,20 @@ class GoogleAdsService:
             logger.error(f"❌ Google Ads API error: {ex}")
             raise
     
+    
+    def create_rsa(
+        self,
+        ad_group_id: int,
+        headlines: List[str],
+        descriptions: List[str],
+        final_url: str,
+        path1: Optional[str] = None,
+        path2: Optional[str] = None
+    ) -> Dict:
+        """Alias for create_responsive_search_ad"""
+        return self.create_responsive_search_ad(
+            ad_group_id, headlines, descriptions, final_url, path1, path2
+        )
     
     def create_responsive_search_ad(
         self,

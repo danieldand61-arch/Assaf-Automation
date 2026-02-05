@@ -175,7 +175,7 @@ async def send_message(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Send a message and get AI response from Gemini
+    Send a message and get AI response from Gemini with function calling support
     """
     logger.info(f"💬 Received message for chat {chat_id}")
     logger.info(f"📝 Message content: {request.content[:100]}")
@@ -183,6 +183,8 @@ async def send_message(
     try:
         import google.generativeai as genai
         import os
+        from services.chat_tools import get_available_tools, TOOLS_DESCRIPTION
+        from services.function_executor import FunctionExecutor
         
         supabase = get_supabase()
         
@@ -210,24 +212,47 @@ async def send_message(
             "action_data": request.action_data
         }).execute()
         
-        # Get chat history for context
+        # Get chat history for context (increased to 50 for better context)
         messages = supabase.table("chat_messages")\
             .select("*")\
             .eq("chat_id", chat_id)\
             .order("created_at", desc=False)\
-            .limit(20)\
+            .limit(50)\
             .execute()
         
-        # Build conversation history for Gemini
+        # Build conversation history for Gemini (including function calls)
         conversation_history = []
         for msg in (messages.data or []):
-            if msg["role"] in ["user", "assistant"]:
+            if msg["role"] == "user":
                 conversation_history.append({
-                    "role": "user" if msg["role"] == "user" else "model",
+                    "role": "user",
                     "parts": [msg["content"]]
                 })
+            elif msg["role"] == "assistant":
+                conversation_history.append({
+                    "role": "model",
+                    "parts": [msg["content"]]
+                })
+            elif msg["role"] == "function":
+                # Add function results to history
+                try:
+                    import json
+                    function_name = msg.get("action_type", "unknown")
+                    function_result = msg.get("action_data", {})
+                    
+                    conversation_history.append({
+                        "role": "function",
+                        "parts": [{
+                            "function_response": {
+                                "name": function_name,
+                                "response": function_result
+                            }
+                        }]
+                    })
+                except Exception as e:
+                    logger.warning(f"⚠️ Could not parse function message: {e}")
         
-        # Call Gemini API
+        # Call Gemini API with function calling
         try:
             api_key = os.getenv("GOOGLE_AI_API_KEY")
             if not api_key:
@@ -235,31 +260,46 @@ async def send_message(
                 raise Exception("GOOGLE_AI_API_KEY not configured")
             
             genai.configure(api_key=api_key)
-            logger.info(f"🔑 Gemini configured with API key: {api_key[:20]}...")
+            logger.info(f"🔑 Gemini configured")
             
-            # Use Gemini 2.5 Flash (latest, best price-performance)
+            # Use Gemini 2.5 Flash
             model_name = 'gemini-3-flash-preview'
             logger.info(f"🤖 Using model: {model_name}")
             
             # Get current date
             current_date = datetime.now().strftime("%B %d, %Y")
             
+            # Get available tools
+            tools = get_available_tools()
+            
+            # Enhanced system instruction with tools
+            system_instruction = f"""You are an AI assistant for a marketing automation platform. Today's date is {current_date}.
+
+{TOOLS_DESCRIPTION}
+
+LANGUAGE RULES:
+- ALWAYS respond in the SAME LANGUAGE the user writes in
+- Russian → Russian, English → English, Hebrew → Hebrew
+
+BEHAVIOR:
+- Be proactive: suggest tools when relevant
+- Check connections before operations
+- Provide actionable insights
+- Be conversational and helpful
+- Use tools to provide real data, not assumptions
+
+WORKFLOW EXAMPLES:
+- User asks about campaigns → use get_google_ads_campaigns
+- User wants to create ad → use generate_google_ads_content first, then create_google_ads_rsa
+- User wants social posts → use generate_social_media_posts
+- User asks for analysis → pull data first, then analyze
+
+IMPORTANT: When using tools, explain what you're doing and show results clearly."""
+            
             model = genai.GenerativeModel(
                 model_name,
-                system_instruction=f"""You are a helpful AI assistant for a social media automation platform.
-
-IMPORTANT: Today's date is {current_date}. You are living in 2026, not 2024 or 2025.
-Your training data includes information up to late 2025.
-                
-Key rules:
-- ALWAYS respond in the SAME LANGUAGE the user writes in
-- If user writes in Russian, respond in Russian
-- If user writes in English, respond in English
-- If user writes in Hebrew, respond in Hebrew
-- Be conversational, friendly, and helpful
-- Help with content creation, social media questions, and creative ideas
-- Keep responses concise but informative
-- When discussing current events, remember that 2024 and 2025 are in the past"""
+                tools=tools,  # ← ENABLE FUNCTION CALLING!
+                system_instruction=system_instruction
             )
             
             # Build proper history (exclude current message)
@@ -273,16 +313,69 @@ Key rules:
             # Start chat with history
             chat_session = model.start_chat(history=history)
             
-            # Send message
-            response = chat_session.send_message(request.content)
-            ai_content = response.text
+            # Initialize function executor
+            account_id = chat.data.get("account_id")
+            executor = FunctionExecutor(
+                user_id=current_user["user_id"],
+                account_id=account_id
+            )
             
-            logger.info(f"✅ Gemini API response: {ai_content[:200]}...")
+            # Send message and handle function calls
+            response = chat_session.send_message(request.content)
+            
+            # Check if function call is needed
+            max_iterations = 5  # Prevent infinite loops
+            iteration = 0
+            
+            while iteration < max_iterations:
+                iteration += 1
+                
+                # Check if response contains function call
+                if response.candidates[0].content.parts[0].function_call:
+                    function_call = response.candidates[0].content.parts[0].function_call
+                    function_name = function_call.name
+                    function_args = dict(function_call.args)
+                    
+                    logger.info(f"🔧 Function call detected: {function_name}")
+                    logger.info(f"   Arguments: {function_args}")
+                    
+                    # Execute function
+                    result = await executor.execute(function_name, function_args)
+                    
+                    logger.info(f"✅ Function executed: success={result.get('success')}")
+                    
+                    # Save function call to history
+                    function_msg = supabase.table("chat_messages").insert({
+                        "chat_id": chat_id,
+                        "role": "function",
+                        "content": f"Executed: {function_name}",
+                        "action_type": function_name,
+                        "action_data": result
+                    }).execute()
+                    
+                    # Send function result back to Gemini
+                    response = chat_session.send_message(
+                        genai.protos.Content(parts=[
+                            genai.protos.Part(
+                                function_response=genai.protos.FunctionResponse(
+                                    name=function_name,
+                                    response=result
+                                )
+                            )
+                        ])
+                    )
+                else:
+                    # No more function calls, get final response
+                    break
+            
+            # Get final text response
+            ai_content = response.text
+            logger.info(f"✅ Gemini final response: {ai_content[:200]}...")
             
         except Exception as e:
             logger.error(f"⚠️ Gemini API error: {str(e)}")
             logger.exception("Full Gemini error:")
-            ai_content = f"I apologize, but I encountered an error. Please try again or use the buttons below to generate posts or translate videos."
+            ai_content = f"I apologize, but I encountered an error: {str(e)}"
         
         # Save AI response
         assistant_msg = supabase.table("chat_messages").insert({
@@ -291,8 +384,8 @@ Key rules:
             "content": ai_content
         }).execute()
         
-        # Update chat title if this is first message
-        if len(conversation_history) == 1:
+        # Update chat title if this is first real message
+        if len([m for m in (messages.data or []) if m["role"] == "user"]) == 1:
             title = request.content[:50]
             if len(request.content) > 50:
                 title += "..."
@@ -300,6 +393,12 @@ Key rules:
                 .update({"title": title})\
                 .eq("id", chat_id)\
                 .execute()
+        
+        # Update last_message_at
+        supabase.table("chats")\
+            .update({"last_message_at": datetime.now().isoformat()})\
+            .eq("id", chat_id)\
+            .execute()
         
         return {
             "success": True,
@@ -311,6 +410,7 @@ Key rules:
         raise
     except Exception as e:
         logger.error(f"❌ Send message error: {str(e)}")
+        logger.exception("Full traceback:")
         raise HTTPException(status_code=500, detail=str(e))
 
 
