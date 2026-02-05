@@ -17,6 +17,8 @@ AI-powered tool for generating and scheduling social media content with multi-ac
 ✅ **Design References** (save & reuse styles)  
 ✅ **Team Permissions** (admin/manager/creator roles)  
 ✅ **Video Translation** (auto-dub videos into multiple languages via ElevenLabs)  
+✅ **AI Chat with Function Calling** (Gemini AI can execute real actions - create campaigns, analyze data, generate content)  
+✅ **Google Ads Integration** (OAuth, campaign management, RSA creation, performance analytics)  
 
 ---
 
@@ -167,6 +169,149 @@ For each platform:
 
 ---
 
+## 🤖 AI Chat with Function Calling
+
+**NEW:** Gemini AI can now **execute real actions**, not just talk!
+
+### What is Function Calling?
+
+**Before (Regular Chat):**
+```
+User: "Show me my Google Ads campaigns"
+AI: "I can't access your campaigns, but here's how you can check them..."
+```
+
+**After (With Function Calling):**
+```
+User: "Show me my Google Ads campaigns"
+AI: [CALLS] get_google_ads_campaigns(date_range="LAST_30_DAYS")
+     [EXECUTES] → Pulls real data from Google Ads API
+     [RESPONDS] "You have 5 campaigns. Here's the breakdown:
+                 - Campaign A: $1,200 spend, 3.2% CTR, 450 clicks
+                 - Campaign B: $850 spend, 2.1% CTR, 280 clicks..."
+```
+
+### Available Functions
+
+**Google Ads:**
+- `get_google_ads_campaigns` - Pull campaign data with metrics
+- `get_google_ads_connection_status` - Check if connected
+- `create_google_ads_rsa` - Create Responsive Search Ad
+- `generate_google_ads_content` - AI-generate ad headlines & descriptions
+- `analyze_campaign_performance` - Get insights & recommendations
+
+**Content Generation:**
+- `generate_social_media_posts` - Create posts for Instagram/Facebook/LinkedIn/Twitter/TikTok
+
+**Scheduling:**
+- `get_scheduled_posts` - View scheduled posts calendar
+
+**Social Connections:**
+- `get_social_connections_status` - Check which accounts are connected
+
+### How It Works
+
+1. **User sends message** → "Analyze my Google Ads performance"
+2. **AI decides which function to call** → `get_google_ads_campaigns` + `analyze_campaign_performance`
+3. **Backend executes functions** → Pulls real data from Google Ads API
+4. **AI receives results** → Gets campaign metrics, spend, CTR, etc.
+5. **AI responds with insights** → "Your top campaign is X with 4.2% CTR. I recommend increasing budget by 20%..."
+
+### Conversation Memory
+
+**Enhanced context tracking:**
+- Remembers last 50 messages (up from 20)
+- Stores function call results in history
+- AI knows what actions it performed
+- Can reference previous data in follow-up questions
+
+**Example:**
+```
+User: "Create a campaign for my product"
+AI: [CALLS] generate_google_ads_content(...) → Creates headlines/descriptions
+     "✅ Created ad content. Ready to publish?"
+
+User: "Yes, create it"
+AI: [CALLS] create_google_ads_rsa(...) → Creates actual campaign
+     [REMEMBERS campaign ID from previous step]
+     "✅ Campaign created! ID: 123456"
+
+User: "How's it performing?"
+AI: [CALLS] analyze_campaign_performance(campaign_ids=["123456"])
+     [REMEMBERS the campaign ID from 2 messages ago]
+     "Your campaign has 1,500 impressions and 3.5% CTR so far"
+```
+
+### Real-World Usage Examples
+
+**1. Campaign Analysis:**
+```
+User: "What's my best performing campaign?"
+AI: → Pulls data, analyzes CTR/conversions/ROAS
+    → "Campaign X has the best ROAS at 4.2x. It's spending $200/day 
+       and generating $840 in revenue."
+```
+
+**2. Ad Creation Workflow:**
+```
+User: "Create ads for my new product at example.com"
+AI: → Scrapes website
+    → Generates 15 headlines + 4 descriptions
+    → Shows preview
+    → "Ready to create? Which ad group?"
+User: "Ad group 987654"
+AI: → Creates RSA in Google Ads
+    → "✅ Created and set to PAUSED for review"
+```
+
+**3. Multi-Platform Strategy:**
+```
+User: "Create social posts for my product launch"
+AI: → Generates Instagram, Facebook, LinkedIn, Twitter posts
+    → Different tones per platform
+    → Includes images
+    → "Created 4 variations for each platform. Want to schedule?"
+```
+
+### Technical Implementation
+
+**Files:**
+- `services/chat_tools.py` - Function declarations (10+ tools)
+- `services/function_executor.py` - Executes functions called by AI
+- `routers/chats.py` - Multi-turn function calling loop
+
+**Architecture:**
+```
+User Message
+    ↓
+Gemini AI (decides to call function)
+    ↓
+FunctionExecutor (executes via API)
+    ↓
+Result returned to Gemini
+    ↓
+Gemini analyzes result
+    ↓
+Response to user (with real data!)
+```
+
+**Safety Features:**
+- Max 5 function calls per message (prevents loops)
+- Error handling for API failures
+- Connection checks before operations
+- All results saved to chat history
+
+### Setup Requirements
+
+**Already working if you have:**
+- ✅ Google Ads connected (via Settings > Connections)
+- ✅ `GOOGLE_AI_API_KEY` in environment variables
+- ✅ Backend deployed
+
+**Chat endpoint:** `POST /api/chats/{chat_id}/message`
+
+---
+
 ## 🗄️ Database Tables
 
 After running `database/schema.sql` in Supabase, these tables are created:
@@ -237,6 +382,24 @@ After running `database/schema.sql` in Supabase, these tables are created:
 - `DELETE /api/video/job/{job_id}` - cancel job
 - `GET /api/video/health` - check ElevenLabs API status
 
+**AI Chat (with Function Calling):**
+- `POST /api/chats/create` - create new chat
+- `GET /api/chats/list` - list all chats
+- `GET /api/chats/{chat_id}/messages` - get chat history
+- `POST /api/chats/{chat_id}/message` - send message (AI responds with function calls)
+- `DELETE /api/chats/{chat_id}` - delete chat
+
+**Google Ads:**
+- `GET /api/google-ads/oauth/authorize` - start OAuth flow
+- `GET /api/google-ads/oauth/callback` - handle OAuth redirect
+- `POST /api/google-ads/oauth/complete` - complete connection
+- `GET /api/google-ads/campaigns` - list campaigns with metrics
+- `GET /api/google-ads/ad-groups/{campaign_id}` - list ad groups
+- `POST /api/google-ads/create-rsa` - create Responsive Search Ad
+- `POST /api/google-ads/add-sitelinks` - add sitelink extensions
+- `GET /api/google-ads/status` - check connection status
+- `DELETE /api/google-ads/disconnect` - disconnect account
+
 ---
 
 ## 🎯 What's Already Working
@@ -255,6 +418,20 @@ After running `database/schema.sql` in Supabase, these tables are created:
 - AccountContext
 - UserMenu
 - AccountSwitcher
+
+✅ **AI Intelligence:**
+- Function calling with Gemini AI
+- 10+ executable functions
+- Multi-turn conversations
+- Conversation memory (50 messages)
+- Real-time data access
+
+✅ **Google Ads Integration:**
+- Automatic OAuth flow
+- Campaign listing with metrics
+- RSA ad creation
+- Performance analytics
+- AI-powered recommendations
 
 ---
 
@@ -339,6 +516,8 @@ python main.py
 - [ ] Account Switcher added
 - [ ] Language selector working
 - [ ] First post successfully generated!
+- [ ] Google Ads connected (optional)
+- [ ] AI Chat tested with function calling (optional)
 - [ ] Facebook App created (optional)
 - [ ] Post scheduled and auto-published (optional)
 
@@ -346,8 +525,10 @@ python main.py
 
 ## 🎉 Summary
 
-**Backend:** 12 routers (including Video Translation), 10 database tables, full API  
-**Frontend:** Auth, multi-account, content generation, video translation  
+**Backend:** 13 routers (including AI Chat + Google Ads), 12 database tables, full API  
+**Frontend:** Auth, multi-account, content generation, video translation, Google Ads  
+**AI:** Function calling with 10+ tools, conversation memory, real-time data access  
+**Integrations:** Google Ads API, Meta APIs, LinkedIn, Twitter, TikTok, ElevenLabs  
 **Status:** Ready to use! 🚀
 
-Deploy and start generating social media content in 4 languages + auto-dub videos into Hebrew, Spanish, French, Portuguese!
+Deploy and start generating social media content in 4 languages + auto-dub videos + AI-powered Google Ads management with natural language!
