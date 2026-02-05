@@ -1,6 +1,5 @@
 from typing import List, Dict
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 from models import ImageVariation, PostVariation
 import base64
 import os
@@ -41,7 +40,7 @@ async def generate_images(
         logger.error("❌ GOOGLE_AI_API_KEY not found!")
         return [_get_placeholder_image(size_info) for _ in variations]
     
-    client = genai.Client(api_key=api_key)
+    genai.configure(api_key=api_key)
     model_name = 'gemini-2.5-flash-image'
     
     logger.info(f"🔍 Using model: {model_name}")
@@ -58,14 +57,14 @@ async def generate_images(
             w, h = map(int, image_size.split('x'))
             aspect = "1:1" if w == h else ("16:9" if w > h else "9:16")
             
-            # Generate image with proper config (run sync call in thread)
+            # Generate image (run sync call in thread)
+            model = genai.GenerativeModel(model_name)
             response = await asyncio.to_thread(
-                client.models.generate_content,
-                model=model_name,
-                contents=[image_prompt],
-                config=types.GenerateContentConfig(
-                    temperature=0.7,
-                )
+                model.generate_content,
+                image_prompt,
+                generation_config={
+                    "temperature": 0.7,
+                }
             )
             
             logger.info(f"✅ Response received")

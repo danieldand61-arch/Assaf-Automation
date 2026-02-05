@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { FileText, Megaphone, Video, MessageSquare } from 'lucide-react'
+import { FileText, Megaphone, Video, MessageSquare, Loader2 } from 'lucide-react'
 import { ChatApp } from './ChatApp'
 import { InputSection } from './InputSection'
 import { GoogleAdsGeneration } from './GoogleAdsGeneration'
 import { VideoTranslation } from './VideoTranslation'
 import { PreviewSection } from './PreviewSection'
 import { useContentStore } from '../store/contentStore'
+import { useAuth } from '../contexts/AuthContext'
 import Header from './Header'
 
 type TabType = 'chat' | 'social' | 'ads' | 'video'
@@ -17,6 +18,7 @@ interface Tab {
 }
 
 export function MainWorkspace() {
+  const { loading } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('chat')
   const { generatedContent, setGeneratedContent } = useContentStore()
 
@@ -50,6 +52,15 @@ export function MainWorkspace() {
       icon: <Video className="w-5 h-5" />
     }
   ]
+
+  // Show loading state while auth is initializing
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">

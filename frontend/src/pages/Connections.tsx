@@ -23,19 +23,7 @@ interface Platform {
   isAds?: boolean
 }
 
-const PLATFORMS: Platform[] = [
-  {
-    id: 'google_ads',
-    name: 'Google Ads',
-    description: 'Create and manage Google Ads campaigns with AI-powered automation',
-    icon: (
-      <svg className="w-10 h-10 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
-        <path d="M12.5 9.5m0 11.1c-2.4 0-4.3-2-4.3-4.4s2-4.4 4.3-4.4c1.3 0 2.4.5 3.2 1.4l.7.7-1.4 1.4-.7-.7c-.4-.4-1-.7-1.8-.7-1.5 0-2.7 1.2-2.7 2.8 0 1.5 1.2 2.8 2.7 2.8 1.1 0 1.9-.5 2.3-1.3h-2.3v-1.9h4.2l.1.6c0 .1 0 .3 0 .5 0 2.7-1.8 4.6-4.3 4.6zM12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/>
-      </svg>
-    ),
-    enabled: true,
-    isAds: true // Флаг для отдельной логики
-  },
+const SOCIAL_MEDIA_PLATFORMS: Platform[] = [
   {
     id: 'facebook',
     name: 'Facebook',
@@ -90,6 +78,21 @@ const PLATFORMS: Platform[] = [
       </svg>
     ),
     enabled: true
+  }
+]
+
+const ADVERTISING_PLATFORMS: Platform[] = [
+  {
+    id: 'google_ads',
+    name: 'Google Ads',
+    description: 'Create and manage Google Ads campaigns with AI-powered automation',
+    icon: (
+      <svg className="w-10 h-10 text-blue-500" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M12.5 9.5m0 11.1c-2.4 0-4.3-2-4.3-4.4s2-4.4 4.3-4.4c1.3 0 2.4.5 3.2 1.4l.7.7-1.4 1.4-.7-.7c-.4-.4-1-.7-1.8-.7-1.5 0-2.7 1.2-2.7 2.8 0 1.5 1.2 2.8 2.7 2.8 1.1 0 1.9-.5 2.3-1.3h-2.3v-1.9h4.2l.1.6c0 .1 0 .3 0 .5 0 2.7-1.8 4.6-4.3 4.6zM12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2z"/>
+      </svg>
+    ),
+    enabled: true,
+    isAds: true
   }
 ]
 
@@ -405,10 +408,108 @@ export function Connections() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
         </div>
       ) : activeAccount ? (
-        <div className="space-y-4">
-          {PLATFORMS.map((platform) => {
-            // Google Ads отдельная логика
-            if (platform.isAds) {
+        <>
+          {/* Social Media Section */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Social Media</h2>
+            <div className="space-y-4">
+              {SOCIAL_MEDIA_PLATFORMS.map((platform) => {
+                const connection = getConnection(platform.id)
+                const isConnected = connection?.is_connected
+
+                return (
+                  <div
+                    key={platform.id}
+                    className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 transition-all hover:shadow-md"
+                  >
+                    <div className="flex items-center justify-between">
+                      {/* Left: Icon + Info */}
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="flex-shrink-0">
+                          {platform.icon}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
+                            {platform.name}
+                          </h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">
+                            {platform.description}
+                          </p>
+
+                          {connection && (
+                            <div className="mt-2 text-sm">
+                              <p className="text-gray-700 dark:text-gray-300">
+                                Connected as: <span className="font-medium">{connection.platform_username}</span>
+                              </p>
+                              {connection.platform_profile_url && (
+                                <a
+                                  href={connection.platform_profile_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                  View Profile
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Right: Status + Actions */}
+                      <div className="flex items-center gap-3 ml-4">
+                        {isConnected ? (
+                          <>
+                            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm font-medium">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              Connected
+                            </span>
+                            <button
+                              onClick={() => handleDisconnect(platform.id)}
+                              className="px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg font-semibold transition-all"
+                            >
+                              Disconnect
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleConnect(platform.id)}
+                              disabled={!platform.enabled}
+                              className={`
+                                px-6 py-2.5 rounded-lg font-semibold transition-all
+                                ${platform.enabled
+                                  ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
+                                  : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
+                                }
+                              `}
+                            >
+                              Connect
+                            </button>
+
+                            {!platform.enabled && (
+                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                                Coming soon
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Advertising Platforms Section */}
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Advertising Platforms</h2>
+            <div className="space-y-4">
+              {ADVERTISING_PLATFORMS.map((platform) => {
               return (
                 <div
                   key={platform.id}
@@ -477,100 +578,10 @@ export function Connections() {
                     </div>
                   </div>
                 </div>
-              )
-            }
-
-            // Остальные платформы (социалки)
-            const connection = getConnection(platform.id)
-            const isConnected = connection?.is_connected
-
-            return (
-              <div
-                key={platform.id}
-                className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 transition-all hover:shadow-md"
-              >
-                <div className="flex items-center justify-between">
-                  {/* Left: Icon + Info */}
-                  <div className="flex items-start gap-4 flex-1">
-                    {/* Platform Icon */}
-                    <div className="flex-shrink-0">
-                      {platform.icon}
-                    </div>
-
-                    {/* Platform Info */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                        {platform.name}
-                      </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                        {platform.description}
-                      </p>
-                      <button className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        Permissions we use
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Right: Status + Actions */}
-                  <div className="flex items-center gap-4 ml-4">
-                    {isConnected && connection ? (
-                      <>
-                        {/* Connected Account Info */}
-                        <div className="text-right">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white">
-                            {connection.platform_username}
-                          </p>
-                        </div>
-
-                        {/* Connected Badge */}
-                        <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm font-medium">
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
-                          Connected
-                        </span>
-
-                        {/* Disconnect Button */}
-                        <button
-                          onClick={() => handleDisconnect(platform.id)}
-                          className="px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg font-semibold transition-all"
-                        >
-                          Disconnect
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        {/* Connect Button */}
-                        <button
-                          onClick={() => handleConnect(platform.id)}
-                          disabled={!platform.enabled}
-                          className={`
-                            px-6 py-2.5 rounded-lg font-semibold transition-all
-                            ${platform.enabled
-                              ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md'
-                              : 'bg-gray-100 dark:bg-gray-700 text-gray-400 cursor-not-allowed'
-                            }
-                          `}
-                        >
-                          Connect
-                        </button>
-
-                        {!platform.enabled && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                            Coming soon
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )
-          })}
-        </div>
+              ))}
+            </div>
+          </div>
+        </>
       ) : null}
 
       {/* Google Ads Connection Modal */}
