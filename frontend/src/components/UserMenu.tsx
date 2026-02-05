@@ -93,7 +93,7 @@ export function UserMenu() {
 
               <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>
 
-              {/* Social Media Connections Link */}
+              {/* Integrations Link */}
               <button
                 onClick={() => {
                   navigate('/settings?tab=connections')
@@ -102,7 +102,7 @@ export function UserMenu() {
                 className="w-full flex items-center gap-3 px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition"
               >
                 <LinkIcon className="w-4 h-4" />
-                Social Media
+                Integrations
               </button>
 
               <div className="border-t border-gray-200 dark:border-gray-700 my-1"></div>

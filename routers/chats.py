@@ -330,10 +330,11 @@ WORKFLOW EXAMPLES:
 
 IMPORTANT: When using tools, explain what you're doing and show results clearly."""
             
-            # For now, create model without tools (will add back when SDK updated)
+            # Create model with tools
             model = genai.GenerativeModel(
                 model_name,
-                system_instruction=system_instruction
+                system_instruction=system_instruction,
+                tools=tools
             )
             
             # Build proper history (exclude current message)

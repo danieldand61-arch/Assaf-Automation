@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FileText, Megaphone, Video, MessageSquare, Loader2 } from 'lucide-react'
 import { ChatApp } from './ChatApp'
 import { InputSection } from './InputSection'
@@ -18,9 +19,17 @@ interface Tab {
 }
 
 export function MainWorkspace() {
-  const { loading } = useAuth()
+  const { user, loading } = useAuth()
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>('chat')
   const { generatedContent, setGeneratedContent } = useContentStore()
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/login')
+    }
+  }, [user, loading, navigate])
 
   const handleGenerate = (data: any) => {
     setGeneratedContent(data)
