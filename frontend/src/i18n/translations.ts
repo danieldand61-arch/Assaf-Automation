@@ -1,8 +1,8 @@
 export const translations = {
   en: {
     // Header
-    title: "Social Media AI Generator",
-    poweredBy: "Powered by Google Gemini 3 Flash Preview 🚀",
+    title: "Joyo Marketing",
+    poweredBy: "AI-Powered Marketing Automation",
     
     // Hero
     heroTitle: "Create Professional Posts in Seconds",
@@ -100,8 +100,8 @@ export const translations = {
   
   he: {
     // Header
-    title: "מחולל תוכן AI לרשתות חברתיות",
-    poweredBy: "מופעל על ידי Google Gemini 3 Flash Preview 🚀",
+    title: "Joyo Marketing",
+    poweredBy: "אוטומציה שיווקית מבוססת AI",
     
     // Hero
     heroTitle: "צור פוסטים מקצועיים בשניות",
