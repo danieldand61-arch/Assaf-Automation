@@ -52,7 +52,7 @@ export function Login() {
             Welcome Back
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Sign in to your account to continue
+            Sign in to Joyo Marketing
           </p>
         </div>
 

@@ -297,13 +297,13 @@ export function GoogleAdsGeneration({ onGenerate, initialData }: GoogleAdsGenera
 
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Keywords *
+            Tell us about your ad *
           </label>
           <input
             type="text"
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}
-            placeholder="water damage repair, emergency service, LA"
+            placeholder="e.g., emergency water damage repair services in Los Angeles"
             className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
             disabled={isGenerating}
           />

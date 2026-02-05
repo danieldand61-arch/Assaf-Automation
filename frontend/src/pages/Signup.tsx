@@ -20,7 +20,8 @@ export function Signup() {
 
     try {
       await signUp(email, password, fullName)
-      navigate('/')
+      // Redirect to onboarding after signup
+      navigate('/onboarding')
     } catch (err: any) {
       setError(err.message || 'Failed to sign up')
     } finally {
@@ -53,7 +54,7 @@ export function Signup() {
             Create Account
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Start automating your social media today
+            AI-powered marketing automation platform
           </p>
         </div>
 

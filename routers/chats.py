@@ -272,8 +272,41 @@ async def send_message(
             # Get available tools
             tools = get_available_tools()
             
+            # Get company context
+            company_context = ""
+            try:
+                account_id = chat.data.get("account_id")
+                if account_id:
+                    account = supabase.table("accounts")\
+                        .select("*")\
+                        .eq("id", account_id)\
+                        .single()\
+                        .execute()
+                    
+                    if account.data:
+                        acc = account.data
+                        company_context = f"""
+DEFAULT COMPANY CONTEXT (can be overridden by user):
+- Company: {acc.get('name', 'Not specified')}
+- Industry: {acc.get('industry', 'Not specified')}
+- Description: {acc.get('description', 'Not specified')}
+- Target Audience: {acc.get('target_audience', 'General audience')}
+- Brand Voice: {acc.get('brand_voice', 'professional')}
+
+IMPORTANT CONTEXT RULES:
+1. Use company context as DEFAULT if user doesn't specify otherwise
+2. If user mentions different topic/industry → FOLLOW USER'S REQUEST
+3. If user says "ignore company data" → IGNORE IT COMPLETELY
+4. User's prompt has PRIORITY over company context
+5. Be flexible and context-aware
+"""
+            except Exception as e:
+                logger.warning(f"Could not load company context: {e}")
+            
             # Enhanced system instruction with tools
-            system_instruction = f"""You are an AI assistant for a marketing automation platform. Today's date is {current_date}.
+            system_instruction = f"""You are Joyo Marketing AI assistant. Today's date is {current_date}.
+
+{company_context}
 
 {TOOLS_DESCRIPTION}
 
@@ -287,12 +320,13 @@ BEHAVIOR:
 - Provide actionable insights
 - Be conversational and helpful
 - Use tools to provide real data, not assumptions
+- Use company context intelligently but respect user's specific requests
 
 WORKFLOW EXAMPLES:
-- User asks about campaigns → use get_google_ads_campaigns
-- User wants to create ad → use generate_google_ads_content first, then create_google_ads_rsa
-- User wants social posts → use generate_social_media_posts
-- User asks for analysis → pull data first, then analyze
+- User: "create ads" → use company context + generate_google_ads_content
+- User: "create ads for tech startup" → ignore company, follow user's request
+- User: "analyze campaigns" → use get_google_ads_campaigns + analyze_campaign_performance
+- User wants social posts → use generate_social_media_posts with company context
 
 IMPORTANT: When using tools, explain what you're doing and show results clearly."""
             

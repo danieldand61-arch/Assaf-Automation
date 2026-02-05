@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AccountProvider } from './contexts/AccountContext'
 import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
+import { Onboarding } from './pages/Onboarding'
 import { AuthCallback } from './pages/AuthCallback'
 import { GoogleAdsCallback } from './pages/GoogleAdsCallback'
 import { Settings } from './pages/Settings'
@@ -41,6 +42,7 @@ export function AppWithAuth() {
             {/* Public Routes */}
             <Route path="/" element={<ChatApp />} />
             <Route path="/old" element={<App />} />
+            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/auth/google-ads/callback" element={<GoogleAdsCallback />} />
             <Route path="/settings" element={<Settings />} />
