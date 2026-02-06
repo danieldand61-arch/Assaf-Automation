@@ -270,11 +270,11 @@ async def send_message(
             current_date = datetime.now().strftime("%B %d, %Y")
             
             # Get available tools
-            function_declarations = get_available_tools()
+            tools_list = get_available_tools()
+            logger.info(f"🔧 Loaded {len(tools_list)} function declarations")
             
-            # Wrap in Tool object
-            tools = [genai.protos.Tool(function_declarations=function_declarations)]
-            logger.info(f"🔧 Loaded {len(function_declarations)} function declarations")
+            # Convert to proper SDK format
+            tools = tools_list
             
             # Get company context
             company_context = ""
@@ -318,28 +318,37 @@ LANGUAGE RULES:
 - ALWAYS respond in the SAME LANGUAGE the user writes in
 - Russian → Russian, English → English, Hebrew → Hebrew
 
+CRITICAL FUNCTION CALLING RULES:
+🚨 WHEN USER ASKS TO CREATE/GENERATE GOOGLE ADS:
+   1. You MUST call the generate_google_ads_content function
+   2. NEVER write ad copy as text - ALWAYS use the function
+   3. Extract keywords/topic from user's message
+   4. Call function with those keywords
+   5. Example: User says "создай рекламу для кофейни" → call generate_google_ads_content(keywords="кофейня", language="ru")
+
 BEHAVIOR:
-- Be proactive: suggest tools when relevant
+- Be proactive: suggest and USE tools when relevant
 - Check connections before operations
 - Provide actionable insights
-- Be conversational and helpful
 - Use tools to provide real data, not assumptions
 - Use company context intelligently but respect user's specific requests
 
 WORKFLOW EXAMPLES:
-- User: "create ads" → use company context + generate_google_ads_content
-- User: "create ads for tech startup" → ignore company, follow user's request
-- User: "analyze campaigns" → use get_google_ads_campaigns + analyze_campaign_performance
-- User wants social posts → use generate_social_media_posts with company context
+- User: "создай рекламу для кофейни" → CALL generate_google_ads_content(keywords="кофейня", language="ru")
+- User: "create ads for coffee shop" → CALL generate_google_ads_content(keywords="coffee shop", language="en")
+- User: "analyze campaigns" → CALL get_google_ads_campaigns
+- User wants social posts → CALL generate_social_media_posts
 
-IMPORTANT: When using tools, explain what you're doing and show results clearly."""
+Remember: ALWAYS use functions for their intended purpose. Don't try to do manually what functions can do."""
             
             # Create model with tools
             model = genai.GenerativeModel(
                 model_name,
                 system_instruction=system_instruction,
-                tools=tools
+                tools=tools,
+                tool_config={'function_calling_config': {'mode': 'AUTO'}}
             )
+            logger.info(f"✅ Model created with {len(tools)} tools")
             
             # Build proper history (exclude current message)
             history = []
@@ -360,7 +369,23 @@ IMPORTANT: When using tools, explain what you're doing and show results clearly.
             )
             
             # Send message and handle function calls
+            logger.info(f"📤 Sending message to Gemini: {request.content[:100]}")
             response = chat_session.send_message(request.content)
+            logger.info(f"📥 Received response from Gemini")
+            
+            # Log response structure for debugging
+            try:
+                if response.candidates:
+                    logger.info(f"   Response has {len(response.candidates)} candidates")
+                    if response.candidates[0].content.parts:
+                        logger.info(f"   First candidate has {len(response.candidates[0].content.parts)} parts")
+                        first_part = response.candidates[0].content.parts[0]
+                        if hasattr(first_part, 'function_call'):
+                            logger.info(f"   Part has function_call attribute: {first_part.function_call}")
+                        if hasattr(first_part, 'text'):
+                            logger.info(f"   Part has text: {first_part.text[:100] if first_part.text else 'None'}")
+            except Exception as e:
+                logger.warning(f"Error logging response: {e}")
             
             # Check if function call is needed
             max_iterations = 5  # Prevent infinite loops
@@ -370,7 +395,20 @@ IMPORTANT: When using tools, explain what you're doing and show results clearly.
                 iteration += 1
                 
                 # Check if response contains function call
-                if response.candidates[0].content.parts[0].function_call:
+                has_function_call = False
+                try:
+                    if (response.candidates and 
+                        len(response.candidates) > 0 and 
+                        response.candidates[0].content.parts and 
+                        len(response.candidates[0].content.parts) > 0):
+                        
+                        first_part = response.candidates[0].content.parts[0]
+                        if hasattr(first_part, 'function_call') and first_part.function_call:
+                            has_function_call = True
+                except Exception as e:
+                    logger.warning(f"Error checking function call: {e}")
+                
+                if has_function_call:
                     function_call = response.candidates[0].content.parts[0].function_call
                     function_name = function_call.name
                     function_args = dict(function_call.args)
@@ -394,24 +432,28 @@ IMPORTANT: When using tools, explain what you're doing and show results clearly.
                     
                     # Send function result back to Gemini
                     try:
-                        response = chat_session.send_message(
-                            genai.protos.Content(parts=[
-                                genai.protos.Part(
-                                    function_response=genai.protos.FunctionResponse(
-                                        name=function_name,
-                                        response=result
-                                    )
-                                )
-                            ])
-                        )
+                        # Create function response
+                        function_response_content = {
+                            "role": "function",
+                            "parts": [{
+                                "function_response": {
+                                    "name": function_name,
+                                    "response": result
+                                }
+                            }]
+                        }
+                        
+                        logger.info(f"📤 Sending function response back to Gemini")
+                        response = chat_session.send_message(function_response_content)
                         logger.info(f"✅ Sent function response back to Gemini")
                     except Exception as func_err:
                         logger.error(f"Error sending function response: {func_err}")
                         logger.exception("Full error:")
-                        # Fallback: send as text
-                        response = chat_session.send_message(
-                            f"Function {function_name} returned: {result}"
-                        )
+                        # Fallback: send as text description
+                        result_text = f"Function {function_name} executed. Result: {result.get('success', 'unknown')}"
+                        if result.get('headlines'):
+                            result_text += f"\nGenerated {len(result['headlines'])} headlines and {len(result.get('descriptions', []))} descriptions"
+                        response = chat_session.send_message(result_text)
                 else:
                     # No more function calls, get final response
                     break
