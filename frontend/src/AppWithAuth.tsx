@@ -34,8 +34,20 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user } = useAuth()
 
+  // Auth check happens in AppRoutes, here we just redirect if needed
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  return <>{children}</>
+}
+
+function AppRoutes() {
+  const { loading } = useAuth()
+
+  // Show global loading state while auth is initializing
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
@@ -44,19 +56,8 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     )
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />
-  }
-
-  return <>{children}</>
-}
-
-export function AppWithAuth() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <AccountProvider>
-          <Routes>
+    <Routes>
             {/* Protected Routes */}
             <Route 
               path="/" 
@@ -116,6 +117,15 @@ export function AppWithAuth() {
               }
             />
           </Routes>
+  )
+}
+
+export function AppWithAuth() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AccountProvider>
+          <AppRoutes />
         </AccountProvider>
       </AuthProvider>
     </BrowserRouter>

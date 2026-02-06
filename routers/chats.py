@@ -322,27 +322,31 @@ LANGUAGE RULES:
 
 CRITICAL ACTION RULES:
 🚨 WHEN USER ASKS TO CREATE/GENERATE GOOGLE ADS:
-   You MUST respond with a JSON action in this EXACT format:
+   You MUST respond with a JSON action. Extract the topic from user's message and use this format:
+   
    ```json
-   {
+   {{
      "action": "generate_google_ads",
-     "params": {
-       "keywords": "extracted topic/keywords from user message",
-       "language": "ru or en based on user language",
-       "website_url": "if provided"
-     }
-   }
+     "params": {{
+       "keywords": "topic here",
+       "language": "ru",
+       "website_url": ""
+     }}
+   }}
    ```
    
    Example conversations:
    - User: "создай рекламу для кофейни" 
-     → You respond with JSON action: {"action": "generate_google_ads", "params": {"keywords": "кофейня", "language": "ru"}}
+     → Response: Brief intro text, then JSON:
+     ```json
+     {{"action": "generate_google_ads", "params": {{"keywords": "кофейня", "language": "ru"}}}}
+     ```
    
    - User: "create ads for coffee shop"
-     → You respond with JSON action: {"action": "generate_google_ads", "params": {"keywords": "coffee shop", "language": "en"}}
-   
-   - User: "analyze campaigns" 
-     → You respond with JSON action: {"action": "get_campaigns", "params": {"date_range": "LAST_30_DAYS"}}
+     → Response: Brief intro, then JSON:
+     ```json
+     {{"action": "generate_google_ads", "params": {{"keywords": "coffee shop", "language": "en"}}}}
+     ```
 
 AVAILABLE ACTIONS:
 1. generate_google_ads - Generate Google Ads content
