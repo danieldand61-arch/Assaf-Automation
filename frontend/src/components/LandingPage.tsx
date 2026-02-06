@@ -1,202 +1,151 @@
-import { Sparkles, Zap, Globe, Calendar, Users, Image, ArrowRight, LogIn } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
-import { useNavigate } from 'react-router-dom'
+import { Sparkles, Zap, Users, Image as ImageIcon } from 'lucide-react'
+import Header from './Header'
 
-interface LandingPageProps {
-  onGetStarted: () => void
-}
-
-export function LandingPage({ onGetStarted }: LandingPageProps) {
-  const { user } = useAuth()
-  const navigate = useNavigate()
-
-  const handleCTA = () => {
-    if (user) {
-      onGetStarted()
-    } else {
-      navigate('/login')
-    }
-  }
-
+export function LandingPage() {
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      
-      {/* Hero Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16">
-        <div className="text-center">
-          
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm font-medium mb-6">
-            <Sparkles className="w-4 h-4" />
-            AI-Powered Social Media Automation
-          </div>
-
-          {/* Main Heading */}
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6 leading-tight">
-            Create Stunning Social Posts
-            <br />
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              in Seconds, Not Hours
-            </span>
-          </h1>
-
-          {/* Subheading */}
-          <p className="text-xl text-gray-600 dark:text-gray-300 mb-10 max-w-3xl mx-auto">
-            Transform any website into engaging social media content with AI. 
-            Generate posts, images, and captions tailored for Instagram, Facebook, LinkedIn, and more.
-          </p>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <button
-              onClick={handleCTA}
-              className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold text-lg transition shadow-xl hover:shadow-2xl flex items-center gap-2"
-            >
-              {user ? (
-                <>
-                  <Sparkles className="w-5 h-5" />
-                  Generate Content
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-5 h-5" />
-                  Get Started Free
-                  <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition" />
-                </>
-              )}
-            </button>
-            
-            {!user && (
-              <button
-                onClick={() => navigate('/signup')}
-                className="px-8 py-4 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-900 dark:text-white border-2 border-gray-200 dark:border-gray-600 rounded-xl font-semibold text-lg transition"
-              >
-                Sign Up
-              </button>
-            )}
-          </div>
-
-          {/* Social Proof */}
-          <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-            ✨ No credit card required • 🚀 Start generating in 30 seconds
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+      {/* Header */}
+      <div className="border-b border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
+        <Header />
       </div>
 
-      {/* Features Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+      {/* Hero Section */}
+      <div className="max-w-7xl mx-auto px-4 py-16 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-purple-600 to-pink-600 rounded-3xl mb-8 shadow-2xl">
+            <Sparkles className="w-10 h-10 text-white" />
+          </div>
           
-          {/* Feature 1 */}
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg hover:shadow-xl transition">
-            <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mb-4">
-              <Zap className="w-6 h-6 text-white" />
+          <h1 className="text-5xl font-bold text-gray-900 dark:text-white mb-4">
+            Create Stunning Social Posts
+          </h1>
+          <p className="text-2xl text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 font-semibold mb-6">
+            in Seconds, Not Hours
+          </p>
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+            Transform any website into engaging social media content with AI. Generate posts, images, and captions tailored for Instagram, Facebook, LinkedIn, and more.
+          </p>
+
+          <div className="flex items-center justify-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-12">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              No credit card required
             </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              Start generating in 30 seconds
+            </div>
+          </div>
+        </div>
+
+        {/* Features Grid */}
+        <div className="grid md:grid-cols-3 gap-8 mt-16">
+          {/* AI-Powered Generation */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-200 dark:border-gray-700 hover:shadow-2xl transition">
+            <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center mb-6">
+              <Zap className="w-7 h-7 text-white" />
+            </div>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               AI-Powered Generation
             </h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              Our AI analyzes websites and creates engaging posts with captions, hashtags, and stunning images.
+            <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+              Advanced AI analyzes your website and generates perfectly crafted posts optimized for engagement. Multiple variations for A/B testing.
             </p>
           </div>
 
-          {/* Feature 2 */}
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg hover:shadow-xl transition">
-            <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center mb-4">
-              <Globe className="w-6 h-6 text-white" />
+          {/* Multi-Platform Support */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-200 dark:border-gray-700 hover:shadow-2xl transition">
+            <div className="w-14 h-14 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center mb-6">
+              <Users className="w-7 h-7 text-white" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               Multi-Platform Support
             </h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              Create content optimized for Facebook, Instagram, LinkedIn, Twitter/X, and TikTok.
+            <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+              Create content optimized for Instagram, Facebook, LinkedIn, Twitter, and TikTok. Each platform gets tailored copy and formatting.
             </p>
           </div>
 
-          {/* Feature 3 */}
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg hover:shadow-xl transition">
-            <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-pink-600 rounded-xl flex items-center justify-center mb-4">
-              <Image className="w-6 h-6 text-white" />
+          {/* Custom Image Generation */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-xl border border-gray-200 dark:border-gray-700 hover:shadow-2xl transition">
+            <div className="w-14 h-14 bg-gradient-to-br from-pink-500 to-red-500 rounded-xl flex items-center justify-center mb-6">
+              <ImageIcon className="w-7 h-7 text-white" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               Custom Image Generation
             </h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              AI creates unique images in any aspect ratio (square, landscape, story) matching your brand.
+            <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
+              Generate eye-catching images that match your brand. AI creates unique visuals or enhances your existing photos.
             </p>
           </div>
-
-          {/* Feature 4 */}
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg hover:shadow-xl transition">
-            <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center mb-4">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
-              Smart Scheduling
-            </h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              Schedule posts for optimal engagement times. Post immediately or plan your entire content calendar.
-            </p>
-          </div>
-
-          {/* Feature 5 */}
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg hover:shadow-xl transition">
-            <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center mb-4">
-              <Users className="w-6 h-6 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
-              Multi-Account Management
-            </h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              Manage multiple business accounts with team collaboration and role-based permissions.
-            </p>
-          </div>
-
-          {/* Feature 6 */}
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg hover:shadow-xl transition">
-            <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl flex items-center justify-center mb-4">
-              <Sparkles className="w-6 h-6 text-white" />
-            </div>
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-3">
-              Multi-Language Support
-            </h3>
-            <p className="text-gray-600 dark:text-gray-300">
-              Generate content in English, Hebrew, Spanish, and Portuguese. Expand your global reach effortlessly.
-            </p>
-          </div>
-
         </div>
-      </div>
 
-      {/* Bottom CTA */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl p-12 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+        {/* Additional Features */}
+        <div className="mt-16 bg-white dark:bg-gray-800 rounded-2xl p-12 shadow-xl border border-gray-200 dark:border-gray-700">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-8 text-center">
+            Everything You Need to Scale Your Social Media
+          </h2>
+          <div className="grid md:grid-cols-2 gap-8">
+            <div className="flex gap-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-500 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white mb-2">Google Ads Generation</h4>
+                <p className="text-gray-600 dark:text-gray-300">Create high-performing Google Ads campaigns with AI-optimized headlines and descriptions.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white mb-2">Video Translation</h4>
+                <p className="text-gray-600 dark:text-gray-300">Translate and dub your videos into multiple languages with AI-powered voice cloning.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-violet-500 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white mb-2">AI Chat Assistant</h4>
+                <p className="text-gray-600 dark:text-gray-300">Chat with AI to generate content, get marketing advice, and optimize your campaigns.</p>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <div className="flex-shrink-0">
+                <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-500 rounded-lg flex items-center justify-center">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+              </div>
+              <div>
+                <h4 className="font-bold text-gray-900 dark:text-white mb-2">Smart Scheduling</h4>
+                <p className="text-gray-600 dark:text-gray-300">Schedule posts across all platforms with optimal timing suggestions based on your audience.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA Section */}
+        <div className="mt-16 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
             Ready to Transform Your Social Media?
           </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of businesses automating their social media content with AI.
+          <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
+            Get started with Joyo Marketing today. No credit card required.
           </p>
-          <button
-            onClick={handleCTA}
-            className="px-10 py-4 bg-white hover:bg-gray-100 text-blue-600 rounded-xl font-bold text-lg transition shadow-xl hover:shadow-2xl inline-flex items-center gap-2"
-          >
-            {user ? (
-              <>
-                <Sparkles className="w-5 h-5" />
-                Start Generating Now
-              </>
-            ) : (
-              <>
-                <LogIn className="w-5 h-5" />
-                Get Started Free
-              </>
-            )}
-          </button>
         </div>
       </div>
-
     </div>
   )
 }
