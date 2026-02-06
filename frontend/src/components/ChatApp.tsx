@@ -765,70 +765,91 @@ export function ChatApp() {
               }
               
               if (message.action_type === 'google_ads') {
-                const handleGoogleAdsGenerate = async (adsPackage: any) => {
-                  // Save Google Ads results to message action_data
-                  const updatedMessages = messages.map(msg => 
-                    msg.id === message.id 
-                      ? { ...msg, action_data: { ...msg.action_data, generatedContent: adsPackage } }
-                      : msg
-                  )
-                  setMessages(updatedMessages)
-                  
-                  // Also save to database
-                  if (activeChat && session) {
-                    try {
-                      const apiUrl = getApiUrl()
-                      await fetch(`${apiUrl}/api/chats/${activeChat.id}/messages/${message.id}`, {
-                        method: 'PATCH',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${session?.access_token}`
-                        },
-                        body: JSON.stringify({
-                          action_data: { status: 'active', generatedContent: adsPackage }
-                        })
-                      })
-                      console.log('✅ Google Ads results saved to database')
-                    } catch (error) {
-                      console.error('Error saving Google Ads results:', error)
-                    }
-                  }
-                }
+                const adsData = message.action_data?.generatedContent
                 
                 return (
                   <div key={message.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-2 border-blue-200 dark:border-blue-800">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{message.content}</h3>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleCloseTool(message.id)}
-                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
-                          title="Minimize"
-                        >
-                          <Minimize2 className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTool(message.id)}
-                          className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition"
-                          title="Delete"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                          <Megaphone className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Google Ads Generated</h3>
                       </div>
+                      <button
+                        onClick={() => handleDeleteTool(message.id)}
+                        className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition"
+                        title="Delete"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
                     </div>
+                    
                     {isCollapsed ? (
                       <button
                         onClick={() => handleReopenTool(message.id)}
                         className="w-full flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 py-8 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition"
                       >
                         <Maximize2 className="w-5 h-5" />
-                        {t('clickToReopenTool')}
+                        Click to view results
                       </button>
+                    ) : adsData ? (
+                      <div className="space-y-6">
+                        {/* Headlines */}
+                        <div>
+                          <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                            <span className="text-blue-600">📝</span>
+                            Headlines ({adsData.headlines?.length || 0})
+                          </h4>
+                          <div className="space-y-2">
+                            {adsData.headlines?.map((headline: string, idx: number) => (
+                              <div key={idx} className="flex items-start gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <span className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-0.5">{idx + 1}</span>
+                                <p className="flex-1 text-gray-900 dark:text-white">{headline}</p>
+                                <span className="text-xs text-gray-400">{headline.length}/30</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {/* Descriptions */}
+                        <div>
+                          <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                            <span className="text-blue-600">📄</span>
+                            Descriptions ({adsData.descriptions?.length || 0})
+                          </h4>
+                          <div className="space-y-2">
+                            {adsData.descriptions?.map((desc: string, idx: number) => (
+                              <div key={idx} className="flex items-start gap-2 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
+                                <span className="text-xs font-mono text-gray-500 dark:text-gray-400 mt-0.5">{idx + 1}</span>
+                                <p className="flex-1 text-gray-900 dark:text-white">{desc}</p>
+                                <span className="text-xs text-gray-400">{desc.length}/90</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        {/* Callouts if available */}
+                        {adsData.callouts && adsData.callouts.length > 0 && (
+                          <div>
+                            <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                              <span className="text-blue-600">✨</span>
+                              Callouts
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {adsData.callouts.map((callout: string, idx: number) => (
+                                <span key={idx} className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-sm">
+                                  {callout}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <GoogleAdsGeneration 
-                        onGenerate={handleGoogleAdsGenerate}
-                        initialData={message.action_data?.generatedContent}
-                      />
+                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                        <p>Generating ads...</p>
+                      </div>
                     )}
                   </div>
                 )
