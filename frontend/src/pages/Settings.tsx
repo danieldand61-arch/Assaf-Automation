@@ -145,6 +145,9 @@ export function Settings() {
             {activeTab === 'connections' && (
               <ConnectionsTab />
             )}
+            {activeTab === 'credits' && (
+              <CreditsTab />
+            )}
             {activeTab === 'profile' && (
               <ProfileTab />
             )}
@@ -161,6 +164,18 @@ export function Settings() {
 // Connections Tab (uses existing Connections component)
 function ConnectionsTab() {
   return <Connections />
+}
+
+// Credits Tab (uses existing CreditsUsage component)
+function CreditsTab() {
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+        Credits Usage & Billing
+      </h2>
+      <CreditsUsage />
+    </div>
+  )
 }
 
 // Profile Tab
