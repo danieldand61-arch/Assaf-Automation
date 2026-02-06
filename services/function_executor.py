@@ -219,7 +219,9 @@ class FunctionExecutor:
                 website_data=website_data,
                 keywords=args.get("keywords", ""),
                 target_location=args.get("target_location", ""),
-                language=args.get("language", "en")
+                language=args.get("language", "en"),
+                user_id=self.user_id,
+                account_id=self.account_id
             )
             
             return {

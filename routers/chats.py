@@ -410,6 +410,31 @@ IMPORTANT:
             ai_content = response.text
             logger.info(f"✅ Gemini response ({len(ai_content)} chars): {ai_content[:300]}...")
             
+            # Track credits usage
+            try:
+                from services.credits_tracker import track_ai_usage
+                
+                # Get token counts from response
+                input_tokens = response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0
+                output_tokens = response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0
+                
+                await track_ai_usage(
+                    user_id=user["user_id"],
+                    account_id=chat.data.get("account_id"),
+                    service_type="chat",
+                    model_name="gemini-3-flash-preview",
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    action="chat_message",
+                    metadata={
+                        "chat_id": chat_id,
+                        "message_length": len(request.content),
+                        "response_length": len(ai_content)
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Failed to track credits: {e}")
+            
             # Check if response contains JSON action
             import re
             import json

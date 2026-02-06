@@ -13,7 +13,9 @@ async def generate_google_ads(
     website_data: Dict,
     keywords: str,
     target_location: str = "",
-    language: str = "en"
+    language: str = "en",
+    user_id: str = None,
+    account_id: str = None
 ) -> Dict:
     """
     Generates complete Google Responsive Search Ads package
@@ -60,6 +62,31 @@ async def generate_google_ads(
         content = response.text
         logger.info(f"✅ Received response (length: {len(content)} chars)")
         logger.info(f"🎯 Response preview: {content[:200]}...")
+        
+        # Track credits usage
+        if user_id:
+            try:
+                from services.credits_tracker import track_ai_usage
+                
+                input_tokens = response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0
+                output_tokens = response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0
+                
+                await track_ai_usage(
+                    user_id=user_id,
+                    account_id=account_id,
+                    service_type="google_ads",
+                    model_name=model_name,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    action="generate_ads_content",
+                    metadata={
+                        "keywords": keywords,
+                        "language": language,
+                        "has_website_data": website_data is not None
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Failed to track credits: {e}")
         
         # Parse response
         logger.info("🎯 Parsing response...")

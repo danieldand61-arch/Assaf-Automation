@@ -361,8 +361,6 @@ export function Onboarding() {
                     This helps us understand your business scale
                   </p>
                 </div>
-            </div>
-
               </>
             )}
 
