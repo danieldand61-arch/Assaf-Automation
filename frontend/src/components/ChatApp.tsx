@@ -34,7 +34,6 @@ export function ChatApp() {
   const { generatedContent, setGeneratedContent } = useContentStore()
   const { t } = useApp()
   
-  const [showChat, setShowChat] = useState(false)
   const [chats, setChats] = useState<Chat[]>([])
   const [activeChat, setActiveChat] = useState<Chat | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -429,87 +428,7 @@ export function ChatApp() {
 
   // Removed handleGenerate and handleReset - now each tool has its own handlers
 
-  // Landing Page
-  if (!showChat) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        {/* Header */}
-        <div className="border-b border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
-          <Header />
-        </div>
-        
-        <div className="flex items-center justify-center p-6 min-h-[calc(100vh-80px)]">
-          <div className="max-w-6xl mx-auto text-center">
-            <div className="mb-8">
-            <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-6 rounded-full inline-block mb-6">
-              <svg className="w-16 h-16 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <h1 className="text-6xl font-bold text-gray-900 dark:text-white mb-4">
-              {t('createStunningPosts')}
-            </h1>
-            <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-6">
-              {t('inSecondsNotHours')}
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400 mb-12 max-w-3xl mx-auto">
-              {t('transformWebsite')}
-            </p>
-            </div>
-          
-            <button
-            onClick={handleGetStarted}
-            className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-lg font-medium rounded-xl shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-            {t('generateContent')}
-            </button>
-          
-            <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">
-              {t('noCreditCard')}
-            </p>
-
-            {/* Features */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-20">
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg">
-              <div className="bg-blue-100 dark:bg-blue-900/30 p-4 rounded-full inline-block mb-4">
-                <svg className="w-8 h-8 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('aiPoweredGeneration')}</h3>
-              <p className="text-gray-600 dark:text-gray-400">{t('aiPoweredDescription')}</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg">
-              <div className="bg-purple-100 dark:bg-purple-900/30 p-4 rounded-full inline-block mb-4">
-                <svg className="w-8 h-8 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('multiPlatformSupport')}</h3>
-              <p className="text-gray-600 dark:text-gray-400">{t('multiPlatformDescription')}</p>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-lg">
-              <div className="bg-pink-100 dark:bg-pink-900/30 p-4 rounded-full inline-block mb-4">
-                <svg className="w-8 h-8 text-pink-600 dark:text-pink-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('customImageGeneration')}</h3>
-              <p className="text-gray-600 dark:text-gray-400">{t('customImageDescription')}</p>
-            </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  // Chat Interface (without header - used inside MainWorkspace)
+  // Chat Interface (always show chat, no landing)
   return (
     <div className="flex h-full bg-gray-50 dark:bg-gray-900">
       {/* Sidebar */}
