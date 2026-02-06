@@ -320,28 +320,39 @@ LANGUAGE RULES:
 - ALWAYS respond in the SAME LANGUAGE the user writes in
 - Russian → Russian, English → English, Hebrew → Hebrew
 
-CRITICAL FUNCTION CALLING RULES:
+CRITICAL ACTION RULES:
 🚨 WHEN USER ASKS TO CREATE/GENERATE GOOGLE ADS:
-   1. You MUST call the generate_google_ads_content function
-   2. NEVER write ad copy as text - ALWAYS use the function
-   3. Extract keywords/topic from user's message
-   4. Call function with those keywords
-   5. Example: User says "создай рекламу для кофейни" → call generate_google_ads_content(keywords="кофейня", language="ru")
+   You MUST respond with a JSON action in this EXACT format:
+   ```json
+   {
+     "action": "generate_google_ads",
+     "params": {
+       "keywords": "extracted topic/keywords from user message",
+       "language": "ru or en based on user language",
+       "website_url": "if provided"
+     }
+   }
+   ```
+   
+   Example conversations:
+   - User: "создай рекламу для кофейни" 
+     → You respond with JSON action: {"action": "generate_google_ads", "params": {"keywords": "кофейня", "language": "ru"}}
+   
+   - User: "create ads for coffee shop"
+     → You respond with JSON action: {"action": "generate_google_ads", "params": {"keywords": "coffee shop", "language": "en"}}
+   
+   - User: "analyze campaigns" 
+     → You respond with JSON action: {"action": "get_campaigns", "params": {"date_range": "LAST_30_DAYS"}}
 
-BEHAVIOR:
-- Be proactive: suggest and USE tools when relevant
-- Check connections before operations
-- Provide actionable insights
-- Use tools to provide real data, not assumptions
-- Use company context intelligently but respect user's specific requests
+AVAILABLE ACTIONS:
+1. generate_google_ads - Generate Google Ads content
+2. get_campaigns - Get Google Ads campaigns
+3. generate_social_posts - Generate social media posts
 
-WORKFLOW EXAMPLES:
-- User: "создай рекламу для кофейни" → CALL generate_google_ads_content(keywords="кофейня", language="ru")
-- User: "create ads for coffee shop" → CALL generate_google_ads_content(keywords="coffee shop", language="en")
-- User: "analyze campaigns" → CALL get_google_ads_campaigns
-- User wants social posts → CALL generate_social_media_posts
-
-Remember: ALWAYS use functions for their intended purpose. Don't try to do manually what functions can do."""
+IMPORTANT:
+- When user asks for Google Ads generation, respond ONLY with the JSON action
+- Add brief explanation in Russian/English after the JSON
+- Do NOT write ad copy yourself - delegate to the action"""
             
             # Create model
             if tools:
@@ -377,99 +388,71 @@ Remember: ALWAYS use functions for their intended purpose. Don't try to do manua
                 account_id=account_id
             )
             
-            # Send message and handle function calls
+            # Send message and handle actions
             logger.info(f"📤 Sending message to Gemini: {request.content[:100]}")
             response = chat_session.send_message(request.content)
             logger.info(f"📥 Received response from Gemini")
             
-            # Log response structure for debugging
-            try:
-                if response.candidates:
-                    logger.info(f"   Response has {len(response.candidates)} candidates")
-                    if response.candidates[0].content.parts:
-                        logger.info(f"   First candidate has {len(response.candidates[0].content.parts)} parts")
-                        first_part = response.candidates[0].content.parts[0]
-                        if hasattr(first_part, 'function_call'):
-                            logger.info(f"   Part has function_call attribute: {first_part.function_call}")
-                        if hasattr(first_part, 'text'):
-                            logger.info(f"   Part has text: {first_part.text[:100] if first_part.text else 'None'}")
-            except Exception as e:
-                logger.warning(f"Error logging response: {e}")
-            
-            # Check if function call is needed
-            max_iterations = 5  # Prevent infinite loops
-            iteration = 0
-            
-            while iteration < max_iterations:
-                iteration += 1
-                
-                # Check if response contains function call
-                has_function_call = False
-                try:
-                    if (response.candidates and 
-                        len(response.candidates) > 0 and 
-                        response.candidates[0].content.parts and 
-                        len(response.candidates[0].content.parts) > 0):
-                        
-                        first_part = response.candidates[0].content.parts[0]
-                        if hasattr(first_part, 'function_call') and first_part.function_call:
-                            has_function_call = True
-                except Exception as e:
-                    logger.warning(f"Error checking function call: {e}")
-                
-                if has_function_call:
-                    function_call = response.candidates[0].content.parts[0].function_call
-                    function_name = function_call.name
-                    function_args = dict(function_call.args)
-                    
-                    logger.info(f"🔧 Function call detected: {function_name}")
-                    logger.info(f"   Arguments: {function_args}")
-                    
-                    # Execute function
-                    result = await executor.execute(function_name, function_args)
-                    
-                    logger.info(f"✅ Function executed: success={result.get('success')}")
-                    
-                    # Save function call to history
-                    function_msg = supabase.table("chat_messages").insert({
-                        "chat_id": chat_id,
-                        "role": "function",
-                        "content": f"Executed: {function_name}",
-                        "action_type": function_name,
-                        "action_data": result
-                    }).execute()
-                    
-                    # Send function result back to Gemini
-                    try:
-                        # Create function response
-                        function_response_content = {
-                            "role": "function",
-                            "parts": [{
-                                "function_response": {
-                                    "name": function_name,
-                                    "response": result
-                                }
-                            }]
-                        }
-                        
-                        logger.info(f"📤 Sending function response back to Gemini")
-                        response = chat_session.send_message(function_response_content)
-                        logger.info(f"✅ Sent function response back to Gemini")
-                    except Exception as func_err:
-                        logger.error(f"Error sending function response: {func_err}")
-                        logger.exception("Full error:")
-                        # Fallback: send as text description
-                        result_text = f"Function {function_name} executed. Result: {result.get('success', 'unknown')}"
-                        if result.get('headlines'):
-                            result_text += f"\nGenerated {len(result['headlines'])} headlines and {len(result.get('descriptions', []))} descriptions"
-                        response = chat_session.send_message(result_text)
-                else:
-                    # No more function calls, get final response
-                    break
-            
-            # Get final text response
+            # Get text response
             ai_content = response.text
-            logger.info(f"✅ Gemini final response: {ai_content[:200]}...")
+            logger.info(f"✅ Gemini response: {ai_content[:200]}...")
+            
+            # Check if response contains JSON action
+            import re
+            import json
+            
+            # Look for JSON action pattern
+            json_match = re.search(r'```json\s*(\{[^`]+\})\s*```', ai_content, re.DOTALL)
+            if not json_match:
+                json_match = re.search(r'(\{["\']action["\']\s*:[^}]+\})', ai_content, re.DOTALL)
+            
+            if json_match:
+                try:
+                    action_json = json.loads(json_match.group(1))
+                    action_type = action_json.get('action')
+                    action_params = action_json.get('params', {})
+                    
+                    logger.info(f"🎯 Detected action: {action_type}")
+                    logger.info(f"   Parameters: {action_params}")
+                    
+                    # Map action to function
+                    action_map = {
+                        'generate_google_ads': 'generate_google_ads_content',
+                        'get_campaigns': 'get_google_ads_campaigns',
+                        'generate_social_posts': 'generate_social_media_posts'
+                    }
+                    
+                    function_name = action_map.get(action_type)
+                    if function_name:
+                        # Execute function
+                        if function_name == 'generate_google_ads_content':
+                            result = await executor._generate_google_ads_content(action_params)
+                        elif function_name == 'get_google_ads_campaigns':
+                            result = await executor._get_google_ads_campaigns(action_params)
+                        elif function_name == 'generate_social_media_posts':
+                            result = await executor._generate_social_media_posts(action_params)
+                        
+                        logger.info(f"✅ Action executed: success={result.get('success')}")
+                        
+                        # Save action to history
+                        action_msg = supabase.table("chat_messages").insert({
+                            "chat_id": chat_id,
+                            "role": "function",
+                            "content": f"Executed: {function_name}",
+                            "action_type": function_name,
+                            "action_data": result
+                        }).execute()
+                        
+                        # Replace JSON in response with result summary
+                        if result.get('success') and result.get('headlines'):
+                            result_text = f"\n\n✅ Сгенерировано:\n- {len(result['headlines'])} заголовков\n- {len(result.get('descriptions', []))} описаний"
+                            ai_content = re.sub(r'```json[^`]+```', result_text, ai_content)
+                        
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse action JSON: {e}")
+                except Exception as e:
+                    logger.error(f"Error executing action: {e}")
+                    logger.exception("Full error:")
             
         except Exception as e:
             logger.error(f"⚠️ Gemini API error: {str(e)}")
