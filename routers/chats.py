@@ -467,16 +467,24 @@ IMPORTANT:
                             logger.info(f"✅ Action executed: success={result.get('success')}")
                             logger.info(f"   Result keys: {list(result.keys())}")
                             
-                            # Save action to history
+                            # Save action to history with correct role and action_type
                             try:
+                                # Map function names to frontend action_type
+                                action_type_map = {
+                                    'generate_google_ads_content': 'google_ads',
+                                    'generate_social_media_posts': 'post_generation',
+                                    'get_google_ads_campaigns': 'campaigns_data'
+                                }
+                                frontend_action_type = action_type_map.get(function_name, function_name)
+                                
                                 action_msg = supabase.table("chat_messages").insert({
                                     "chat_id": chat_id,
-                                    "role": "function",
+                                    "role": "tool",  # Changed from "function" to "tool"
                                     "content": f"Executed: {function_name}",
-                                    "action_type": function_name,
-                                    "action_data": result
+                                    "action_type": frontend_action_type,  # Use frontend-compatible action_type
+                                    "action_data": {"status": "expanded", "generatedContent": result}
                                 }).execute()
-                                logger.info(f"💾 Saved action to database")
+                                logger.info(f"💾 Saved action to database with action_type={frontend_action_type}")
                             except Exception as db_err:
                                 logger.error(f"Failed to save action to DB: {db_err}")
                             
