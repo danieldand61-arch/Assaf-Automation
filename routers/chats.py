@@ -291,6 +291,8 @@ async def send_message(
                     
                     if account.data:
                         acc = account.data
+                        metadata = acc.get('metadata', {})
+                        
                         company_context = f"""
 DEFAULT COMPANY CONTEXT (can be overridden by user):
 - Company: {acc.get('name', 'Not specified')}
@@ -298,6 +300,10 @@ DEFAULT COMPANY CONTEXT (can be overridden by user):
 - Description: {acc.get('description', 'Not specified')}
 - Target Audience: {acc.get('target_audience', 'General audience')}
 - Brand Voice: {acc.get('brand_voice', 'professional')}
+- Website: {metadata.get('website_url', 'Not provided')}
+- Marketing Goal: {metadata.get('marketing_goal', 'Not specified')}
+- Geographic Focus: {metadata.get('geographic_focus', 'Not specified')}
+- Budget Range: {metadata.get('budget_range', 'Not specified')}
 
 IMPORTANT CONTEXT RULES:
 1. Use company context as DEFAULT if user doesn't specify otherwise
@@ -305,6 +311,9 @@ IMPORTANT CONTEXT RULES:
 3. If user says "ignore company data" → IGNORE IT COMPLETELY
 4. User's prompt has PRIORITY over company context
 5. Be flexible and context-aware
+6. Use website URL for scraping when generating ads (if provided)
+7. Use geographic focus for targeting recommendations
+8. Consider budget range when suggesting campaign strategies
 """
             except Exception as e:
                 logger.warning(f"Could not load company context: {e}")
