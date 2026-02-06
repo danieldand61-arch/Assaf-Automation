@@ -9,7 +9,6 @@ import { VideoTranslation } from './VideoTranslation'
 import { useContentStore } from '../store/contentStore'
 import { useApp } from '../contexts/AppContext'
 import ReactMarkdown from 'react-markdown'
-import Header from './Header'
 
 interface Chat {
   id: string
