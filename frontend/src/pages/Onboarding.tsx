@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
-import { Loader2, Sparkles, Building2, Users, Package, MessageSquare, Mic, Target, Globe, DollarSign, Link as LinkIcon, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Loader2, Sparkles, Building2, Users, Package, Mic, Target, Globe, DollarSign, Link as LinkIcon, ChevronRight, ChevronLeft } from 'lucide-react'
 
 export function Onboarding() {
   const { session } = useAuth()
