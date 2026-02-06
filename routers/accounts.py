@@ -110,7 +110,8 @@ async def create_account(request: CreateAccountRequest, user = Depends(get_curre
             "target_audience": request.target_audience,
             "brand_voice": request.brand_voice,
             "logo_url": request.logo_url,
-            "brand_colors": request.brand_colors
+            "brand_colors": request.brand_colors,
+            "metadata": request.metadata or {}
         }).execute()
         
         logger.info(f"✅ Account created: {request.name} by {user['email']}")
