@@ -11,7 +11,9 @@ async def generate_posts(
     style: str,
     target_audience: str,
     language: str = "en",
-    include_emojis: bool = True
+    include_emojis: bool = True,
+    user_id: str = None,
+    account_id: str = None
 ) -> List[PostVariation]:
     """Generates social media post variations using Gemini 3 Flash Preview"""
     
@@ -43,6 +45,33 @@ async def generate_posts(
             }
         )
         logger.info(f"🔍 DEBUG: generate_content returned successfully")
+        
+        # Track credits usage
+        if user_id:
+            try:
+                from services.credits_tracker import track_ai_usage
+                
+                input_tokens = response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0
+                output_tokens = response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0
+                
+                await track_ai_usage(
+                    user_id=user_id,
+                    account_id=account_id,
+                    service_type="social_posts",
+                    model_name=model_name,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    action="generate_posts",
+                    metadata={
+                        "keywords": keywords,
+                        "platforms": platforms,
+                        "language": language,
+                        "style": style
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Failed to track credits: {e}")
+    
     except Exception as e:
         logger.error(f"❌ DEBUG: Error in generate_content: {type(e).__name__}")
         logger.error(f"❌ DEBUG: Error message: {str(e)}")

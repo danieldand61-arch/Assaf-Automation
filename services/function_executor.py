@@ -264,7 +264,9 @@ class FunctionExecutor:
             style=args.get("style", "professional"),
             target_audience=args.get("target_audience", "general audience"),
             language=args.get("language", "en"),
-            include_emojis=args.get("include_emojis", True)
+            include_emojis=args.get("include_emojis", True),
+            user_id=self.user_id,
+            account_id=self.account_id
         )
         
         # Generate images
