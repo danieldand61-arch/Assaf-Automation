@@ -602,6 +602,37 @@ export function ChatApp() {
       <div className="flex-1 flex flex-col">
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Empty state */}
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-center p-8">
+              <div className="w-20 h-20 bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 rounded-full flex items-center justify-center mb-6">
+                <MessageSquare className="w-10 h-10 text-purple-600 dark:text-purple-400" />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-3">
+                Start a Conversation
+              </h2>
+              <p className="text-gray-600 dark:text-gray-400 max-w-md mb-6">
+                Ask me anything about marketing, Google Ads, social media posts, or video translation. I'm here to help!
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl">
+                <button
+                  onClick={() => setInputMessage('Create Google Ads for my coffee shop')}
+                  className="p-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-600 transition text-left"
+                >
+                  <div className="font-semibold text-gray-900 dark:text-white mb-1">Google Ads</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Generate ad campaigns</div>
+                </button>
+                <button
+                  onClick={() => setInputMessage('Generate social media posts for my business')}
+                  className="p-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-600 transition text-left"
+                >
+                  <div className="font-semibold text-gray-900 dark:text-white mb-1">Social Posts</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Create engaging content</div>
+                </button>
+              </div>
+            </div>
+          )}
+          
           {messages.map((message) => {
             // Tool messages - render inline forms
             if (message.role === 'tool') {
