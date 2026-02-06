@@ -134,12 +134,8 @@ export function MainWorkspace() {
 
       {/* Tab Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'chat' && (
-          <div className="h-full">
-            <ChatApp />
-          </div>
-        )}
-        
+        {activeTab === 'home' && <LandingPage />}
+        {activeTab === 'chat' && <ChatApp />}
         {activeTab === 'social' && (
           <div className="flex h-full">
             <div className={`${generatedContent ? 'w-1/2' : 'flex-1'} overflow-auto p-6`}>

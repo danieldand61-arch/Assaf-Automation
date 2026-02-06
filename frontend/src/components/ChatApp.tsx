@@ -99,7 +99,6 @@ export function ChatApp() {
       }
       
       setChats(loadedChats)
-      setShowChat(true)
       setActiveChat(loadedChats[0])
     } catch (error) {
       console.error('Error loading chats:', error)
@@ -161,7 +160,6 @@ export function ChatApp() {
       // First chat - initialize
       setChats([newChat])
       setActiveChat(newChat)
-      setShowChat(true)
       setMessages([])
       
       return newChat
@@ -224,7 +222,6 @@ export function ChatApp() {
           setActiveChat(remainingChats[0])
         } else {
           setActiveChat(null)
-          setShowChat(false)
           setMessages([])
         }
       }
