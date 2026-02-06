@@ -181,11 +181,32 @@ class FunctionExecutor:
         """Generate Google Ads RSA content using AI"""
         from services.scraper import scrape_website
         from services.google_ads_generator import generate_google_ads
+        from database.supabase_client import get_supabase
         
         try:
-            # Scrape website if URL provided
-            website_data = None
+            # Get website URL from args or from account metadata
             website_url = args.get("website_url")
+            
+            # If no URL provided, try to get from account profile
+            if not website_url and self.account_id:
+                try:
+                    supabase = get_supabase()
+                    account = supabase.table("accounts")\
+                        .select("metadata")\
+                        .eq("id", self.account_id)\
+                        .single()\
+                        .execute()
+                    
+                    if account.data:
+                        metadata = account.data.get('metadata', {})
+                        website_url = metadata.get('website_url')
+                        if website_url:
+                            logger.info(f"🔗 Using website URL from account profile: {website_url}")
+                except Exception as e:
+                    logger.warning(f"Could not load account website URL: {e}")
+            
+            # Scrape website if URL available
+            website_data = None
             if website_url:
                 try:
                     website_data = await scrape_website(website_url)
