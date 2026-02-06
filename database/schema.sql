@@ -26,6 +26,9 @@ CREATE TABLE accounts (
     logo_url TEXT,
     brand_colors JSONB DEFAULT '[]'::jsonb, -- ["#FF5733", "#33FF57"]
     
+    -- Extended onboarding data
+    metadata JSONB DEFAULT '{}'::jsonb, -- {website_url, marketing_goal, geographic_focus, budget_range}
+    
     -- Settings
     default_language VARCHAR(10) DEFAULT 'en',
     default_include_emojis BOOLEAN DEFAULT true,
