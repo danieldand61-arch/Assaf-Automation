@@ -21,7 +21,7 @@ async def generate_google_ads(
     """
     
     logger.info("🎯 ===== GOOGLE ADS SERVICE START =====")
-    logger.info(f"🎯 Website data: title={website_data.get('title', 'N/A')}")
+    logger.info(f"🎯 Website data: {website_data.get('title', 'N/A') if website_data else 'No URL provided'}")
     logger.info(f"🎯 Keywords: {keywords}")
     logger.info(f"🎯 Location: {target_location}")
     
@@ -89,11 +89,26 @@ def _build_google_ads_prompt(
         "en": "English",
         "he": "Hebrew",
         "es": "Spanish",
-        "pt": "Portuguese"
+        "pt": "Portuguese",
+        "ru": "Russian"
     }
     language_name = language_names.get(language, "English")
     
     location_context = f"Target location: {target_location}" if target_location else "Targeting: Online audience"
+    
+    # Handle case when website_data is None
+    if website_data:
+        brand = website_data.get('title', 'N/A')
+        description = website_data.get('description', 'N/A')
+        products = ', '.join(website_data.get('products', []))
+        features = ', '.join(website_data.get('key_features', []))
+        industry = website_data.get('industry', 'general')
+    else:
+        brand = 'Based on keywords'
+        description = f'Business related to: {keywords}'
+        products = 'See keywords'
+        features = 'See keywords'
+        industry = 'general'
     
     prompt = f"""
 You are a GOOGLE ADS EXPERT creating MAXIMUM PERFORMANCE Responsive Search Ads (RSA).
@@ -101,11 +116,11 @@ You are a GOOGLE ADS EXPERT creating MAXIMUM PERFORMANCE Responsive Search Ads (
 ═══════════════════════════════════════════════════════════════
 📊 BUSINESS INFORMATION:
 ═══════════════════════════════════════════════════════════════
-- Brand: {website_data.get('title', 'N/A')}
-- Description: {website_data.get('description', 'N/A')}
-- Products/Services: {', '.join(website_data.get('products', []))}
-- Key Features: {', '.join(website_data.get('key_features', []))}
-- Industry: {website_data.get('industry', 'general')}
+- Brand: {brand}
+- Description: {description}
+- Products/Services: {products}
+- Key Features: {features}
+- Industry: {industry}
 
 ═══════════════════════════════════════════════════════════════
 🎯 CAMPAIGN TARGETING:
