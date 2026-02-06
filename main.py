@@ -90,6 +90,20 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Accounts features will NOT be available!")
 
+# Try to load credits router
+logger.info("🔄 Attempting to import credits router...")
+try:
+    from routers import credits
+    logger.info("✅ Credits router imported successfully")
+    
+    logger.info("🔄 Registering credits router endpoints...")
+    app.include_router(credits.router)
+    logger.info("✅ Credits router registered")
+except Exception as e:
+    logger.error(f"❌ Credits router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Credits tracking will NOT be available!")
+
 # Try to load video translation router
 logger.info("🔄 Attempting to import video translation router...")
 try:
