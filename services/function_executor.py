@@ -182,27 +182,43 @@ class FunctionExecutor:
         from services.scraper import scrape_website
         from services.google_ads_generator import generate_google_ads
         
-        # Scrape website
-        website_data = await scrape_website(args["website_url"])
-        
-        # Generate ads
-        ads_package = await generate_google_ads(
-            website_data=website_data,
-            keywords=args["keywords"],
-            target_location=args.get("target_location", ""),
-            language=args.get("language", "en")
-        )
-        
-        return {
-            "headlines": ads_package["headlines"],
-            "descriptions": ads_package["descriptions"],
-            "callouts": ads_package.get("callouts", []),
-            "sitelinks": ads_package.get("sitelinks", []),
-            "website_data": {
-                "title": website_data.get("title"),
-                "description": website_data.get("description")
+        try:
+            # Scrape website if URL provided
+            website_data = None
+            website_url = args.get("website_url")
+            if website_url:
+                try:
+                    website_data = await scrape_website(website_url)
+                except Exception as e:
+                    logger.warning(f"Failed to scrape website: {e}")
+                    website_data = {"error": str(e)}
+            
+            # Generate ads
+            ads_package = await generate_google_ads(
+                website_data=website_data,
+                keywords=args.get("keywords", ""),
+                target_location=args.get("target_location", ""),
+                language=args.get("language", "en")
+            )
+            
+            return {
+                "success": True,
+                "headlines": ads_package["headlines"],
+                "descriptions": ads_package["descriptions"],
+                "callouts": ads_package.get("callouts", []),
+                "sitelinks": ads_package.get("sitelinks", []),
+                "website_data": {
+                    "title": website_data.get("title") if website_data else None,
+                    "description": website_data.get("description") if website_data else None
+                }
             }
-        }
+        except Exception as e:
+            logger.error(f"Error generating Google Ads content: {e}")
+            logger.exception("Full error:")
+            return {
+                "success": False,
+                "error": f"Failed to generate ads: {str(e)}"
+            }
     
     # ==========================================
     # CONTENT GENERATION FUNCTIONS

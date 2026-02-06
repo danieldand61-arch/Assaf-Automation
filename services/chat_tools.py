@@ -1,71 +1,76 @@
 """
 Chat Tools - Function declarations for Gemini AI
 Defines all available tools/functions that Gemini can call
-Compatible with google-generativeai 0.8.3
+Compatible with google-generativeai SDK
 """
-from typing import List, Dict
+from typing import List
+import google.generativeai as genai
 
-def get_available_tools() -> List[Dict]:
+def get_available_tools() -> List:
     """
     Returns all available tools for Gemini function calling
-    Format for google-generativeai 0.8.3
+    Uses proper FunctionDeclaration format
     """
     
     tools = [
-        {
-            "name": "get_google_ads_campaigns",
-            "description": "Get list of Google Ads campaigns with performance metrics",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "date_range": {
-                        "type": "string",
-                        "description": "Date range: TODAY, LAST_7_DAYS, LAST_30_DAYS",
-                        "enum": ["TODAY", "YESTERDAY", "LAST_7_DAYS", "LAST_30_DAYS"]
-                    }
+        genai.protos.FunctionDeclaration(
+            name="get_google_ads_campaigns",
+            description="Get list of Google Ads campaigns with performance metrics",
+            parameters=genai.protos.Schema(
+                type=genai.protos.Type.OBJECT,
+                properties={
+                    "date_range": genai.protos.Schema(
+                        type=genai.protos.Type.STRING,
+                        description="Date range: TODAY, LAST_7_DAYS, LAST_30_DAYS",
+                        enum=["TODAY", "YESTERDAY", "LAST_7_DAYS", "LAST_30_DAYS"]
+                    )
                 }
-            }
-        },
-        {
-            "name": "generate_google_ads_content",
-            "description": "Generate Google Ads headlines and descriptions using AI",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "keywords": {
-                        "type": "string",
-                        "description": "Keywords or topic for the ads"
-                    },
-                    "website_url": {
-                        "type": "string",
-                        "description": "Website URL (optional)"
-                    }
+            )
+        ),
+        genai.protos.FunctionDeclaration(
+            name="generate_google_ads_content",
+            description="Generate Google Ads headlines and descriptions using AI. Use this when user asks to create or generate Google Ads.",
+            parameters=genai.protos.Schema(
+                type=genai.protos.Type.OBJECT,
+                properties={
+                    "keywords": genai.protos.Schema(
+                        type=genai.protos.Type.STRING,
+                        description="Keywords or topic for the ads"
+                    ),
+                    "website_url": genai.protos.Schema(
+                        type=genai.protos.Type.STRING,
+                        description="Website URL (optional)"
+                    ),
+                    "language": genai.protos.Schema(
+                        type=genai.protos.Type.STRING,
+                        description="Language code (en, ru, etc). Default: en"
+                    )
                 },
-                "required": ["keywords"]
-            }
-        },
-        {
-            "name": "generate_social_media_posts",
-            "description": "Generate social media posts for multiple platforms",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "topic": {
-                        "type": "string",
-                        "description": "Topic or keywords for posts"
-                    },
-                    "platforms": {
-                        "type": "array",
-                        "description": "Target platforms",
-                        "items": {
-                            "type": "string",
-                            "enum": ["instagram", "facebook", "linkedin", "twitter", "tiktok"]
-                        }
-                    }
+                required=["keywords"]
+            )
+        ),
+        genai.protos.FunctionDeclaration(
+            name="generate_social_media_posts",
+            description="Generate social media posts for multiple platforms",
+            parameters=genai.protos.Schema(
+                type=genai.protos.Type.OBJECT,
+                properties={
+                    "topic": genai.protos.Schema(
+                        type=genai.protos.Type.STRING,
+                        description="Topic or keywords for posts"
+                    ),
+                    "platforms": genai.protos.Schema(
+                        type=genai.protos.Type.ARRAY,
+                        description="Target platforms",
+                        items=genai.protos.Schema(
+                            type=genai.protos.Type.STRING,
+                            enum=["instagram", "facebook", "linkedin", "twitter", "tiktok"]
+                        )
+                    )
                 },
-                "required": ["topic"]
-            }
-        }
+                required=["topic"]
+            )
+        )
     ]
     
     return tools

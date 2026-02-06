@@ -270,7 +270,11 @@ async def send_message(
             current_date = datetime.now().strftime("%B %d, %Y")
             
             # Get available tools
-            tools = get_available_tools()
+            function_declarations = get_available_tools()
+            
+            # Wrap in Tool object
+            tools = [genai.protos.Tool(function_declarations=function_declarations)]
+            logger.info(f"🔧 Loaded {len(function_declarations)} function declarations")
             
             # Get company context
             company_context = ""
@@ -389,16 +393,25 @@ IMPORTANT: When using tools, explain what you're doing and show results clearly.
                     }).execute()
                     
                     # Send function result back to Gemini
-                    response = chat_session.send_message(
-                        genai.protos.Content(parts=[
-                            genai.protos.Part(
-                                function_response=genai.protos.FunctionResponse(
-                                    name=function_name,
-                                    response=result
+                    try:
+                        response = chat_session.send_message(
+                            genai.protos.Content(parts=[
+                                genai.protos.Part(
+                                    function_response=genai.protos.FunctionResponse(
+                                        name=function_name,
+                                        response=result
+                                    )
                                 )
-                            )
-                        ])
-                    )
+                            ])
+                        )
+                        logger.info(f"✅ Sent function response back to Gemini")
+                    except Exception as func_err:
+                        logger.error(f"Error sending function response: {func_err}")
+                        logger.exception("Full error:")
+                        # Fallback: send as text
+                        response = chat_session.send_message(
+                            f"Function {function_name} returned: {result}"
+                        )
                 else:
                     # No more function calls, get final response
                     break
