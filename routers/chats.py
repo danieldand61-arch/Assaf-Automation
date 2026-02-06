@@ -468,6 +468,7 @@ IMPORTANT:
                             logger.info(f"   Result keys: {list(result.keys())}")
                             
                             # Save action to history with correct role and action_type
+                            tool_message = None
                             try:
                                 # Map function names to frontend action_type
                                 action_type_map = {
@@ -485,6 +486,11 @@ IMPORTANT:
                                     "action_data": {"status": "expanded", "generatedContent": result}
                                 }).execute()
                                 logger.info(f"💾 Saved action to database with action_type={frontend_action_type}")
+                                
+                                # Store tool message to return to frontend
+                                if action_msg.data:
+                                    tool_message = action_msg.data[0] if isinstance(action_msg.data, list) else action_msg.data
+                                    logger.info(f"✅ Tool message created: {tool_message.get('id')}")
                             except Exception as db_err:
                                 logger.error(f"Failed to save action to DB: {db_err}")
                             
@@ -536,11 +542,19 @@ IMPORTANT:
             .eq("id", chat_id)\
             .execute()
         
-        return {
+        # Prepare response with all messages
+        response_data = {
             "success": True,
             "user_message": user_msg.data[0],
             "assistant_message": assistant_msg.data[0]
         }
+        
+        # Include tool message if action was executed
+        if 'tool_message' in locals() and tool_message:
+            response_data["tool_message"] = tool_message
+            logger.info(f"📤 Returning tool message to frontend")
+        
+        return response_data
         
     except HTTPException:
         raise

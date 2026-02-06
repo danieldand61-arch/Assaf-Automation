@@ -315,15 +315,26 @@ export function ChatApp() {
       }
       
       const data = await response.json()
+      console.log('📥 Response data:', data)
       
       if (!data.user_message || !data.assistant_message) {
         throw new Error('Invalid response from server')
       }
       
-      setMessages(prev => [
-        ...prev.filter(m => m.id !== tempUserMsg.id),
+      // Build messages array - include tool message if present
+      const newMessages = [
         data.user_message,
         data.assistant_message
+      ]
+      
+      if (data.tool_message) {
+        console.log('🔧 Tool message received:', data.tool_message)
+        newMessages.push(data.tool_message)
+      }
+      
+      setMessages(prev => [
+        ...prev.filter(m => m.id !== tempUserMsg.id),
+        ...newMessages
       ])
     } catch (error) {
       console.error('Error sending message:', error)
