@@ -33,21 +33,69 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />
+  }
+
+  return <>{children}</>
+}
+
 export function AppWithAuth() {
   return (
     <BrowserRouter>
       <AuthProvider>
         <AccountProvider>
           <Routes>
+            {/* Protected Routes */}
+            <Route 
+              path="/" 
+              element={
+                <ProtectedRoute>
+                  <MainWorkspace />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/library" 
+              element={
+                <ProtectedRoute>
+                  <Library />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/scheduled" 
+              element={
+                <ProtectedRoute>
+                  <Scheduled />
+                </ProtectedRoute>
+              } 
+            />
+            
             {/* Public Routes */}
-            <Route path="/" element={<MainWorkspace />} />
             <Route path="/old" element={<App />} />
             <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/auth/google-ads/callback" element={<GoogleAdsCallback />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/library" element={<Library />} />
-            <Route path="/scheduled" element={<Scheduled />} />
             <Route path="/privacy" element={<Privacy />} />
             <Route path="/terms" element={<Terms />} />
             

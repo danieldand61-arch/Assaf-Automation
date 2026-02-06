@@ -271,10 +271,12 @@ async def send_message(
             
             # Get available tools
             tools_list = get_available_tools()
-            logger.info(f"🔧 Loaded {len(tools_list)} function declarations")
+            logger.info(f"🔧 Loaded {len(tools_list)} tool definitions")
             
-            # Convert to proper SDK format
-            tools = tools_list
+            # IMPORTANT: Do NOT pass tools directly as list of dicts
+            # Instead, disable tools temporarily until we get proper SDK format working
+            tools = None
+            logger.warning("⚠️ Function calling temporarily disabled due to SDK compatibility")
             
             # Get company context
             company_context = ""
@@ -341,14 +343,21 @@ WORKFLOW EXAMPLES:
 
 Remember: ALWAYS use functions for their intended purpose. Don't try to do manually what functions can do."""
             
-            # Create model with tools
-            model = genai.GenerativeModel(
-                model_name,
-                system_instruction=system_instruction,
-                tools=tools,
-                tool_config={'function_calling_config': {'mode': 'AUTO'}}
-            )
-            logger.info(f"✅ Model created with {len(tools)} tools")
+            # Create model
+            if tools:
+                model = genai.GenerativeModel(
+                    model_name,
+                    system_instruction=system_instruction,
+                    tools=tools,
+                    tool_config={'function_calling_config': {'mode': 'AUTO'}}
+                )
+                logger.info(f"✅ Model created with tools enabled")
+            else:
+                model = genai.GenerativeModel(
+                    model_name,
+                    system_instruction=system_instruction
+                )
+                logger.info(f"✅ Model created without tools")
             
             # Build proper history (exclude current message)
             history = []
