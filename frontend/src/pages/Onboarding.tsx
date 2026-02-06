@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
@@ -8,6 +8,7 @@ export function Onboarding() {
   const { session } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
+  const [checkingAccount, setCheckingAccount] = useState(true)
   const [error, setError] = useState('')
   const [step, setStep] = useState(1)
   
@@ -25,6 +26,37 @@ export function Onboarding() {
   const [budgetRange, setBudgetRange] = useState('')
   
   const totalSteps = 3
+
+  // Check if user already has an account
+  useEffect(() => {
+    const checkAccount = async () => {
+      try {
+        const apiUrl = getApiUrl()
+        const response = await fetch(`${apiUrl}/api/accounts`, {
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          // If user has accounts, redirect to main app
+          if (data.accounts && data.accounts.length > 0) {
+            navigate('/', { replace: true })
+            return
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check accounts:', err)
+      } finally {
+        setCheckingAccount(false)
+      }
+    }
+
+    if (session?.access_token) {
+      checkAccount()
+    }
+  }, [session, navigate])
 
   const nextStep = () => {
     if (step === 1 && (!companyName || !industry)) {
@@ -88,6 +120,15 @@ export function Onboarding() {
     } finally {
       setLoading(false)
     }
+  }
+
+  // Show loading while checking if user already has account
+  if (checkingAccount) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+      </div>
+    )
   }
 
   return (

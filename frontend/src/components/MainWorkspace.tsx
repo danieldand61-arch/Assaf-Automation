@@ -1,11 +1,14 @@
-import { useState } from 'react'
-import { FileText, Megaphone, Video, MessageSquare } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { FileText, Megaphone, Video, MessageSquare, Loader2 } from 'lucide-react'
 import { ChatApp } from './ChatApp'
 import { InputSection } from './InputSection'
 import { GoogleAdsGeneration } from './GoogleAdsGeneration'
 import { VideoTranslation } from './VideoTranslation'
 import { PreviewSection } from './PreviewSection'
 import { useContentStore } from '../store/contentStore'
+import { useAuth } from '../contexts/AuthContext'
+import { getApiUrl } from '../lib/api'
 import Header from './Header'
 
 type TabType = 'chat' | 'social' | 'ads' | 'video'
@@ -17,8 +20,42 @@ interface Tab {
 }
 
 export function MainWorkspace() {
+  const navigate = useNavigate()
+  const { session } = useAuth()
   const [activeTab, setActiveTab] = useState<TabType>('chat')
+  const [checkingAccount, setCheckingAccount] = useState(true)
   const { generatedContent, setGeneratedContent } = useContentStore()
+
+  // Check if user has an account, redirect to onboarding if not
+  useEffect(() => {
+    const checkAccount = async () => {
+      try {
+        const apiUrl = getApiUrl()
+        const response = await fetch(`${apiUrl}/api/accounts`, {
+          headers: {
+            'Authorization': `Bearer ${session?.access_token}`
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          // If no accounts, redirect to onboarding
+          if (!data.accounts || data.accounts.length === 0) {
+            navigate('/onboarding', { replace: true })
+            return
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check accounts:', err)
+      } finally {
+        setCheckingAccount(false)
+      }
+    }
+
+    if (session?.access_token) {
+      checkAccount()
+    }
+  }, [session, navigate])
 
   const handleGenerate = (data: any) => {
     setGeneratedContent(data)
@@ -26,6 +63,15 @@ export function MainWorkspace() {
 
   const handleReset = () => {
     setGeneratedContent(null)
+  }
+
+  // Show loading while checking account
+  if (checkingAccount) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+      </div>
+    )
   }
 
   const tabs: Tab[] = [

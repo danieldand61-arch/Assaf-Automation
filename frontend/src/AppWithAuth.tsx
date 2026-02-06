@@ -92,9 +92,18 @@ function AppRoutes() {
               } 
             />
             
+            {/* Semi-Protected Routes */}
+            <Route 
+              path="/onboarding" 
+              element={
+                <ProtectedRoute>
+                  <Onboarding />
+                </ProtectedRoute>
+              } 
+            />
+            
             {/* Public Routes */}
             <Route path="/old" element={<App />} />
-            <Route path="/onboarding" element={<Onboarding />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
             <Route path="/auth/google-ads/callback" element={<GoogleAdsCallback />} />
             <Route path="/privacy" element={<Privacy />} />
