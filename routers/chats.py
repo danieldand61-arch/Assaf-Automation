@@ -399,11 +399,13 @@ IMPORTANT:
             
             # Get text response
             ai_content = response.text
-            logger.info(f"✅ Gemini response: {ai_content[:200]}...")
+            logger.info(f"✅ Gemini response ({len(ai_content)} chars): {ai_content[:300]}...")
             
             # Check if response contains JSON action
             import re
             import json
+            
+            logger.info("🔍 Searching for JSON action in response...")
             
             # Look for JSON action pattern (improved regex for nested objects)
             json_match = None
@@ -413,6 +415,7 @@ IMPORTANT:
             if code_block_match:
                 json_match = code_block_match
                 logger.info("📋 Found JSON in code block")
+                logger.info(f"   Match: {code_block_match.group(1)[:200]}")
             
             # Try to find inline JSON with "action" key
             if not json_match:
@@ -421,6 +424,7 @@ IMPORTANT:
                 if inline_match:
                     json_match = inline_match
                     logger.info("📋 Found inline JSON")
+                    logger.info(f"   Match: {inline_match.group(0)[:200]}")
             
             if json_match:
                 try:

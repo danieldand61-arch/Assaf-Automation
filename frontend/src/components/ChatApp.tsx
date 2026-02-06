@@ -274,6 +274,11 @@ export function ChatApp() {
 
   const sendMessage = async () => {
     if (!inputMessage.trim() || !activeChat || !session?.access_token) {
+      console.warn('❌ Cannot send message:', { 
+        hasMessage: !!inputMessage.trim(), 
+        hasChat: !!activeChat, 
+        hasToken: !!session?.access_token 
+      })
       return
     }
 
@@ -283,6 +288,8 @@ export function ChatApp() {
 
     try {
       const apiUrl = getApiUrl()
+      console.log('📤 Sending message to:', `${apiUrl}/api/chats/${activeChat.id}/message`)
+      console.log('   Message:', userMessage.substring(0, 100))
       
       const tempUserMsg: Message = {
         id: 'temp-' + Date.now(),
