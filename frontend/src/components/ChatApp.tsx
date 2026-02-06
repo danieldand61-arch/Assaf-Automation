@@ -129,6 +129,9 @@ export function ChatApp() {
       console.log('🔧 Tool messages:', toolMessages)
       toolMessages.forEach((tm: any) => {
         console.log(`  - ${tm.id}: action_type=${tm.action_type}, has_content=${!!tm.action_data?.generatedContent}`)
+        if (tm.action_type === 'google_ads') {
+          console.log(`    Google Ads data:`, tm.action_data?.generatedContent)
+        }
       })
       
       setMessages(data.messages || [])
@@ -766,6 +769,8 @@ export function ChatApp() {
               
               if (message.action_type === 'google_ads') {
                 const adsData = message.action_data?.generatedContent
+                const hasResults = adsData?.headlines && adsData.headlines.length > 0
+                const isGenerating = !hasResults && !adsData?.error
                 
                 return (
                   <div key={message.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 border-2 border-blue-200 dark:border-blue-800">
@@ -774,15 +779,19 @@ export function ChatApp() {
                         <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                           <Megaphone className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                         </div>
-                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">Google Ads Generated</h3>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+                          {isGenerating ? 'Generating Google Ads...' : 'Google Ads Generated'}
+                        </h3>
                       </div>
-                      <button
-                        onClick={() => handleDeleteTool(message.id)}
-                        className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      {hasResults && (
+                        <button
+                          onClick={() => handleDeleteTool(message.id)}
+                          className="p-2 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg transition"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                     
                     {isCollapsed ? (
@@ -793,7 +802,33 @@ export function ChatApp() {
                         <Maximize2 className="w-5 h-5" />
                         Click to view results
                       </button>
-                    ) : adsData ? (
+                    ) : adsData?.error ? (
+                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                        <p className="text-red-600 dark:text-red-400">❌ {adsData.error}</p>
+                      </div>
+                    ) : isGenerating ? (
+                      <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                        <div className="relative">
+                          <Loader2 className="w-16 h-16 animate-spin text-blue-600" />
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Megaphone className="w-6 h-6 text-blue-400" />
+                          </div>
+                        </div>
+                        <div className="text-center space-y-2">
+                          <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                            Generating Google Ads...
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Creating optimized headlines and descriptions
+                          </p>
+                          <div className="flex items-center justify-center gap-2 mt-4">
+                            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '0ms'}}></div>
+                            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '150ms'}}></div>
+                            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{animationDelay: '300ms'}}></div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : hasResults ? (
                       <div className="space-y-6">
                         {/* Headlines */}
                         <div>
