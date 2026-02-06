@@ -405,14 +405,34 @@ IMPORTANT:
             import re
             import json
             
-            # Look for JSON action pattern
-            json_match = re.search(r'```json\s*(\{[^`]+\})\s*```', ai_content, re.DOTALL)
+            # Look for JSON action pattern (improved regex for nested objects)
+            json_match = None
+            
+            # Try to find JSON in code block first
+            code_block_match = re.search(r'```json\s*(\{.+?\})\s*```', ai_content, re.DOTALL)
+            if code_block_match:
+                json_match = code_block_match
+                logger.info("📋 Found JSON in code block")
+            
+            # Try to find inline JSON with "action" key
             if not json_match:
-                json_match = re.search(r'(\{["\']action["\']\s*:[^}]+\})', ai_content, re.DOTALL)
+                # Look for {"action": ... } pattern - match balanced braces
+                inline_match = re.search(r'\{[^{}]*"action"[^{}]*"params"[^{}]*\{[^{}]*\}[^{}]*\}', ai_content, re.DOTALL)
+                if inline_match:
+                    json_match = inline_match
+                    logger.info("📋 Found inline JSON")
             
             if json_match:
                 try:
-                    action_json = json.loads(json_match.group(1))
+                    # Extract JSON string
+                    if code_block_match:
+                        json_str = json_match.group(1)
+                    else:
+                        json_str = json_match.group(0)
+                    
+                    logger.info(f"📄 Extracted JSON: {json_str[:200]}")
+                    
+                    action_json = json.loads(json_str)
                     action_type = action_json.get('action')
                     action_params = action_json.get('params', {})
                     
@@ -428,7 +448,10 @@ IMPORTANT:
                     
                     function_name = action_map.get(action_type)
                     if function_name:
+                        logger.info(f"🚀 Executing function: {function_name}")
+                        
                         # Execute function
+                        result = None
                         if function_name == 'generate_google_ads_content':
                             result = await executor._generate_google_ads_content(action_params)
                         elif function_name == 'get_google_ads_campaigns':
@@ -436,27 +459,42 @@ IMPORTANT:
                         elif function_name == 'generate_social_media_posts':
                             result = await executor._generate_social_media_posts(action_params)
                         
-                        logger.info(f"✅ Action executed: success={result.get('success')}")
-                        
-                        # Save action to history
-                        action_msg = supabase.table("chat_messages").insert({
-                            "chat_id": chat_id,
-                            "role": "function",
-                            "content": f"Executed: {function_name}",
-                            "action_type": function_name,
-                            "action_data": result
-                        }).execute()
-                        
-                        # Replace JSON in response with result summary
-                        if result.get('success') and result.get('headlines'):
-                            result_text = f"\n\n✅ Сгенерировано:\n- {len(result['headlines'])} заголовков\n- {len(result.get('descriptions', []))} описаний"
-                            ai_content = re.sub(r'```json[^`]+```', result_text, ai_content)
+                        if result:
+                            logger.info(f"✅ Action executed: success={result.get('success')}")
+                            logger.info(f"   Result keys: {list(result.keys())}")
+                            
+                            # Save action to history
+                            try:
+                                action_msg = supabase.table("chat_messages").insert({
+                                    "chat_id": chat_id,
+                                    "role": "function",
+                                    "content": f"Executed: {function_name}",
+                                    "action_type": function_name,
+                                    "action_data": result
+                                }).execute()
+                                logger.info(f"💾 Saved action to database")
+                            except Exception as db_err:
+                                logger.error(f"Failed to save action to DB: {db_err}")
+                            
+                            # Replace JSON in response with result summary
+                            if result.get('success') and result.get('headlines'):
+                                result_text = f"\n\n✅ Сгенерировано:\n- {len(result['headlines'])} заголовков\n- {len(result.get('descriptions', []))} описаний\n\nРезультаты сохранены в истории чата."
+                                # Remove JSON block from response
+                                ai_content = re.sub(r'```json.+?```', result_text, ai_content, flags=re.DOTALL)
+                                ai_content = re.sub(r'\{[^{}]*"action"[^{}]*"params"[^{}]*\{[^{}]*\}[^{}]*\}', result_text, ai_content)
+                        else:
+                            logger.warning(f"⚠️ Function returned None")
+                    else:
+                        logger.warning(f"⚠️ Unknown action type: {action_type}")
                         
                 except json.JSONDecodeError as e:
-                    logger.warning(f"Failed to parse action JSON: {e}")
+                    logger.warning(f"⚠️ Failed to parse action JSON: {e}")
+                    logger.warning(f"   JSON string was: {json_str if 'json_str' in locals() else 'N/A'}")
                 except Exception as e:
-                    logger.error(f"Error executing action: {e}")
+                    logger.error(f"❌ Error executing action: {e}")
                     logger.exception("Full error:")
+            else:
+                logger.info("ℹ️ No JSON action detected in response")
             
         except Exception as e:
             logger.error(f"⚠️ Gemini API error: {str(e)}")
