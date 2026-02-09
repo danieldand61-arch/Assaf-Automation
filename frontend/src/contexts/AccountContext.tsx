@@ -19,6 +19,8 @@ interface AccountContextType {
   accounts: Account[]
   activeAccount: Account | null
   loading: boolean
+  showOnboarding: boolean
+  setShowOnboarding: (show: boolean) => void
   fetchAccounts: () => Promise<void>
   switchAccount: (accountId: string) => Promise<void>
   createAccount: (data: Partial<Account>) => Promise<void>
@@ -32,6 +34,7 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [activeAccount, setActiveAccount] = useState<Account | null>(null)
   const [loading, setLoading] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   const apiUrl = getApiUrl()
 
@@ -54,9 +57,15 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       
       setAccounts(response.data.accounts)
       
-      // Set first account as active if none selected
-      if (response.data.accounts.length > 0 && !activeAccount) {
-        setActiveAccount(response.data.accounts[0])
+      // Show onboarding if no accounts
+      if (!response.data.accounts || response.data.accounts.length === 0) {
+        setShowOnboarding(true)
+      } else {
+        setShowOnboarding(false)
+        // Set first account as active if none selected
+        if (!activeAccount) {
+          setActiveAccount(response.data.accounts[0])
+        }
       }
     } catch (error) {
       console.error('Failed to fetch accounts:', error)
@@ -124,6 +133,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         accounts,
         activeAccount,
         loading,
+        showOnboarding,
+        setShowOnboarding,
         fetchAccounts,
         switchAccount,
         createAccount,

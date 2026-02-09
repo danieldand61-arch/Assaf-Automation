@@ -19,6 +19,7 @@ class CreateAccountRequest(BaseModel):
     brand_voice: str = "professional"
     logo_url: Optional[str] = None
     brand_colors: List[str] = []
+    metadata: Optional[dict] = None
 
 class UpdateAccountRequest(BaseModel):
     name: Optional[str] = None

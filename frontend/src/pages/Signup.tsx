@@ -20,8 +20,8 @@ export function Signup() {
 
     try {
       await signUp(email, password, fullName)
-      // Redirect to onboarding after signup
-      navigate('/onboarding', { replace: true })
+      // Redirect to app (onboarding will show as modal)
+      navigate('/app', { replace: true })
     } catch (err: any) {
       setError(err.message || 'Failed to sign up')
     } finally {
