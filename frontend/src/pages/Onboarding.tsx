@@ -92,8 +92,26 @@ export function Onboarding() {
     }
   }
 
-  const handleSkip = () => {
-    navigate('/app', { replace: true })
+  const handleSkip = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      
+      // Create minimal account to allow skip
+      await createAccount({
+        name: user?.email?.split('@')[0] || 'My Business',
+        brand_voice: 'professional',
+        metadata: {}
+      })
+      
+      console.log('✅ Minimal account created (skip), redirecting to /app')
+      navigate('/app', { replace: true })
+    } catch (err: any) {
+      console.error('❌ Failed to skip:', err)
+      setError('Failed to skip onboarding. Please try again.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
