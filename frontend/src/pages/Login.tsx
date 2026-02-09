@@ -19,9 +19,9 @@ export function Login() {
 
     try {
       await signIn(email, password)
-      // Wait a bit for session to be set, then redirect
+      // Always go to /app (will check accounts there)
       setTimeout(() => {
-        navigate('/app')
+        navigate('/app', { replace: true })
       }, 500)
     } catch (err: any) {
       setError(err.message || 'Failed to sign in')

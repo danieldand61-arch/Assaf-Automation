@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AccountProvider } from './contexts/AccountContext'
 import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
+import { Onboarding } from './pages/Onboarding'
 import { AuthCallback } from './pages/AuthCallback'
 import { GoogleAdsCallback } from './pages/GoogleAdsCallback'
 import { Settings } from './pages/Settings'
@@ -100,6 +101,16 @@ function AppRoutes() {
             {/* Admin Routes (public but password protected) */}
             <Route path="/admin" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<Admin />} />
+            
+            {/* Onboarding (protected, for new users) */}
+            <Route 
+              path="/onboarding" 
+              element={
+                <ProtectedRoute>
+                  <Onboarding />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Public Routes */}
             <Route path="/old" element={<App />} />

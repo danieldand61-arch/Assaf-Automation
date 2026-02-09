@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FileText, Megaphone, Video, MessageSquare, Loader2 } from 'lucide-react'
 import { ChatApp } from './ChatApp'
 import { InputSection } from './InputSection'
 import { GoogleAdsGeneration } from './GoogleAdsGeneration'
 import { VideoTranslation } from './VideoTranslation'
 import { PreviewSection } from './PreviewSection'
-import { OnboardingModal } from './OnboardingModal'
 import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
 import Header from './Header'
@@ -19,11 +19,20 @@ interface Tab {
 }
 
 export function MainWorkspace() {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>('chat')
   const { generatedContent, setGeneratedContent } = useContentStore()
-  const { showOnboarding, loading, accounts } = useAccount()
+  const { loading, accounts } = useAccount()
   
-  console.log('🏢 MainWorkspace render - showOnboarding:', showOnboarding, 'loading:', loading, 'accounts:', accounts.length)
+  // Redirect to onboarding if no accounts
+  useEffect(() => {
+    if (!loading && accounts.length === 0) {
+      console.log('🔄 No accounts found, redirecting to onboarding')
+      navigate('/onboarding', { replace: true })
+    }
+  }, [loading, accounts, navigate])
+  
+  console.log('🏢 MainWorkspace render - loading:', loading, 'accounts:', accounts.length)
 
   const handleGenerate = (data: any) => {
     setGeneratedContent(data)
@@ -67,9 +76,6 @@ export function MainWorkspace() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Onboarding Modal */}
-      {showOnboarding && <OnboardingModal />}
-      
       {/* Header */}
       <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <Header />

@@ -20,9 +20,9 @@ export function Signup() {
 
     try {
       await signUp(email, password, fullName)
-      // Wait a bit for session to be set, then redirect
+      // Redirect to onboarding after signup
       setTimeout(() => {
-        navigate('/app', { replace: true })
+        navigate('/onboarding', { replace: true })
       }, 500)
     } catch (err: any) {
       setError(err.message || 'Failed to sign up')
