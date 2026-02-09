@@ -18,7 +18,7 @@ export default function Header() {
           {/* Logo & Title */}
           <div className="flex items-center gap-6">
             <button 
-              onClick={() => navigate('/')}
+              onClick={() => navigate(user ? '/app' : '/')}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
               <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-2 rounded-xl">
