@@ -19,7 +19,10 @@ export function Login() {
 
     try {
       await signIn(email, password)
-      navigate('/app')
+      // Wait a bit for session to be set, then redirect
+      setTimeout(() => {
+        navigate('/app')
+      }, 500)
     } catch (err: any) {
       setError(err.message || 'Failed to sign in')
     } finally {

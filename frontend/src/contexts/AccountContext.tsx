@@ -136,7 +136,9 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
-    fetchAccounts()
+    if (session) {
+      fetchAccounts()
+    }
   }, [session])
 
   return (

@@ -21,9 +21,9 @@ interface Tab {
 export function MainWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>('chat')
   const { generatedContent, setGeneratedContent } = useContentStore()
-  const { showOnboarding, loading } = useAccount()
+  const { showOnboarding, loading, accounts } = useAccount()
   
-  console.log('🏢 MainWorkspace render - showOnboarding:', showOnboarding, 'loading:', loading)
+  console.log('🏢 MainWorkspace render - showOnboarding:', showOnboarding, 'loading:', loading, 'accounts:', accounts.length)
 
   const handleGenerate = (data: any) => {
     setGeneratedContent(data)

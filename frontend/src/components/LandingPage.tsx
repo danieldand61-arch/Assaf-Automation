@@ -8,8 +8,10 @@ export function LandingPage() {
 
   const handleGetStarted = () => {
     if (user) {
+      // Already logged in, go to app
       navigate('/app')
     } else {
+      // Not logged in, go to signup
       navigate('/signup')
     }
   }
