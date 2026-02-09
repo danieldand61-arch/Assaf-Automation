@@ -10,9 +10,9 @@ export function LandingPage() {
 
   const handleGetStarted = () => {
     if (!user) {
-      // Not logged in -> go to signup
+      // Not logged in -> go to signup (FIRST!)
       navigate('/signup')
-    } else if (accounts.length === 0) {
+    } else if (accounts.length === 0 && !accountsLoading) {
       // Logged in but no accounts -> go to onboarding
       navigate('/onboarding')
     } else {

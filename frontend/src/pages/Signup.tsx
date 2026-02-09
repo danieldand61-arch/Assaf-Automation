@@ -20,10 +20,11 @@ export function Signup() {
 
     try {
       await signUp(email, password, fullName)
-      // Redirect to onboarding after signup
+      // Wait longer for Supabase to create user in auth.users
       setTimeout(() => {
+        console.log('✅ Signup complete, redirecting to onboarding')
         navigate('/onboarding', { replace: true })
-      }, 500)
+      }, 2000)
     } catch (err: any) {
       setError(err.message || 'Failed to sign up')
     } finally {

@@ -12,8 +12,8 @@ export function AuthCallback() {
       const accessToken = hashParams.get('access_token')
 
       if (accessToken) {
-        // Wait for auth state to update
-        await new Promise(resolve => setTimeout(resolve, 1000))
+        // Wait longer for Supabase to sync user to auth.users
+        await new Promise(resolve => setTimeout(resolve, 2000))
         
         // Check if user has accounts
         try {

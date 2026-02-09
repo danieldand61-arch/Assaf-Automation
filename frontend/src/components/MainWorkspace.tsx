@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
 import { FileText, Megaphone, Video, MessageSquare, Loader2 } from 'lucide-react'
 import { ChatApp } from './ChatApp'
 import { InputSection } from './InputSection'
@@ -19,18 +18,9 @@ interface Tab {
 }
 
 export function MainWorkspace() {
-  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<TabType>('chat')
   const { generatedContent, setGeneratedContent } = useContentStore()
   const { loading, accounts } = useAccount()
-  
-  // Redirect to onboarding if no accounts
-  useEffect(() => {
-    if (!loading && accounts.length === 0) {
-      console.log('🔄 No accounts found, redirecting to onboarding')
-      navigate('/onboarding', { replace: true })
-    }
-  }, [loading, accounts, navigate])
   
   console.log('🏢 MainWorkspace render - loading:', loading, 'accounts:', accounts.length)
 
