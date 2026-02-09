@@ -68,25 +68,52 @@ export function Onboarding() {
       setLoading(true)
       setError('')
 
-      await createAccount({
-        name: companyName,
-        description: products,
-        industry,
-        target_audience: targetAudience,
-        brand_voice: brandVoice,
-        metadata: {
-          marketing_goal: marketingGoal,
-          website_url: websiteUrl,
-          geographic_focus: geographicFocus,
-          budget_range: budgetRange
-        }
-      })
+      // Retry logic: sometimes user is not yet in auth.users
+      let retries = 3
+      let lastError = null
+      
+      while (retries > 0) {
+        try {
+          await createAccount({
+            name: companyName,
+            description: products,
+            industry,
+            target_audience: targetAudience,
+            brand_voice: brandVoice,
+            metadata: {
+              marketing_goal: marketingGoal,
+              website_url: websiteUrl,
+              geographic_focus: geographicFocus,
+              budget_range: budgetRange
+            }
+          })
 
-      console.log('✅ Account created, redirecting to /app')
-      navigate('/app', { replace: true })
+          console.log('✅ Account created, redirecting to /app')
+          navigate('/app', { replace: true })
+          return
+        } catch (err: any) {
+          lastError = err
+          const errorMsg = err.response?.data?.detail || err.message || ''
+          
+          // If user not in table, wait and retry
+          if (errorMsg.includes('is not present in table') || errorMsg.includes('foreign key constraint')) {
+            console.log(`⏳ User not in DB yet, waiting... (${retries} retries left)`)
+            retries--
+            if (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, 1500))
+              continue
+            }
+          }
+          
+          // Other error or no retries left
+          throw err
+        }
+      }
+      
+      throw lastError
     } catch (err: any) {
       console.error('❌ Failed to create account:', err)
-      setError(err.response?.data?.detail || err.message || 'Failed to create account')
+      setError(err.response?.data?.detail || err.message || 'Failed to create account. Please refresh and try again.')
     } finally {
       setLoading(false)
     }
@@ -97,18 +124,37 @@ export function Onboarding() {
       setLoading(true)
       setError('')
       
-      // Create minimal account to allow skip
-      await createAccount({
-        name: user?.email?.split('@')[0] || 'My Business',
-        brand_voice: 'professional',
-        metadata: {}
-      })
+      // Retry logic for skip as well
+      let retries = 3
       
-      console.log('✅ Minimal account created (skip), redirecting to /app')
-      navigate('/app', { replace: true })
+      while (retries > 0) {
+        try {
+          await createAccount({
+            name: user?.email?.split('@')[0] || 'My Business',
+            brand_voice: 'professional',
+            metadata: {}
+          })
+          
+          console.log('✅ Minimal account created (skip), redirecting to /app')
+          navigate('/app', { replace: true })
+          return
+        } catch (err: any) {
+          const errorMsg = err.response?.data?.detail || err.message || ''
+          
+          if (errorMsg.includes('is not present in table') || errorMsg.includes('foreign key constraint')) {
+            console.log(`⏳ User not in DB yet, waiting... (${retries} retries left)`)
+            retries--
+            if (retries > 0) {
+              await new Promise(resolve => setTimeout(resolve, 1500))
+              continue
+            }
+          }
+          throw err
+        }
+      }
     } catch (err: any) {
       console.error('❌ Failed to skip:', err)
-      setError('Failed to skip onboarding. Please try again.')
+      setError('Please wait a moment and try again. Your account is still being set up.')
     } finally {
       setLoading(false)
     }
