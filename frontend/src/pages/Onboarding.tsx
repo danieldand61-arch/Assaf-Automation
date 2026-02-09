@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 export function Onboarding() {
   const { user } = useAuth()
-  const { createAccount } = useAccount()
+  const { createAccount, accounts, loading: accountsLoading } = useAccount()
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -28,9 +28,26 @@ export function Onboarding() {
   const [budgetRange, setBudgetRange] = useState('')
 
   // Redirect if not logged in
-  if (!user) {
-    navigate('/login', { replace: true })
-    return null
+  useEffect(() => {
+    if (!user) {
+      navigate('/login', { replace: true })
+    }
+  }, [user, navigate])
+
+  // Redirect if user already has accounts
+  useEffect(() => {
+    if (!accountsLoading && accounts.length > 0) {
+      console.log('✅ User already has accounts, redirecting to /app')
+      navigate('/app', { replace: true })
+    }
+  }, [accountsLoading, accounts, navigate])
+
+  if (!user || accountsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Loader2 className="w-12 h-12 animate-spin text-purple-600" />
+      </div>
+    )
   }
 
   const nextStep = () => {
