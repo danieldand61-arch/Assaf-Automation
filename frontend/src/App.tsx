@@ -74,10 +74,6 @@ function App() {
     setActiveTab('content')
   }
 
-  const handleGetStarted = () => {
-    setActiveTab('content')
-  }
-
   const handleTabChange = (tab: ActiveTab) => {
     if (!user && tab === 'video') {
       alert('Please sign in to access this feature')
