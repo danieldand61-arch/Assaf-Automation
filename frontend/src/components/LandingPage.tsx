@@ -1,12 +1,59 @@
-import { Sparkles, Zap, Users, Image as ImageIcon } from 'lucide-react'
-import Header from './Header'
+import { Sparkles, Zap, Users, Image as ImageIcon, ArrowRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 export function LandingPage() {
+  const navigate = useNavigate()
+  const { user } = useAuth()
+
+  const handleGetStarted = () => {
+    if (user) {
+      navigate('/app')
+    } else {
+      navigate('/signup')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Header */}
       <div className="border-b border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm">
-        <Header />
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-white">Joyo Marketing</h1>
+              <p className="text-xs text-gray-600 dark:text-gray-400">AI-Powered Marketing Automation</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            {user ? (
+              <button
+                onClick={() => navigate('/app')}
+                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold hover:shadow-lg transition"
+              >
+                Go to App
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => navigate('/login')}
+                  className="px-4 py-2 text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 transition"
+                >
+                  Login
+                </button>
+                <button
+                  onClick={() => navigate('/signup')}
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold hover:shadow-lg transition"
+                >
+                  Sign Up
+                </button>
+              </>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Hero Section */}
@@ -22,11 +69,20 @@ export function LandingPage() {
           <p className="text-2xl text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600 font-semibold mb-6">
             in Seconds, Not Hours
           </p>
-          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
+          <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-12">
             Transform any website into engaging social media content with AI. Generate posts, images, and captions tailored for Instagram, Facebook, LinkedIn, and more.
           </p>
 
-          <div className="flex items-center justify-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-12">
+          <button
+            onClick={handleGetStarted}
+            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-lg font-semibold rounded-xl shadow-xl hover:shadow-2xl transition transform hover:scale-105"
+          >
+            <Sparkles className="w-6 h-6" />
+            Get Started Free
+            <ArrowRight className="w-5 h-5" />
+          </button>
+
+          <div className="flex items-center justify-center gap-6 text-sm text-gray-600 dark:text-gray-400 mt-8">
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
               No credit card required

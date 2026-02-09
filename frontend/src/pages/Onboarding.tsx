@@ -42,7 +42,7 @@ export function Onboarding() {
           const data = await response.json()
           // If user has accounts, redirect to main app
           if (data.accounts && data.accounts.length > 0) {
-            navigate('/', { replace: true })
+            navigate('/app', { replace: true })
             return
           }
         }
@@ -114,7 +114,7 @@ export function Onboarding() {
       }
 
       // Navigate to main app
-      navigate('/')
+      navigate('/app')
     } catch (err: any) {
       setError(err.message || 'Failed to complete onboarding')
     } finally {
@@ -449,7 +449,7 @@ export function Onboarding() {
             {/* Skip Option */}
             <button
               type="button"
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/app')}
               className="w-full py-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 text-sm transition"
             >
               Skip for now

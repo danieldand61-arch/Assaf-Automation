@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, Megaphone, Video, MessageSquare, Loader2, Home } from 'lucide-react'
+import { FileText, Megaphone, Video, MessageSquare, Loader2 } from 'lucide-react'
 import { ChatApp } from './ChatApp'
 import { InputSection } from './InputSection'
 import { GoogleAdsGeneration } from './GoogleAdsGeneration'
 import { VideoTranslation } from './VideoTranslation'
 import { PreviewSection } from './PreviewSection'
-import { LandingPage } from './LandingPage'
 import { useContentStore } from '../store/contentStore'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
 import Header from './Header'
 
-type TabType = 'home' | 'chat' | 'social' | 'ads' | 'video'
+type TabType = 'chat' | 'social' | 'ads' | 'video'
 
 interface Tab {
   id: TabType
@@ -23,7 +22,7 @@ interface Tab {
 export function MainWorkspace() {
   const navigate = useNavigate()
   const { session } = useAuth()
-  const [activeTab, setActiveTab] = useState<TabType>('home')
+  const [activeTab, setActiveTab] = useState<TabType>('chat')
   const [checkingAccount, setCheckingAccount] = useState(true)
   const { generatedContent, setGeneratedContent } = useContentStore()
 
@@ -45,6 +44,10 @@ export function MainWorkspace() {
             navigate('/onboarding', { replace: true })
             return
           }
+        } else if (response.status === 404) {
+          // No accounts found
+          navigate('/onboarding', { replace: true })
+          return
         }
       } catch (err) {
         console.error('Failed to check accounts:', err)
@@ -76,11 +79,6 @@ export function MainWorkspace() {
   }
 
   const tabs: Tab[] = [
-    {
-      id: 'home',
-      name: 'Home',
-      icon: <Home className="w-5 h-5" />
-    },
     {
       id: 'chat',
       name: 'AI Chat',
@@ -134,7 +132,6 @@ export function MainWorkspace() {
 
       {/* Tab Content */}
       <div className="flex-1 overflow-hidden">
-        {activeTab === 'home' && <LandingPage />}
         {activeTab === 'chat' && <ChatApp />}
         {activeTab === 'social' && (
           <div className="flex h-full">

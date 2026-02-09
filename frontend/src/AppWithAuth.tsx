@@ -12,6 +12,8 @@ import { Scheduled } from './pages/Scheduled'
 import { Privacy } from './pages/Privacy'
 import { Terms } from './pages/Terms'
 import { MainWorkspace } from './components/MainWorkspace'
+import { LandingPage } from './components/LandingPage'
+import { Admin } from './pages/Admin'
 import App from './App'
 import { Loader2 } from 'lucide-react'
 
@@ -58,9 +60,12 @@ function AppRoutes() {
 
   return (
     <Routes>
+            {/* Public Landing Page */}
+            <Route path="/" element={<LandingPage />} />
+            
             {/* Protected Routes */}
             <Route 
-              path="/" 
+              path="/app" 
               element={
                 <ProtectedRoute>
                   <MainWorkspace />
@@ -88,6 +93,14 @@ function AppRoutes() {
               element={
                 <ProtectedRoute>
                   <Scheduled />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin" 
+              element={
+                <ProtectedRoute>
+                  <Admin />
                 </ProtectedRoute>
               } 
             />

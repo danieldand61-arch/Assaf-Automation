@@ -28,13 +28,13 @@ async def generate_posts(
     
     # Use Gemini 2.5 Flash (as requested)
     model_name = 'gemini-3-flash-preview'
-    logger.info(f"🔍 DEBUG: Using model: {model_name}")
+    logger.info(f" DEBUG: Using model: {model_name}")
     
     try:
         model = genai.GenerativeModel(model_name)
-        logger.info(f"🔍 DEBUG: Model object created successfully")
+        logger.info(f" DEBUG: Model object created successfully")
         
-        logger.info(f"🔍 DEBUG: Calling generate_content...")
+        logger.info(f" DEBUG: Calling generate_content...")
         response = model.generate_content(
             prompt,
             generation_config={

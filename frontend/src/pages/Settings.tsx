@@ -45,7 +45,7 @@ export function Settings() {
   }, [searchParams])
 
   if (!user) {
-    navigate('/login')
+    navigate('/login', { replace: true })
     return null
   }
 
@@ -95,11 +95,11 @@ export function Settings() {
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-4">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/app')}
               className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
               <ArrowLeft className="w-5 h-5" />
-              <span className="font-medium">Back to Home</span>
+              <span className="font-medium">Back to App</span>
             </button>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">

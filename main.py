@@ -104,6 +104,20 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Credits tracking will NOT be available!")
 
+# Try to load admin router
+logger.info("🔄 Attempting to import admin router...")
+try:
+    from routers import admin
+    logger.info("✅ Admin router imported successfully")
+    
+    logger.info("🔄 Registering admin router endpoints...")
+    app.include_router(admin.router)
+    logger.info("✅ Admin router registered")
+except Exception as e:
+    logger.error(f"❌ Admin router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Admin features will NOT be available!")
+
 # Try to load video translation router
 logger.info("🔄 Attempting to import video translation router...")
 try:
