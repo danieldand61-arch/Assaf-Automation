@@ -102,16 +102,6 @@ function AppRoutes() {
             <Route path="/admin" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<Admin />} />
             
-            {/* Semi-Protected Routes */}
-            <Route 
-              path="/onboarding" 
-              element={
-                <ProtectedRoute>
-                  <Onboarding />
-                </ProtectedRoute>
-              } 
-            />
-            
             {/* Public Routes */}
             <Route path="/old" element={<App />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
