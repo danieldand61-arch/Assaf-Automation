@@ -1,19 +1,32 @@
 import { Sparkles, Zap, Users, Image as ImageIcon, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { useAccount } from '../contexts/AccountContext'
 
 export function LandingPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { accounts, loading: accountsLoading } = useAccount()
 
   const handleGetStarted = () => {
-    if (user) {
-      // Already logged in, go to app
-      navigate('/app')
-    } else {
-      // Not logged in, go to signup
+    if (!user) {
+      // Not logged in -> go to signup
       navigate('/signup')
+    } else if (accounts.length === 0) {
+      // Logged in but no accounts -> go to onboarding
+      navigate('/onboarding')
+    } else {
+      // Logged in with accounts -> go to app
+      navigate('/app')
     }
+  }
+  
+  // Button text based on state
+  const getButtonText = () => {
+    if (!user) return 'Get Started Free'
+    if (accountsLoading) return 'Loading...'
+    if (accounts.length === 0) return 'Complete Setup'
+    return 'Go to App'
   }
 
   return (
@@ -32,12 +45,22 @@ export function LandingPage() {
           </div>
           <div className="flex items-center gap-4">
             {user ? (
-              <button
-                onClick={() => navigate('/app')}
-                className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold hover:shadow-lg transition"
-              >
-                Go to App
-              </button>
+              <>
+                {accounts.length === 0 && !accountsLoading && (
+                  <button
+                    onClick={() => navigate('/onboarding')}
+                    className="px-4 py-2 text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 transition font-medium"
+                  >
+                    Complete Setup
+                  </button>
+                )}
+                <button
+                  onClick={() => navigate('/app')}
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-semibold hover:shadow-lg transition"
+                >
+                  {accounts.length === 0 ? 'Skip to App' : 'Go to App'}
+                </button>
+              </>
             ) : (
               <>
                 <button
@@ -77,10 +100,11 @@ export function LandingPage() {
 
           <button
             onClick={handleGetStarted}
-            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-lg font-semibold rounded-xl shadow-xl hover:shadow-2xl transition transform hover:scale-105"
+            disabled={accountsLoading}
+            className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white text-lg font-semibold rounded-xl shadow-xl hover:shadow-2xl transition transform hover:scale-105 disabled:opacity-50"
           >
             <Sparkles className="w-6 h-6" />
-            Get Started Free
+            {getButtonText()}
             <ArrowRight className="w-5 h-5" />
           </button>
 
