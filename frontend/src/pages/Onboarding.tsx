@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 export function Onboarding() {
   const { user } = useAuth()
-  const { createAccount, accounts, loading: accountsLoading } = useAccount()
+  const { createAccount, updateAccount, accounts, loading: accountsLoading } = useAccount()
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -27,6 +27,12 @@ export function Onboarding() {
   const [geographicFocus, setGeographicFocus] = useState('')
   const [budgetRange, setBudgetRange] = useState('')
 
+  // Find existing account that needs onboarding (created by DB trigger)
+  const incompleteAccount = useMemo(
+    () => accounts.find(a => a.metadata?.onboarding_complete === false),
+    [accounts]
+  )
+
   // Redirect if not logged in
   useEffect(() => {
     if (!user) {
@@ -34,13 +40,29 @@ export function Onboarding() {
     }
   }, [user, navigate])
 
-  // Redirect if user already has accounts
+  // Redirect if all accounts already completed onboarding
   useEffect(() => {
-    if (!accountsLoading && accounts.length > 0) {
-      console.log('✅ User already has accounts, redirecting to /app')
+    if (!accountsLoading && accounts.length > 0 && !incompleteAccount) {
       navigate('/app', { replace: true })
     }
-  }, [accountsLoading, accounts, navigate])
+  }, [accountsLoading, accounts, incompleteAccount, navigate])
+
+  // Pre-fill form with existing account data (if trigger created one)
+  useEffect(() => {
+    if (incompleteAccount) {
+      if (incompleteAccount.name && !incompleteAccount.name.endsWith(' Account')) {
+        setCompanyName(incompleteAccount.name)
+      }
+      if (incompleteAccount.industry) setIndustry(incompleteAccount.industry)
+      if (incompleteAccount.description) setProducts(incompleteAccount.description)
+      if (incompleteAccount.target_audience) setTargetAudience(incompleteAccount.target_audience)
+      if (incompleteAccount.brand_voice) setBrandVoice(incompleteAccount.brand_voice)
+      if (incompleteAccount.metadata?.marketing_goal) setMarketingGoal(incompleteAccount.metadata.marketing_goal)
+      if (incompleteAccount.metadata?.website_url) setWebsiteUrl(incompleteAccount.metadata.website_url)
+      if (incompleteAccount.metadata?.geographic_focus) setGeographicFocus(incompleteAccount.metadata.geographic_focus)
+      if (incompleteAccount.metadata?.budget_range) setBudgetRange(incompleteAccount.metadata.budget_range)
+    }
+  }, [incompleteAccount])
 
   if (!user || accountsLoading) {
     return (
@@ -58,107 +80,54 @@ export function Onboarding() {
     if (currentStep > 1) setCurrentStep(currentStep - 1)
   }
 
-  const handleSubmit = async () => {
+  const buildAccountData = (onboardingComplete: boolean) => ({
+    name: companyName || user?.email?.split('@')[0] || 'My Business',
+    description: products || undefined,
+    industry: industry || undefined,
+    target_audience: targetAudience || undefined,
+    brand_voice: brandVoice,
+    metadata: {
+      marketing_goal: marketingGoal || undefined,
+      website_url: websiteUrl || undefined,
+      geographic_focus: geographicFocus || undefined,
+      budget_range: budgetRange || undefined,
+      onboarding_complete: onboardingComplete,
+    }
+  })
+
+  const saveAccount = async (onboardingComplete: boolean) => {
+    setLoading(true)
+    setError('')
+
+    try {
+      if (incompleteAccount) {
+        // UPDATE existing account (created by DB trigger)
+        await updateAccount(incompleteAccount.id, buildAccountData(onboardingComplete))
+      } else {
+        // Fallback: CREATE new account (if trigger wasn't deployed)
+        await createAccount({
+          ...buildAccountData(onboardingComplete),
+          metadata: { ...buildAccountData(onboardingComplete).metadata }
+        })
+      }
+      navigate('/app', { replace: true })
+    } catch (err: any) {
+      console.error('❌ Onboarding error:', err)
+      setError(err.response?.data?.detail || err.message || 'Failed to save. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSubmit = () => {
     if (!companyName) {
       setError('Company name is required')
       return
     }
-
-    try {
-      setLoading(true)
-      setError('')
-
-      // Retry logic: sometimes user is not yet in auth.users
-      let retries = 3
-      let lastError = null
-      
-      while (retries > 0) {
-        try {
-          await createAccount({
-            name: companyName,
-            description: products,
-            industry,
-            target_audience: targetAudience,
-            brand_voice: brandVoice,
-            metadata: {
-              marketing_goal: marketingGoal,
-              website_url: websiteUrl,
-              geographic_focus: geographicFocus,
-              budget_range: budgetRange
-            }
-          })
-
-          console.log('✅ Account created, redirecting to /app')
-          navigate('/app', { replace: true })
-          return
-        } catch (err: any) {
-          lastError = err
-          const errorMsg = err.response?.data?.detail || err.message || ''
-          
-          // If user not in table, wait and retry
-          if (errorMsg.includes('is not present in table') || errorMsg.includes('foreign key constraint')) {
-            console.log(`⏳ User not in DB yet, waiting... (${retries} retries left)`)
-            retries--
-            if (retries > 0) {
-              await new Promise(resolve => setTimeout(resolve, 1500))
-              continue
-            }
-          }
-          
-          // Other error or no retries left
-          throw err
-        }
-      }
-      
-      throw lastError
-    } catch (err: any) {
-      console.error('❌ Failed to create account:', err)
-      setError(err.response?.data?.detail || err.message || 'Failed to create account. Please refresh and try again.')
-    } finally {
-      setLoading(false)
-    }
+    saveAccount(true)
   }
 
-  const handleSkip = async () => {
-    try {
-      setLoading(true)
-      setError('')
-      
-      // Retry logic for skip as well
-      let retries = 3
-      
-      while (retries > 0) {
-        try {
-          await createAccount({
-            name: user?.email?.split('@')[0] || 'My Business',
-            brand_voice: 'professional',
-            metadata: {}
-          })
-          
-          console.log('✅ Minimal account created (skip), redirecting to /app')
-          navigate('/app', { replace: true })
-          return
-        } catch (err: any) {
-          const errorMsg = err.response?.data?.detail || err.message || ''
-          
-          if (errorMsg.includes('is not present in table') || errorMsg.includes('foreign key constraint')) {
-            console.log(`⏳ User not in DB yet, waiting... (${retries} retries left)`)
-            retries--
-            if (retries > 0) {
-              await new Promise(resolve => setTimeout(resolve, 1500))
-              continue
-            }
-          }
-          throw err
-        }
-      }
-    } catch (err: any) {
-      console.error('❌ Failed to skip:', err)
-      setError('Please wait a moment and try again. Your account is still being set up.')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const handleSkip = () => saveAccount(true)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">

@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 import logging
+import asyncio
 from database.supabase_client import get_supabase
 from middleware.auth import get_current_user
 
@@ -29,6 +30,7 @@ class UpdateAccountRequest(BaseModel):
     brand_voice: Optional[str] = None
     logo_url: Optional[str] = None
     brand_colors: Optional[List[str]] = None
+    metadata: Optional[dict] = None
     default_language: Optional[str] = None
     default_include_emojis: Optional[bool] = None
     default_include_logo: Optional[bool] = None
@@ -98,33 +100,42 @@ async def get_account(account_id: str, user = Depends(get_current_user)):
 @router.post("")
 async def create_account(request: CreateAccountRequest, user = Depends(get_current_user)):
     """
-    Create a new business account
+    Create a new business account.
+    Includes retry logic for race condition where auth.users row
+    isn't committed yet when JWT is already available.
     """
-    try:
-        supabase = get_supabase()
-        
-        response = supabase.table("accounts").insert({
-            "user_id": user["user_id"],
-            "name": request.name,
-            "description": request.description,
-            "industry": request.industry,
-            "target_audience": request.target_audience,
-            "brand_voice": request.brand_voice,
-            "logo_url": request.logo_url,
-            "brand_colors": request.brand_colors,
-            "metadata": request.metadata or {}
-        }).execute()
-        
-        logger.info(f"✅ Account created: {request.name} by {user['email']}")
-        
-        return {
-            "success": True,
-            "account": response.data[0]
-        }
-        
-    except Exception as e:
-        logger.error(f"❌ Error creating account: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+    supabase = get_supabase()
+    max_retries = 5
+    last_error = None
+    
+    for attempt in range(max_retries):
+        try:
+            response = supabase.table("accounts").insert({
+                "user_id": user["user_id"],
+                "name": request.name,
+                "description": request.description,
+                "industry": request.industry,
+                "target_audience": request.target_audience,
+                "brand_voice": request.brand_voice,
+                "logo_url": request.logo_url,
+                "brand_colors": request.brand_colors,
+                "metadata": request.metadata or {}
+            }).execute()
+            
+            logger.info(f"✅ Account created: {request.name} by {user['email']}")
+            return {"success": True, "account": response.data[0]}
+            
+        except Exception as e:
+            last_error = e
+            error_msg = str(e)
+            if ("is not present in table" in error_msg or "foreign key" in error_msg.lower()) and attempt < max_retries - 1:
+                logger.warning(f"⏳ User not in DB yet, retrying... ({attempt + 1}/{max_retries})")
+                await asyncio.sleep(1)
+                continue
+            break
+    
+    logger.error(f"❌ Error creating account: {str(last_error)}")
+    raise HTTPException(status_code=500, detail=str(last_error))
 
 
 @router.patch("/{account_id}")
@@ -136,7 +147,7 @@ async def update_account(account_id: str, request: UpdateAccountRequest, user = 
         supabase = get_supabase()
         
         # Verify ownership
-        account = supabase.table("accounts").select("user_id").eq("id", account_id).single().execute()
+        account = supabase.table("accounts").select("user_id, metadata").eq("id", account_id).single().execute()
         if not account.data or account.data["user_id"] != user["user_id"]:
             raise HTTPException(status_code=403, detail="Access denied")
         
@@ -145,6 +156,12 @@ async def update_account(account_id: str, request: UpdateAccountRequest, user = 
         
         if not update_data:
             raise HTTPException(status_code=400, detail="No fields to update")
+        
+        # Merge metadata if provided (don't overwrite existing keys)
+        if 'metadata' in update_data:
+            existing_metadata = account.data.get('metadata', {}) or {}
+            new_metadata = update_data['metadata'] or {}
+            update_data['metadata'] = {**existing_metadata, **new_metadata}
         
         response = supabase.table("accounts").update(update_data).eq("id", account_id).execute()
         

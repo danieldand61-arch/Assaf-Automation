@@ -15,12 +15,13 @@ BEGIN
         split_part(NEW.email, '@', 1)
     ) || ' Account';
     
-    -- Insert default account
-    INSERT INTO public.accounts (user_id, name, description)
+    -- Insert default account (marked as needing onboarding)
+    INSERT INTO public.accounts (user_id, name, description, metadata)
     VALUES (
         NEW.id,
         account_name,
-        'Default account'
+        'Default account',
+        '{"onboarding_complete": false}'::jsonb
     )
     RETURNING id INTO new_account_id;
     

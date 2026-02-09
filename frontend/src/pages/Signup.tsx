@@ -20,11 +20,8 @@ export function Signup() {
 
     try {
       await signUp(email, password, fullName)
-      // Wait longer for Supabase to create user in auth.users
-      setTimeout(() => {
-        console.log('✅ Signup complete, redirecting to onboarding')
-        navigate('/onboarding', { replace: true })
-      }, 2000)
+      // signUp sets user/session directly, so ProtectedRoute on /onboarding will pass
+      navigate('/onboarding', { replace: true })
     } catch (err: any) {
       setError(err.message || 'Failed to sign up')
     } finally {

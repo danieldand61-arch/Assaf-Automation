@@ -12,21 +12,18 @@ export function AuthCallback() {
       const accessToken = hashParams.get('access_token')
 
       if (accessToken) {
-        // Wait longer for Supabase to sync user to auth.users
-        await new Promise(resolve => setTimeout(resolve, 2000))
-        
-        // Check if user has accounts
+        // Check if user needs onboarding
         try {
           const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'}/api/accounts`, {
-            headers: {
-              'Authorization': `Bearer ${accessToken}`
-            }
+            headers: { 'Authorization': `Bearer ${accessToken}` }
           })
           
           if (response.ok) {
             const data = await response.json()
-            // If no accounts, go to onboarding
-            if (!data.accounts || data.accounts.length === 0) {
+            const needsOnboarding = !data.accounts?.length ||
+              data.accounts.some((a: any) => a.metadata?.onboarding_complete === false)
+            
+            if (needsOnboarding) {
               navigate('/onboarding', { replace: true })
               return
             }
@@ -35,10 +32,8 @@ export function AuthCallback() {
           console.error('Failed to check accounts:', err)
         }
         
-        // Has accounts or error checking, go to app
         navigate('/app', { replace: true })
       } else {
-        // No valid token, redirect to login
         navigate('/login', { replace: true })
       }
     }

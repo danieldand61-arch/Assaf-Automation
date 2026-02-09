@@ -13,6 +13,7 @@ interface Account {
   logo_url?: string
   brand_colors: string[]
   metadata?: {
+    onboarding_complete?: boolean
     marketing_goal?: string
     website_url?: string
     geographic_focus?: string

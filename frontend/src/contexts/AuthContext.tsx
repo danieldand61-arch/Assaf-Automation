@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string, fullName?: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -50,6 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     })
     if (error) throw error
+    // Set user/session immediately so navigation works before onAuthStateChange fires
+    if (data.session) {
+      setSession(data.session)
+      setUser(data.session.user)
+    }
   }
 
   const signIn = async (email: string, password: string) => {
