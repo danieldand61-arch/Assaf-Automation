@@ -15,7 +15,8 @@ async def generate_google_ads(
     target_location: str = "",
     language: str = "en",
     user_id: str = None,
-    account_id: str = None
+    account_id: str = None,
+    account_context: Dict = None
 ) -> Dict:
     """
     Generates complete Google Responsive Search Ads package
@@ -31,7 +32,7 @@ async def generate_google_ads(
     try:
         logger.info("🎯 Building prompt...")
         prompt = _build_google_ads_prompt(
-            website_data, keywords, target_location, language
+            website_data, keywords, target_location, language, account_context
         )
         logger.info(f"✅ Prompt built (length: {len(prompt)} chars)")
     except Exception as e:
@@ -108,7 +109,8 @@ def _build_google_ads_prompt(
     website_data: Dict,
     keywords: str,
     target_location: str,
-    language: str
+    language: str,
+    account_context: Dict = None
 ) -> str:
     """Builds comprehensive prompt for Google Ads RSA"""
     
@@ -137,6 +139,29 @@ def _build_google_ads_prompt(
         features = 'See keywords'
         industry = 'general'
     
+    # Add account context (from onboarding)
+    company_context = ""
+    if account_context:
+        company_context = f"""
+
+═══════════════════════════════════════════════════════════════
+📋 COMPANY PROFILE (use as flexible context, can be overridden):
+═══════════════════════════════════════════════════════════════
+- Company Name: {account_context.get('name', 'N/A')}
+- Industry: {account_context.get('industry', 'N/A')}
+- Target Audience: {account_context.get('target_audience', 'N/A')}
+- Brand Voice: {account_context.get('brand_voice', 'professional')}
+{f"- Products/Services: {account_context.get('description')}" if account_context.get('description') else ''}
+
+METADATA (from onboarding):
+{f"- Marketing Goal: {account_context.get('metadata', {}).get('marketing_goal', 'N/A')}" if account_context.get('metadata') else ''}
+{f"- Website: {account_context.get('metadata', {}).get('website_url', 'N/A')}" if account_context.get('metadata') else ''}
+{f"- Geographic Focus: {account_context.get('metadata', {}).get('geographic_focus', 'N/A')}" if account_context.get('metadata') else ''}
+{f"- Budget Range: {account_context.get('metadata', {}).get('budget_range', 'N/A')}" if account_context.get('metadata') else ''}
+
+⚠️ IMPORTANT: This company profile is DEFAULT context. If user explicitly says "don't use my company data" or provides different business info in keywords, IGNORE this profile and use their explicit instructions instead.
+"""
+    
     prompt = f"""
 You are a GOOGLE ADS EXPERT creating MAXIMUM PERFORMANCE Responsive Search Ads (RSA).
 
@@ -148,6 +173,7 @@ You are a GOOGLE ADS EXPERT creating MAXIMUM PERFORMANCE Responsive Search Ads (
 - Products/Services: {products}
 - Key Features: {features}
 - Industry: {industry}
+{company_context}
 
 ═══════════════════════════════════════════════════════════════
 🎯 CAMPAIGN TARGETING:

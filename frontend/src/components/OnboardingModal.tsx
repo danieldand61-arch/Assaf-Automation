@@ -76,9 +76,12 @@ export function OnboardingModal() {
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
               Welcome to Joyo Marketing! 🎉
             </h1>
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-gray-600 dark:text-gray-400 mb-3">
               Tell us about your company so we can create better marketing content for you
             </p>
+            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">
+              💡 <strong>Note:</strong> This information will be used as context for AI content generation. You can override it anytime by saying "don't use my company data" in your prompts.
+            </div>
           </div>
 
           {/* Progress Bar */}

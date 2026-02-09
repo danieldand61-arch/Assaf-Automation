@@ -184,26 +184,31 @@ class FunctionExecutor:
         from database.supabase_client import get_supabase
         
         try:
-            # Get website URL from args or from account metadata
+            # Get account context (name, industry, metadata, etc.)
+            account_context = None
             website_url = args.get("website_url")
             
-            # If no URL provided, try to get from account profile
-            if not website_url and self.account_id:
+            # Load account data for context
+            if self.account_id:
                 try:
                     supabase = get_supabase()
                     account = supabase.table("accounts")\
-                        .select("metadata")\
+                        .select("*")\
                         .eq("id", self.account_id)\
                         .single()\
                         .execute()
                     
                     if account.data:
+                        account_context = account.data
                         metadata = account.data.get('metadata', {})
-                        website_url = metadata.get('website_url')
-                        if website_url:
-                            logger.info(f"🔗 Using website URL from account profile: {website_url}")
+                        
+                        # If no URL provided in args, try to get from account profile
+                        if not website_url:
+                            website_url = metadata.get('website_url')
+                            if website_url:
+                                logger.info(f"🔗 Using website URL from account profile: {website_url}")
                 except Exception as e:
-                    logger.warning(f"Could not load account website URL: {e}")
+                    logger.warning(f"Could not load account data: {e}")
             
             # Scrape website if URL available
             website_data = None
@@ -221,7 +226,8 @@ class FunctionExecutor:
                 target_location=args.get("target_location", ""),
                 language=args.get("language", "en"),
                 user_id=self.user_id,
-                account_id=self.account_id
+                account_id=self.account_id,
+                account_context=account_context
             )
             
             return {
