@@ -101,17 +101,39 @@ async def get_account(account_id: str, user = Depends(get_current_user)):
 async def create_account(request: CreateAccountRequest, user = Depends(get_current_user)):
     """
     Create a new business account.
-    Includes retry logic for race condition where auth.users row
-    isn't committed yet when JWT is already available.
+    Includes retry logic for race condition where Supabase Auth returns JWT
+    before auth.users row is committed to the database.
+    
+    postgrest-py APIError has .code, .message, .details attributes;
+    str(e) returns empty string due to a bug in __init__, so we check attrs directly.
     """
     supabase = get_supabase()
-    max_retries = 5
+    user_id = user["user_id"]
+    
+    # Pre-check: verify user exists in Supabase Auth service
+    try:
+        auth_user = supabase.auth.admin.get_user_by_id(user_id)
+        if not auth_user or not getattr(auth_user, 'user', None):
+            logger.error(f"❌ User {user_id} not found in Supabase Auth")
+            raise HTTPException(
+                status_code=404,
+                detail="User not found. Please sign out and register again."
+            )
+        logger.info(f"✅ User {user_id} confirmed in Supabase Auth")
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Non-blocking: if admin API fails, proceed and let DB handle it
+        logger.warning(f"⚠️ Auth admin check failed (proceeding anyway): {e}")
+    
+    # Retry INSERT — auth.users row may not be committed yet
+    max_retries = 10
     last_error = None
     
     for attempt in range(max_retries):
         try:
             response = supabase.table("accounts").insert({
-                "user_id": user["user_id"],
+                "user_id": user_id,
                 "name": request.name,
                 "description": request.description,
                 "industry": request.industry,
@@ -127,15 +149,36 @@ async def create_account(request: CreateAccountRequest, user = Depends(get_curre
             
         except Exception as e:
             last_error = e
-            error_msg = str(e)
-            if ("is not present in table" in error_msg or "foreign key" in error_msg.lower()) and attempt < max_retries - 1:
-                logger.warning(f"⏳ User not in DB yet, retrying... ({attempt + 1}/{max_retries})")
+            # postgrest APIError: check .code/.message/.details (str(e) is empty!)
+            err_code = getattr(e, 'code', '') or ''
+            err_msg = getattr(e, 'message', '') or ''
+            err_details = getattr(e, 'details', '') or ''
+            err_repr = repr(e)
+            
+            is_fk_error = (
+                err_code == '23503'
+                or 'foreign key' in err_msg.lower()
+                or 'is not present in table' in err_details.lower()
+                or 'foreign key' in err_repr.lower()
+            )
+            
+            if is_fk_error and attempt < max_retries - 1:
+                logger.warning(
+                    f"⏳ FK violation: user {user_id} not in auth.users yet. "
+                    f"Retry {attempt + 1}/{max_retries}..."
+                )
                 await asyncio.sleep(1)
                 continue
+            
+            logger.error(
+                f"❌ Create account failed: code={err_code}, "
+                f"msg={err_msg}, details={err_details}"
+            )
             break
     
-    logger.error(f"❌ Error creating account: {str(last_error)}")
-    raise HTTPException(status_code=500, detail=str(last_error))
+    # Return meaningful error
+    err_detail = getattr(last_error, 'message', '') or repr(last_error)
+    raise HTTPException(status_code=500, detail=err_detail)
 
 
 @router.patch("/{account_id}")
