@@ -62,12 +62,15 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         headers: getAuthHeaders(),
       })
       
+      console.log('📊 Fetched accounts:', response.data.accounts)
       setAccounts(response.data.accounts)
       
       // Show onboarding if no accounts
       if (!response.data.accounts || response.data.accounts.length === 0) {
+        console.log('✨ No accounts found, showing onboarding')
         setShowOnboarding(true)
       } else {
+        console.log('✅ Accounts exist, hiding onboarding')
         setShowOnboarding(false)
         // Set first account as active if none selected
         if (!activeAccount) {
@@ -76,6 +79,8 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error('Failed to fetch accounts:', error)
+      // On error, show onboarding to be safe
+      setShowOnboarding(true)
     } finally {
       setLoading(false)
     }

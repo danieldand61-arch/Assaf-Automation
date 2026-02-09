@@ -3,10 +3,12 @@ import { Sparkles, Loader2 } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 
 export function OnboardingModal() {
-  const { createAccount, setShowOnboarding } = useAccount()
+  const { createAccount, setShowOnboarding, fetchAccounts } = useAccount()
   const [currentStep, setCurrentStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  
+  console.log('🎨 OnboardingModal rendered')
 
   // Step 1
   const [companyName, setCompanyName] = useState('')
@@ -55,6 +57,11 @@ export function OnboardingModal() {
         }
       })
 
+      console.log('✅ Account created successfully')
+      
+      // Refresh accounts to update state
+      await fetchAccounts()
+      
       // Close modal
       setShowOnboarding(false)
     } catch (err: any) {
