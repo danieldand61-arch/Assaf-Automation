@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { getApiUrl } from '../lib/api'
-import { Loader2, Search, ArrowUpDown, Users, DollarSign, Activity } from 'lucide-react'
+import { Loader2, Search, ArrowUpDown, Users, DollarSign, Activity, LogOut } from 'lucide-react'
 
 interface UserStats {
   user_id: string
@@ -17,7 +17,7 @@ interface UserStats {
 }
 
 export function Admin() {
-  const { session, user } = useAuth()
+  const { session } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<UserStats[]>([])
@@ -25,6 +25,15 @@ export function Admin() {
   const [sortBy, setSortBy] = useState<'email' | 'credits' | 'requests'>('credits')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [error, setError] = useState('')
+
+  // Check admin access
+  useEffect(() => {
+    const hasAccess = sessionStorage.getItem('admin_access')
+    if (!hasAccess) {
+      navigate('/admin', { replace: true })
+      return
+    }
+  }, [navigate])
 
   useEffect(() => {
     loadUsers()
@@ -97,12 +106,24 @@ export function Admin() {
                 User credits usage and statistics
               </p>
             </div>
-            <button
-              onClick={() => navigate('/app')}
-              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
-            >
-              Back to App
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={() => navigate('/')}
+                className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition"
+              >
+                Back to Home
+              </button>
+              <button
+                onClick={() => {
+                  sessionStorage.removeItem('admin_access')
+                  navigate('/admin')
+                }}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+            </div>
           </div>
 
           {/* Stats Cards */}

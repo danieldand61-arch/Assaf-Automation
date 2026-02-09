@@ -230,7 +230,7 @@ export function AppWithChat() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
-          {activeTab === 'landing' && <LandingPage onGetStarted={handleGetStarted} />}
+          {activeTab === 'landing' && <LandingPage />}
           
           {activeTab === 'content' && (
             <>

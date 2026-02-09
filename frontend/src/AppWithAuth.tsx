@@ -14,6 +14,7 @@ import { Terms } from './pages/Terms'
 import { MainWorkspace } from './components/MainWorkspace'
 import { LandingPage } from './components/LandingPage'
 import { Admin } from './pages/Admin'
+import { AdminLogin } from './pages/AdminLogin'
 import App from './App'
 import { Loader2 } from 'lucide-react'
 
@@ -96,14 +97,10 @@ function AppRoutes() {
                 </ProtectedRoute>
               } 
             />
-            <Route 
-              path="/admin" 
-              element={
-                <ProtectedRoute>
-                  <Admin />
-                </ProtectedRoute>
-              } 
-            />
+            
+            {/* Admin Routes (public but password protected) */}
+            <Route path="/admin" element={<AdminLogin />} />
+            <Route path="/admin/dashboard" element={<Admin />} />
             
             {/* Semi-Protected Routes */}
             <Route 

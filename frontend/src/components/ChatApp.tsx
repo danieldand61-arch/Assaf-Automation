@@ -168,10 +168,6 @@ export function ChatApp() {
     }
   }
 
-  const handleGetStarted = async () => {
-    // loadChats will handle creating first chat if needed
-    setShowChat(true)
-  }
 
   const createNewChat = async () => {
     if (!session) return
