@@ -12,6 +12,13 @@ interface Account {
   brand_voice: string
   logo_url?: string
   brand_colors: string[]
+  metadata?: {
+    marketing_goal?: string
+    website_url?: string
+    geographic_focus?: string
+    budget_range?: string
+    [key: string]: any
+  }
   role?: string
 }
 
