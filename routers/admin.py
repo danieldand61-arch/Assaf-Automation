@@ -42,29 +42,56 @@ async def get_users_stats(user = Depends(get_current_user)):
     try:
         supabase = get_supabase()
         
-        # Get all users with their credits usage
-        result = supabase.rpc('get_users_credits_stats').execute()
+        logger.info("🔍 Fetching users stats...")
         
-        if result.data:
-            return {
-                "success": True,
-                "users": result.data
-            }
+        # Try RPC first
+        try:
+            result = supabase.rpc('get_users_credits_stats').execute()
+            if result.data and len(result.data) > 0:
+                logger.info(f"✅ RPC returned {len(result.data)} users")
+                return {
+                    "success": True,
+                    "users": result.data
+                }
+        except Exception as rpc_error:
+            logger.warning(f"⚠️ RPC failed: {rpc_error}, falling back to manual query")
         
-        # Fallback: manual query if RPC not available
+        # Fallback: manual query
+        logger.info("🔄 Using manual query fallback...")
+        
         # Get all user_credits
         credits_result = supabase.table("user_credits").select("*").execute()
+        logger.info(f"💰 Found {len(credits_result.data or [])} user_credits records")
         
         # Get usage breakdown by service
         usage_result = supabase.table("credits_usage")\
             .select("user_id, service_type, credits_spent, created_at")\
             .execute()
+        logger.info(f"📊 Found {len(usage_result.data or [])} usage records")
         
-        # Get user details from auth
+        # Get user details from auth (try different approaches)
         users_data = []
         
-        for credit_record in (credits_result.data or []):
+        # If no credits yet, return empty list
+        if not credits_result.data:
+            logger.info("ℹ️ No user_credits records found")
+            return {
+                "success": True,
+                "users": []
+            }
+        
+        for credit_record in credits_result.data:
             user_id = credit_record["user_id"]
+            
+            # Try to get user email from auth
+            try:
+                # Supabase admin can access auth.users
+                auth_user = supabase.auth.admin.get_user(user_id)
+                email = auth_user.user.email if auth_user.user else "unknown@example.com"
+                full_name = auth_user.user.user_metadata.get("full_name", "Unknown") if auth_user.user else "Unknown"
+            except:
+                email = "unknown@example.com"
+                full_name = "Unknown User"
             
             # Aggregate usage by service
             credits_by_service = {}
@@ -82,13 +109,15 @@ async def get_users_stats(user = Depends(get_current_user)):
             
             users_data.append({
                 "user_id": user_id,
-                "email": "user@example.com",  # TODO: get from auth.users
-                "full_name": "User",
+                "email": email,
+                "full_name": full_name,
                 "total_credits_used": float(credit_record["credits_used"]),
                 "credits_by_service": credits_by_service,
                 "total_requests": total_requests,
                 "last_activity": last_activity
             })
+        
+        logger.info(f"✅ Returning {len(users_data)} users")
         
         return {
             "success": True,
@@ -96,7 +125,7 @@ async def get_users_stats(user = Depends(get_current_user)):
         }
         
     except Exception as e:
-        logger.error(f"Failed to get users stats: {e}")
+        logger.error(f"❌ Failed to get users stats: {e}")
         logger.exception("Full error:")
         raise HTTPException(status_code=500, detail=str(e))
 
