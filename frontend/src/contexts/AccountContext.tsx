@@ -26,8 +26,6 @@ interface AccountContextType {
   accounts: Account[]
   activeAccount: Account | null
   loading: boolean
-  showOnboarding: boolean
-  setShowOnboarding: (show: boolean) => void
   fetchAccounts: () => Promise<void>
   switchAccount: (accountId: string) => Promise<void>
   createAccount: (data: Partial<Account>) => Promise<void>
@@ -41,7 +39,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [activeAccount, setActiveAccount] = useState<Account | null>(null)
   const [loading, setLoading] = useState(true)
-  const [showOnboarding, setShowOnboarding] = useState(false)
 
   const apiUrl = getApiUrl()
 
@@ -65,22 +62,12 @@ export function AccountProvider({ children }: { children: ReactNode }) {
       console.log('📊 Fetched accounts:', response.data.accounts)
       setAccounts(response.data.accounts)
       
-      // Show onboarding if no accounts
-      if (!response.data.accounts || response.data.accounts.length === 0) {
-        console.log('✨ No accounts found, showing onboarding')
-        setShowOnboarding(true)
-      } else {
-        console.log('✅ Accounts exist, hiding onboarding')
-        setShowOnboarding(false)
-        // Set first account as active if none selected
-        if (!activeAccount) {
-          setActiveAccount(response.data.accounts[0])
-        }
+      // Set first account as active if none selected
+      if (response.data.accounts && response.data.accounts.length > 0 && !activeAccount) {
+        setActiveAccount(response.data.accounts[0])
       }
     } catch (error) {
       console.error('Failed to fetch accounts:', error)
-      // On error, show onboarding to be safe
-      setShowOnboarding(true)
     } finally {
       setLoading(false)
     }
@@ -147,8 +134,6 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         accounts,
         activeAccount,
         loading,
-        showOnboarding,
-        setShowOnboarding,
         fetchAccounts,
         switchAccount,
         createAccount,
