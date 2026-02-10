@@ -28,18 +28,27 @@ export function MainWorkspace() {
   console.log('🏢 MainWorkspace render - loading:', loading, 'accounts:', accounts.length)
 
   const handleGenerate = async (data: any) => {
+    console.log('🎯 handleGenerate called with:', data)
+    
     try {
       setGenerating(true)
-      setGeneratedContent(null) // Clear previous content
+      setGeneratedContent(null)
       
-      console.log('🚀 Generating content with:', data)
+      console.log('🔐 Session check:', session ? 'exists' : 'missing')
       
       if (!session) {
         alert('Please sign in to generate content')
+        setGenerating(false)
         return
       }
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'}/api/generate`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'
+      const endpoint = `${apiUrl}/api/generate`
+      console.log('🌐 Sending request to:', endpoint)
+      console.log('📦 Request payload:', data)
+      console.log('🔑 Has token:', !!session.access_token)
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -48,12 +57,17 @@ export function MainWorkspace() {
         body: JSON.stringify(data)
       })
       
+      console.log('📥 Response status:', response.status)
+      console.log('📥 Response ok:', response.ok)
+      
       if (!response.ok) {
-        throw new Error(`Generation failed: ${response.statusText}`)
+        const errorText = await response.text()
+        console.error('❌ Error response:', errorText)
+        throw new Error(`Generation failed: ${response.status} - ${errorText}`)
       }
       
       const result = await response.json()
-      console.log('✅ Generation complete:', result)
+      console.log('✅ Generation complete. Variations:', result.variations?.length, 'Images:', result.images?.length)
       
       setGeneratedContent(result)
     } catch (error: any) {
