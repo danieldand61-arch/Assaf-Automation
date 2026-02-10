@@ -318,13 +318,25 @@ async def generate_content(request: GenerateRequest):
         
         logger.info("🎉 Content generation completed successfully!")
         
-        return {
+        result = {
             "variations": [v.dict() for v in variations],
             "images": [i.dict() for i in images],
             "brand_colors": website_data.get("colors", []),
             "brand_voice": website_data.get("brand_voice", "professional"),
-            "website_data": website_data  # Include for editing
+            "website_data": website_data,  # Include for editing
+            "request_params": {
+                "url": str(request.url),
+                "keywords": request.keywords,
+                "platforms": request.platforms,
+                "language": request.language,
+                "style": request.style,
+                "image_size": request.image_size,
+                "include_logo": request.include_logo
+            }
         }
+        
+        logger.info(f"📦 Returning result with {len(variations)} variations and {len(images)} images")
+        return result
         
     except Exception as e:
         logger.error(f"❌ Error during content generation: {str(e)}")
