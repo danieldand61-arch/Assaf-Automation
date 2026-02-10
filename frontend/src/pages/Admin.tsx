@@ -8,9 +8,13 @@ interface UserStats {
   user_id: string
   email: string
   full_name: string
-  total_credits_used: number
-  credits_by_service: {
-    [key: string]: number
+  usage_by_service: {
+    [key: string]: {
+      requests: number
+      input_tokens: number
+      output_tokens: number
+      total_tokens: number
+    }
   }
   total_requests: number
   last_activity: string
@@ -64,6 +68,14 @@ export function Admin() {
     }
   }
 
+  // Calculate total tokens for user
+  const getTotalTokens = (user: UserStats) => {
+    return Object.values(user.usage_by_service || {}).reduce(
+      (sum, service) => sum + (service.total_tokens || 0),
+      0
+    )
+  }
+
   // Filter and sort users
   const filteredUsers = users
     .filter(u => 
@@ -76,7 +88,7 @@ export function Admin() {
       if (sortBy === 'email') {
         comparison = a.email.localeCompare(b.email)
       } else if (sortBy === 'credits') {
-        comparison = a.total_credits_used - b.total_credits_used
+        comparison = getTotalTokens(a) - getTotalTokens(b)
       } else if (sortBy === 'requests') {
         comparison = a.total_requests - b.total_requests
       }
@@ -139,10 +151,10 @@ export function Admin() {
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
               <div className="flex items-center gap-3 mb-2">
                 <DollarSign className="w-6 h-6 text-green-600 dark:text-green-400" />
-                <h3 className="font-semibold text-gray-900 dark:text-white">Total Credits Used</h3>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Total API Usage</h3>
               </div>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                ${users.reduce((sum, u) => sum + u.total_credits_used, 0).toFixed(2)}
+                {users.reduce((sum, u) => sum + getTotalTokens(u), 0).toLocaleString()} tokens
               </p>
             </div>
 
@@ -181,7 +193,7 @@ export function Admin() {
                   onChange={(e) => setSortBy(e.target.value as any)}
                   className="px-4 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 focus:outline-none"
                 >
-                  <option value="credits">Sort by Credits</option>
+                  <option value="credits">Sort by API Usage</option>
                   <option value="requests">Sort by Requests</option>
                   <option value="email">Sort by Email</option>
                 </select>
@@ -205,10 +217,10 @@ export function Admin() {
                     User
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Credits Used
+                    Total API Usage
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    By Service
+                    By Platform
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     Total Requests
@@ -233,16 +245,19 @@ export function Admin() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-gray-900 dark:text-white">
-                        ${user.total_credits_used.toFixed(4)}
+                        {getTotalTokens(user).toLocaleString()} tokens
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        {Object.entries(user.credits_by_service || {}).map(([service, cost]) => (
+                        {Object.entries(user.usage_by_service || {}).map(([service, usage]) => (
                           <div key={service} className="text-sm">
-                            <span className="text-gray-600 dark:text-gray-400">{service}:</span>{' '}
+                            <span className="text-gray-600 dark:text-gray-400 capitalize">{service}:</span>{' '}
                             <span className="font-medium text-gray-900 dark:text-white">
-                              ${(cost as number).toFixed(4)}
+                              {usage.total_tokens.toLocaleString()} tokens
+                            </span>
+                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
+                              ({usage.requests} calls)
                             </span>
                           </div>
                         ))}

@@ -410,36 +410,30 @@ IMPORTANT:
             ai_content = response.text
             logger.info(f"✅ Gemini response ({len(ai_content)} chars): {ai_content[:300]}...")
             
-            # Track credits usage
+            # Track API usage metrics
             try:
-                from services.credits_service import calculate_gemini_cost, record_usage, ensure_user_credits_exist
-                
-                # Ensure user has credits record
-                await ensure_user_credits_exist(current_user["user_id"])
+                from services.credits_service import record_usage
                 
                 # Get token counts from response
                 input_tokens = response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0
                 output_tokens = response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0
                 
-                # Calculate cost
-                cost = calculate_gemini_cost(input_tokens, output_tokens)
-                
-                # Record usage
+                # Record real usage metrics
                 await record_usage(
                     user_id=current_user["user_id"],
                     service_type="gemini_chat",
-                    credits_spent=cost,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    model_name="gemini-3-flash-preview",
                     metadata={
                         "chat_id": chat_id,
-                        "input_tokens": input_tokens,
-                        "output_tokens": output_tokens,
-                        "total_tokens": input_tokens + output_tokens,
-                        "model": "gemini-3-flash-preview"
+                        "message_length": len(request.content),
+                        "response_length": len(ai_content)
                     }
                 )
-                logger.info(f"💰 Recorded {cost:.6f} credits ({input_tokens + output_tokens} tokens)")
+                logger.info(f"📊 Recorded {input_tokens + output_tokens} tokens (in:{input_tokens}, out:{output_tokens})")
             except Exception as e:
-                logger.warning(f"⚠️ Failed to track credits: {e}")
+                logger.warning(f"⚠️ Failed to track usage: {e}")
             
             # Check if response contains JSON action
             import re

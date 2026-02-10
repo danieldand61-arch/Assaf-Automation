@@ -117,15 +117,27 @@ async def get_users_stats(user = Depends(get_current_user)):
             credit_record = credits_map.get(user_id)
             total_credits_used = float(credit_record["credits_used"]) if credit_record else 0.0
             
-            # Aggregate usage by service
-            credits_by_service = {}
+            # Aggregate usage by service (tokens/units, not credits)
+            usage_by_service = {}
             total_requests = 0
             last_activity = None
             
             for usage in (usage_result.data or []):
                 if usage["user_id"] == user_id:
                     service = usage["service_type"]
-                    credits_by_service[service] = credits_by_service.get(service, 0) + float(usage["credits_spent"])
+                    
+                    if service not in usage_by_service:
+                        usage_by_service[service] = {
+                            "requests": 0,
+                            "input_tokens": 0,
+                            "output_tokens": 0,
+                            "total_tokens": 0
+                        }
+                    
+                    usage_by_service[service]["requests"] += 1
+                    usage_by_service[service]["input_tokens"] += usage.get("input_tokens", 0)
+                    usage_by_service[service]["output_tokens"] += usage.get("output_tokens", 0)
+                    usage_by_service[service]["total_tokens"] += usage.get("total_tokens", 0)
                     total_requests += 1
                     
                     if not last_activity or usage["created_at"] > last_activity:
@@ -135,8 +147,7 @@ async def get_users_stats(user = Depends(get_current_user)):
                 "user_id": user_id,
                 "email": email,
                 "full_name": full_name,
-                "total_credits_used": total_credits_used,
-                "credits_by_service": credits_by_service,
+                "usage_by_service": usage_by_service,
                 "total_requests": total_requests,
                 "last_activity": last_activity
             })
