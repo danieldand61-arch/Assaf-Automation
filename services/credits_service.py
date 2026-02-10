@@ -40,14 +40,19 @@ async def record_usage(
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "total_tokens": total_tokens,
-            "credits_spent": 0,  # Not using credits, just tracking metrics
-            "request_metadata": metadata or {},
-            "created_at": datetime.utcnow().isoformat()
+            "credits_spent": 0.0,  # Not using credits, just tracking metrics
+            "request_metadata": metadata or {}
         }
+        
+        logger.info(f"📝 About to insert: {usage_data}")
+        logger.info(f"   input_tokens type: {type(input_tokens)}, value: {input_tokens}")
+        logger.info(f"   output_tokens type: {type(output_tokens)}, value: {output_tokens}")
+        logger.info(f"   total_tokens type: {type(total_tokens)}, value: {total_tokens}")
         
         result = supabase.table("credits_usage").insert(usage_data).execute()
         
         if result.data:
+            logger.info(f"✅ INSERT successful. Returned data: {result.data[0]}")
             logger.info(f"📊 Recorded usage for user {user_id[:8]}... - {service_type}: {total_tokens} units")
             return True
         else:
