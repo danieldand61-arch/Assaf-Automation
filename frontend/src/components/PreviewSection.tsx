@@ -30,8 +30,29 @@ export function PreviewSection({ onReset, content }: PreviewSectionProps) {
   const [savingToLibrary, setSavingToLibrary] = useState(false)
 
   if (!generatedContent) return null
+  
+  // Safety checks
+  if (!generatedContent.variations || generatedContent.variations.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center text-gray-500 dark:text-gray-400">
+          <p>No content generated yet</p>
+        </div>
+      </div>
+    )
+  }
+  
+  if (!generatedContent.images || generatedContent.images.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center text-gray-500 dark:text-gray-400">
+          <p>No images generated yet</p>
+        </div>
+      </div>
+    )
+  }
 
-  const variation = generatedContent.variations[selectedVariation]
+  const variation = generatedContent.variations[selectedVariation] || generatedContent.variations[0]
   // Get image for current variation (same index)
   const image = generatedContent.images[selectedVariation] || generatedContent.images[0]
   

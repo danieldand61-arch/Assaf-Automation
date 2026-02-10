@@ -101,7 +101,7 @@ export function MainWorkspace() {
             <div className={`${generatedContent ? 'w-1/2' : 'flex-1'} overflow-auto p-6`}>
               <InputSection onGenerate={handleGenerate} />
             </div>
-            {generatedContent && (
+            {generatedContent && generatedContent.variations && generatedContent.images && (
               <div className="w-1/2 border-l border-gray-200 dark:border-gray-700 overflow-auto p-6 bg-white dark:bg-gray-800">
                 <PreviewSection onReset={handleReset} />
               </div>
