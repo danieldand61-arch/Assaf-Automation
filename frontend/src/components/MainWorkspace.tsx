@@ -7,6 +7,7 @@ import { VideoTranslation } from './VideoTranslation'
 import { PreviewSection } from './PreviewSection'
 import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
+import { useAuth } from '../contexts/AuthContext'
 import Header from './Header'
 
 type TabType = 'chat' | 'social' | 'ads' | 'video'
@@ -21,6 +22,7 @@ export function MainWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>('chat')
   const { generatedContent, setGeneratedContent } = useContentStore()
   const { loading, accounts } = useAccount()
+  const { session } = useAuth()
   const [generating, setGenerating] = useState(false)
   
   console.log('🏢 MainWorkspace render - loading:', loading, 'accounts:', accounts.length)
@@ -32,10 +34,16 @@ export function MainWorkspace() {
       
       console.log('🚀 Generating content with:', data)
       
+      if (!session) {
+        alert('Please sign in to generate content')
+        return
+      }
+      
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'}/api/generate`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify(data)
       })
