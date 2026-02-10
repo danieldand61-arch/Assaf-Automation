@@ -65,12 +65,15 @@ async def generate_posts(
                     logger.warning("⚠️ No usage_metadata in response!")
                     input_tokens = 0
                     output_tokens = 0
+                    total_tokens = 0
                 
+                # Pass total_tokens directly from Gemini instead of letting record_usage recalculate
                 await record_usage(
                     user_id=user_id,
                     service_type="social_posts",
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
+                    total_tokens=total_tokens,  # NEW: pass Gemini's total directly
                     model_name=model_name,
                     metadata={
                         "keywords": keywords,
@@ -79,7 +82,7 @@ async def generate_posts(
                         "style": style
                     }
                 )
-                logger.info(f"✅ Recorded usage: {input_tokens + output_tokens} tokens")
+                logger.info(f"✅ Recorded usage: {total_tokens} tokens (Gemini's count)")
             except Exception as e:
                 logger.error(f"❌ Failed to track credits: {e}")
                 logger.exception("Full tracking error:")

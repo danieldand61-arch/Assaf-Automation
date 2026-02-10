@@ -14,6 +14,7 @@ async def record_usage(
     service_type: str,
     input_tokens: int = 0,
     output_tokens: int = 0,
+    total_tokens: int = None,
     model_name: str = None,
     metadata: dict = None
 ) -> bool:
@@ -25,13 +26,16 @@ async def record_usage(
         service_type: 'gemini_chat', 'elevenlabs', 'image_generation', etc
         input_tokens: Input tokens (Gemini) or characters (ElevenLabs) or images count
         output_tokens: Output tokens (Gemini)
+        total_tokens: Total tokens (use API's value if provided, otherwise calculate)
         model_name: Model/API name
         metadata: Additional data
     """
     try:
         supabase = get_supabase()
         
-        total_tokens = input_tokens + output_tokens
+        # Use explicit total from API if provided, otherwise calculate
+        if total_tokens is None:
+            total_tokens = input_tokens + output_tokens
         
         usage_data = {
             "user_id": user_id,

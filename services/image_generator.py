@@ -70,6 +70,33 @@ async def generate_images(
             
             logger.info(f"✅ Response received")
             
+            # Track API usage for this image
+            if user_id:
+                try:
+                    from services.credits_service import record_usage
+                    
+                    input_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0) if hasattr(response, 'usage_metadata') else 0
+                    output_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0) if hasattr(response, 'usage_metadata') else 0
+                    total_tokens = getattr(response.usage_metadata, 'total_token_count', 0) if hasattr(response, 'usage_metadata') else 0
+                    
+                    logger.info(f"📊 Image {idx+1} tokens: input={input_tokens}, output={output_tokens}, total={total_tokens}")
+                    
+                    await record_usage(
+                        user_id=user_id,
+                        service_type="image_generation",
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        total_tokens=total_tokens,
+                        model_name=model_name,
+                        metadata={
+                            "image_size": image_size,
+                            "variation_index": idx + 1
+                        }
+                    )
+                    logger.info(f"✅ Tracked usage for image {idx+1}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to track image usage: {e}")
+            
             # Extract image bytes from response.candidates[0].content.parts[0].inline_data.data
             if not hasattr(response, 'candidates') or not response.candidates:
                 logger.error("❌ No candidates in response")

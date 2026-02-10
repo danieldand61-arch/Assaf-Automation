@@ -417,13 +417,15 @@ IMPORTANT:
                 # Get token counts from response
                 input_tokens = response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0
                 output_tokens = response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0
+                total_tokens = response.usage_metadata.total_token_count if hasattr(response, 'usage_metadata') else 0
                 
-                # Record real usage metrics
+                # Record real usage metrics with Gemini's total
                 await record_usage(
                     user_id=current_user["user_id"],
                     service_type="gemini_chat",
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
+                    total_tokens=total_tokens,  # Pass Gemini's total directly
                     model_name="gemini-3-flash-preview",
                     metadata={
                         "chat_id": chat_id,
