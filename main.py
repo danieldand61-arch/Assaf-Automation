@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 
 # Import models from separate file (avoid circular imports)
 from models import GenerateRequest, GeneratedContent, PostVariation, ImageVariation
+from middleware.auth import get_current_user
 
 # Configure logging FIRST
 logging.basicConfig(level=logging.INFO)
