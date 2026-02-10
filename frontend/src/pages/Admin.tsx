@@ -249,18 +249,47 @@ export function Admin() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        {Object.entries(user.usage_by_service || {}).map(([service, usage]) => (
-                          <div key={service} className="text-sm">
-                            <span className="text-gray-600 dark:text-gray-400 capitalize">{service}:</span>{' '}
-                            <span className="font-medium text-gray-900 dark:text-white">
-                              {usage.total_tokens.toLocaleString()} tokens
-                            </span>
-                            <span className="text-xs text-gray-500 dark:text-gray-400 ml-1">
-                              ({usage.requests} calls)
-                            </span>
-                          </div>
-                        ))}
+                      <div className="space-y-2">
+                        {Object.entries(user.usage_by_service || {}).map(([service, usage]) => {
+                          // Format service name
+                          const serviceNames: { [key: string]: { name: string; icon: string } } = {
+                            'gemini_chat': { name: 'Gemini Chat', icon: '💬' },
+                            'social_posts': { name: 'Social Posts', icon: '📱' },
+                            'image_generation': { name: 'Image Gen', icon: '🖼️' },
+                            'google_ads': { name: 'Google Ads', icon: '📢' },
+                            'elevenlabs': { name: 'ElevenLabs', icon: '🔊' },
+                            'video_translation': { name: 'Video Trans', icon: '🎥' }
+                          }
+                          
+                          const serviceInfo = serviceNames[service] || { name: service, icon: '⚙️' }
+                          const hasTokens = usage.total_tokens > 0
+                          
+                          return (
+                            <div key={service} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded px-2 py-1">
+                              <div className="flex items-center gap-2">
+                                <span>{serviceInfo.icon}</span>
+                                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                  {serviceInfo.name}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {hasTokens ? (
+                                  <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                    {usage.total_tokens.toLocaleString()}
+                                  </span>
+                                ) : (
+                                  <span className="text-sm text-gray-400">0</span>
+                                )}
+                                <span className="text-xs text-gray-500 dark:text-gray-400">
+                                  ({usage.requests} {usage.requests === 1 ? 'call' : 'calls'})
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                        {Object.keys(user.usage_by_service || {}).length === 0 && (
+                          <span className="text-sm text-gray-400">No usage yet</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
