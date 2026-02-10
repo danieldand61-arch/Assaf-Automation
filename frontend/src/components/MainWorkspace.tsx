@@ -21,11 +21,39 @@ export function MainWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>('chat')
   const { generatedContent, setGeneratedContent } = useContentStore()
   const { loading, accounts } = useAccount()
+  const [generating, setGenerating] = useState(false)
   
   console.log('🏢 MainWorkspace render - loading:', loading, 'accounts:', accounts.length)
 
-  const handleGenerate = (data: any) => {
-    setGeneratedContent(data)
+  const handleGenerate = async (data: any) => {
+    try {
+      setGenerating(true)
+      setGeneratedContent(null) // Clear previous content
+      
+      console.log('🚀 Generating content with:', data)
+      
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'}/api/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Generation failed: ${response.statusText}`)
+      }
+      
+      const result = await response.json()
+      console.log('✅ Generation complete:', result)
+      
+      setGeneratedContent(result)
+    } catch (error: any) {
+      console.error('❌ Generation error:', error)
+      alert(`Failed to generate content: ${error.message}`)
+    } finally {
+      setGenerating(false)
+    }
   }
 
   const handleReset = () => {
@@ -99,6 +127,19 @@ export function MainWorkspace() {
         {activeTab === 'social' && (
           <div className="flex h-full">
             <div className={`${generatedContent ? 'w-1/2' : 'flex-1'} overflow-auto p-6`}>
+              {generating && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md mx-4 text-center">
+                    <Loader2 className="w-16 h-16 animate-spin text-blue-600 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                      Generating Content...
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-400">
+                      Creating amazing posts and images for you
+                    </p>
+                  </div>
+                </div>
+              )}
               <InputSection onGenerate={handleGenerate} />
             </div>
             {generatedContent && generatedContent.variations && generatedContent.images && (
