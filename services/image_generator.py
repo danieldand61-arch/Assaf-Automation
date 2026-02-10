@@ -19,7 +19,8 @@ async def generate_images(
     platforms: List[str],
     image_size: str = "1080x1080",
     include_logo: bool = False,
-    custom_prompt: str = None
+    custom_prompt: str = None,
+    user_id: str = None
 ) -> List[ImageVariation]:
     """Generates images for posts using Gemini 2.5 Flash Image"""
     

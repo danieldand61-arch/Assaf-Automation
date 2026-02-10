@@ -276,9 +276,10 @@ def health_check():
 
 
 @app.post("/api/generate")
-async def generate_content(request: GenerateRequest):
+async def generate_content(request: GenerateRequest, current_user: dict = Depends(get_current_user)):
     """Main endpoint for content generation"""
     logger.info(f"🚀 Starting content generation for URL: {request.url}")
+    logger.info(f"   User: {current_user.get('user_id', 'unknown')}")
     logger.info(f"   Keywords: {request.keywords}")
     logger.info(f"   Platforms: {request.platforms}")
     logger.info(f"   Language: {request.language}")
@@ -290,7 +291,7 @@ async def generate_content(request: GenerateRequest):
         website_data = await scrape_website(str(request.url))
         logger.info(f"✅ Website scraped: {website_data.get('title', 'No title')}")
         
-        # 2. Generate post texts
+        # 2. Generate post texts (with tracking)
         logger.info("✍️  Step 2: Generating post texts...")
         from services.content_generator import generate_posts
         variations = await generate_posts(
@@ -299,12 +300,13 @@ async def generate_content(request: GenerateRequest):
             platforms=request.platforms,
             style=request.style,
             target_audience=request.target_audience,
-            language=request.language,  # Pass language
-            include_emojis=request.include_emojis
+            language=request.language,
+            include_emojis=request.include_emojis,
+            user_id=current_user.get("user_id")  # Pass user_id for tracking
         )
         logger.info(f"✅ Generated {len(variations)} post variations")
         
-        # 3. Generate images
+        # 3. Generate images (with tracking)
         logger.info("🖼️  Step 3: Generating images...")
         from services.image_generator import generate_images
         images = await generate_images(
@@ -312,7 +314,8 @@ async def generate_content(request: GenerateRequest):
             variations=variations,
             platforms=request.platforms,
             image_size=request.image_size,
-            include_logo=request.include_logo
+            include_logo=request.include_logo,
+            user_id=current_user.get("user_id")  # Pass user_id for tracking
         )
         logger.info(f"✅ Generated {len(images)} images")
         
