@@ -49,19 +49,29 @@ async def generate_posts(
         # Track credits usage
         if user_id:
             try:
-                from services.credits_tracker import track_ai_usage
+                from services.credits_service import record_usage
                 
-                input_tokens = response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0
-                output_tokens = response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0
+                # Debug: log response structure
+                logger.info(f"🔍 Response type: {type(response)}")
+                logger.info(f"🔍 Has usage_metadata: {hasattr(response, 'usage_metadata')}")
                 
-                await track_ai_usage(
+                if hasattr(response, 'usage_metadata'):
+                    logger.info(f"🔍 usage_metadata: {response.usage_metadata}")
+                    input_tokens = getattr(response.usage_metadata, 'prompt_token_count', 0)
+                    output_tokens = getattr(response.usage_metadata, 'candidates_token_count', 0)
+                    total_tokens = getattr(response.usage_metadata, 'total_token_count', input_tokens + output_tokens)
+                    logger.info(f"📊 Tokens extracted: input={input_tokens}, output={output_tokens}, total={total_tokens}")
+                else:
+                    logger.warning("⚠️ No usage_metadata in response!")
+                    input_tokens = 0
+                    output_tokens = 0
+                
+                await record_usage(
                     user_id=user_id,
-                    account_id=account_id,
                     service_type="social_posts",
-                    model_name=model_name,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
-                    action="generate_posts",
+                    model_name=model_name,
                     metadata={
                         "keywords": keywords,
                         "platforms": platforms,
@@ -69,8 +79,10 @@ async def generate_posts(
                         "style": style
                     }
                 )
+                logger.info(f"✅ Recorded usage: {input_tokens + output_tokens} tokens")
             except Exception as e:
-                logger.warning(f"Failed to track credits: {e}")
+                logger.error(f"❌ Failed to track credits: {e}")
+                logger.exception("Full tracking error:")
     
     except Exception as e:
         logger.error(f"❌ DEBUG: Error in generate_content: {type(e).__name__}")
