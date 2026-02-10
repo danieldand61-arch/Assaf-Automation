@@ -81,15 +81,37 @@ async def get_users_stats(user = Depends(get_current_user)):
         users_data = []
         
         for user_id in unique_user_ids:
-            # Try to get user email from auth
+            # Try to get user email from auth using RPC or direct query
+            email = "unknown@example.com"
+            full_name = "Unknown User"
+            
             try:
-                auth_user = supabase.auth.admin.get_user(user_id)
-                email = auth_user.user.email if auth_user.user else "unknown@example.com"
-                full_name = auth_user.user.user_metadata.get("full_name", "Unknown User") if auth_user.user and auth_user.user.user_metadata else "Unknown User"
-            except Exception as e:
-                logger.warning(f"⚠️ Failed to get user {user_id} from auth: {e}")
-                email = "unknown@example.com"
-                full_name = "Unknown User"
+                # Method 1: Try admin API
+                auth_response = supabase.auth.admin.get_user_by_id(user_id)
+                if auth_response and hasattr(auth_response, 'user') and auth_response.user:
+                    email = auth_response.user.email or "unknown@example.com"
+                    full_name = auth_response.user.user_metadata.get("full_name", "Unknown User") if auth_response.user.user_metadata else "Unknown User"
+                    logger.info(f"✅ Got user {email} via admin API")
+            except Exception as e1:
+                logger.warning(f"⚠️ Admin API failed for {user_id}: {e1}")
+                
+                # Method 2: Try direct SQL query to auth.users (requires service_role)
+                try:
+                    user_query = supabase.rpc('get_user_by_id', {'user_id': user_id}).execute()
+                    if user_query.data:
+                        email = user_query.data.get('email', "unknown@example.com")
+                        raw_meta = user_query.data.get('raw_user_meta_data', {})
+                        full_name = raw_meta.get('full_name', 'Unknown User') if raw_meta else 'Unknown User'
+                        logger.info(f"✅ Got user {email} via RPC")
+                except Exception as e2:
+                    logger.warning(f"⚠️ RPC also failed for {user_id}: {e2}")
+                    # Last resort: try to get from accounts table name
+                    try:
+                        account = supabase.table("accounts").select("name").eq("user_id", user_id).single().execute()
+                        if account.data and account.data.get("name"):
+                            full_name = account.data["name"]
+                    except:
+                        pass
             
             # Get credits info
             credit_record = credits_map.get(user_id)
