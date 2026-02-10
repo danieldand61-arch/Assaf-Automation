@@ -59,9 +59,14 @@ async def get_users_stats(user = Depends(get_current_user)):
         # Fallback: manual query
         logger.info("🔄 Using manual query fallback...")
         
+        # Get all accounts (users that exist in the system)
+        accounts_result = supabase.table("accounts").select("user_id").execute()
+        logger.info(f"👥 Found {len(accounts_result.data or [])} accounts")
+        
         # Get all user_credits
         credits_result = supabase.table("user_credits").select("*").execute()
-        logger.info(f"💰 Found {len(credits_result.data or [])} user_credits records")
+        credits_map = {c["user_id"]: c for c in (credits_result.data or [])}
+        logger.info(f"💰 Found {len(credits_map)} user_credits records")
         
         # Get usage breakdown by service
         usage_result = supabase.table("credits_usage")\
@@ -69,29 +74,26 @@ async def get_users_stats(user = Depends(get_current_user)):
             .execute()
         logger.info(f"📊 Found {len(usage_result.data or [])} usage records")
         
-        # Get user details from auth (try different approaches)
+        # Get unique user IDs from accounts
+        unique_user_ids = list(set(acc["user_id"] for acc in (accounts_result.data or [])))
+        logger.info(f"🔍 Processing {len(unique_user_ids)} unique users")
+        
         users_data = []
         
-        # If no credits yet, return empty list
-        if not credits_result.data:
-            logger.info("ℹ️ No user_credits records found")
-            return {
-                "success": True,
-                "users": []
-            }
-        
-        for credit_record in credits_result.data:
-            user_id = credit_record["user_id"]
-            
+        for user_id in unique_user_ids:
             # Try to get user email from auth
             try:
-                # Supabase admin can access auth.users
                 auth_user = supabase.auth.admin.get_user(user_id)
                 email = auth_user.user.email if auth_user.user else "unknown@example.com"
-                full_name = auth_user.user.user_metadata.get("full_name", "Unknown") if auth_user.user else "Unknown"
-            except:
+                full_name = auth_user.user.user_metadata.get("full_name", "Unknown User") if auth_user.user and auth_user.user.user_metadata else "Unknown User"
+            except Exception as e:
+                logger.warning(f"⚠️ Failed to get user {user_id} from auth: {e}")
                 email = "unknown@example.com"
                 full_name = "Unknown User"
+            
+            # Get credits info
+            credit_record = credits_map.get(user_id)
+            total_credits_used = float(credit_record["credits_used"]) if credit_record else 0.0
             
             # Aggregate usage by service
             credits_by_service = {}
@@ -111,7 +113,7 @@ async def get_users_stats(user = Depends(get_current_user)):
                 "user_id": user_id,
                 "email": email,
                 "full_name": full_name,
-                "total_credits_used": float(credit_record["credits_used"]),
+                "total_credits_used": total_credits_used,
                 "credits_by_service": credits_by_service,
                 "total_requests": total_requests,
                 "last_activity": last_activity
