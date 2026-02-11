@@ -205,10 +205,26 @@ async def get_user_subscription_info() -> dict:
             if hasattr(subscription, '__dict__'):
                 logger.info(f"🔍 Subscription dict: {subscription.__dict__}")
             
+            # Try to get credits from different possible field names
+            credits = None
+            possible_credit_fields = ['credits', 'credits_remaining', 'available_credits', 'character_count', 'quota_remaining']
+            
+            for field in possible_credit_fields:
+                if hasattr(subscription, field):
+                    value = getattr(subscription, field, None)
+                    if value is not None:
+                        credits = value
+                        logger.info(f"✅ Found credits in field '{field}': {credits}")
+                        break
+            
+            if credits is None:
+                logger.error(f"❌ Could not find credits field! Available fields: {[attr for attr in dir(subscription) if not attr.startswith('_')]}")
+                credits = 0
+            
             return {
+                "credits_remaining": credits,
                 "character_count": getattr(subscription, "character_count", 0),
-                "character_limit": getattr(subscription, "character_limit", 0),
-                "credits_remaining": getattr(subscription, "character_limit", 0) - getattr(subscription, "character_count", 0)
+                "character_limit": getattr(subscription, "character_limit", 0)
             }
         else:
             import httpx
@@ -220,8 +236,22 @@ async def get_user_subscription_info() -> dict:
                 )
                 if response.status_code == 200:
                     data = response.json()
-                    logger.info(f"💳 Subscription data: {data}")
-                    return data
+                    logger.info(f"💳 Subscription data from API: {data}")
+                    
+                    # Try to extract credits from response
+                    credits = None
+                    possible_credit_fields = ['credits', 'credits_remaining', 'available_credits', 'character_count', 'quota_remaining']
+                    
+                    for field in possible_credit_fields:
+                        if field in data and data[field] is not None:
+                            credits = data[field]
+                            logger.info(f"✅ Found credits in field '{field}': {credits}")
+                            break
+                    
+                    return {
+                        "credits_remaining": credits or 0,
+                        **data
+                    }
                 return {}
     except Exception as e:
         logger.error(f"❌ Failed to get subscription info: {e}")
