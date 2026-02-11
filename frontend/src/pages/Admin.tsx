@@ -257,18 +257,22 @@ export function Admin() {
                             'gemini_chat': { name: 'Gemini Chat', icon: '💬' },
                             'social_posts': { name: 'Social Posts', icon: '📱' },
                             'image_generation': { name: 'Image Gen', icon: '🖼️' },
-                            'video_dubbing': { name: 'Video Dubbing (Est)', icon: '🎬' },
                             'video_dubbing_actual': { name: 'Video Dubbing', icon: '🎬' },
                             'google_ads': { name: 'Google Ads', icon: '📢' },
                             'elevenlabs': { name: 'ElevenLabs', icon: '🔊' },
                             'video_translation': { name: 'Video Trans', icon: '🎥' }
                           }
                           
+                          // Skip old estimated video_dubbing records
+                          if (service === 'video_dubbing') {
+                            return null
+                          }
+                          
                           const serviceInfo = serviceNames[service] || { name: service, icon: '⚙️' }
                           const hasTokens = usage.total_tokens > 0
                           
-                          // For video_dubbing, show credits instead of tokens
-                          const isVideoDubbing = service === 'video_dubbing' || service === 'video_dubbing_actual'
+                          // For video_dubbing_actual, show credits instead of tokens
+                          const isVideoDubbing = service === 'video_dubbing_actual'
                           const displayValue = isVideoDubbing 
                             ? `${usage.total_tokens.toLocaleString()} credits`
                             : `${usage.total_tokens.toLocaleString()} tokens`
@@ -296,6 +300,22 @@ export function Admin() {
                             </div>
                           )
                         })}
+                        
+                        {/* Total across all platforms */}
+                        {Object.keys(user.usage_by_service || {}).length > 0 && (
+                          <div className="flex items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-900/20 dark:to-purple-900/20 rounded px-2 py-1 border border-blue-200 dark:border-blue-700 mt-2">
+                            <div className="flex items-center gap-2">
+                              <span>📊</span>
+                              <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                Total
+                              </span>
+                            </div>
+                            <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
+                              {getTotalTokens(user).toLocaleString()} units
+                            </span>
+                          </div>
+                        )}
+                        
                         {Object.keys(user.usage_by_service || {}).length === 0 && (
                           <span className="text-sm text-gray-400">No usage yet</span>
                         )}

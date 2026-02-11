@@ -131,55 +131,6 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
             dubbing_id = dubbing.dubbing_id
             logger.info(f"✅ Dubbing created via SDK: {dubbing_id} for {target_lang}")
             
-            # Log dubbing response to check for credit info
-            logger.info(f"🔍 Dubbing response type: {type(dubbing)}")
-            logger.info(f"🔍 Dubbing response attributes: {dir(dubbing)}")
-            if hasattr(dubbing, '__dict__'):
-                logger.info(f"🔍 Dubbing response dict: {dubbing.__dict__}")
-            
-            # Check for cost/credit fields
-            possible_cost_fields = ['cost', 'credits', 'credits_used', 'price', 'charge']
-            for field in possible_cost_fields:
-                if hasattr(dubbing, field):
-                    value = getattr(dubbing, field)
-                    logger.info(f"💰 Found cost field '{field}': {value}")
-            
-            # Track API usage - for now use video duration estimate
-            # ElevenLabs charges per character of source audio (~1 credit per 1000 chars)
-            # We'll get exact cost from metadata after completion
-            if user_id:
-                try:
-                    from services.credits_service import record_usage
-                    
-                    video_size_bytes = len(video_content)
-                    video_size_mb = video_size_bytes / (1024 * 1024)
-                    
-                    # Estimate credits based on video length
-                    # ElevenLabs dubbing: ~1000 characters = 1 credit
-                    # Rough estimate: 1 minute video = ~150 words = ~1000 chars = 1 credit
-                    # For 5MB video (~30-60 seconds), estimate ~1-2 credits
-                    estimated_credits = max(1, int(video_size_mb / 3))  # ~1 credit per 3MB
-                    
-                    await record_usage(
-                        user_id=user_id,
-                        service_type="video_dubbing",
-                        input_tokens=estimated_credits,  # Store estimated credits
-                        output_tokens=0,
-                        total_tokens=estimated_credits,
-                        model_name="elevenlabs_dubbing",
-                        metadata={
-                            "target_language": target_lang,
-                            "filename": filename,
-                            "dubbing_id": dubbing_id,
-                            "video_size_mb": round(video_size_mb, 2),
-                            "estimated_credits": estimated_credits,
-                            "note": "Estimated cost - actual cost tracked after completion"
-                        }
-                    )
-                    logger.info(f"✅ Tracked video dubbing: ~{estimated_credits} credits (estimated) for {target_lang}")
-                except Exception as e:
-                    logger.error(f"❌ Failed to track video dubbing: {e}")
-            
             return dubbing_id
             
         else:
@@ -225,36 +176,6 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
                 result = response.json()
                 dubbing_id = result.get("dubbing_id")
                 logger.info(f"✅ Dubbing created via httpx: {dubbing_id} for {target_lang}")
-                
-                # Track API usage
-                if user_id:
-                    try:
-                        from services.credits_service import record_usage
-                        
-                        video_size_bytes = len(video_content)
-                        video_size_mb = video_size_bytes / (1024 * 1024)
-                        
-                        # Estimate credits based on video length
-                        estimated_credits = max(1, int(video_size_mb / 3))
-                        
-                        await record_usage(
-                            user_id=user_id,
-                            service_type="video_dubbing",
-                            input_tokens=estimated_credits,
-                            output_tokens=0,
-                            total_tokens=estimated_credits,
-                            model_name="elevenlabs_dubbing",
-                            metadata={
-                                "target_language": target_lang,
-                                "filename": filename,
-                                "dubbing_id": dubbing_id,
-                                "video_size_mb": round(video_size_mb, 2),
-                                "estimated_credits": estimated_credits
-                            }
-                        )
-                        logger.info(f"✅ Tracked video dubbing: ~{estimated_credits} credits (estimated) for {target_lang}")
-                    except Exception as e:
-                        logger.error(f"❌ Failed to track video dubbing: {e}")
                 
                 return dubbing_id
             
@@ -362,9 +283,6 @@ async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
             metadata = client.dubbing.get_dubbing_project_metadata(dubbing_id=dubbing_id)
             
             logger.info(f"📊 Dubbing {dubbing_id} status: {metadata.status}")
-            logger.info(f"🔍 Metadata attributes: {dir(metadata)}")
-            if hasattr(metadata, '__dict__'):
-                logger.info(f"🔍 Metadata dict: {metadata.__dict__}")
             
             status_map = {
                 "dubbing": "processing",
@@ -374,56 +292,10 @@ async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
             
             status = status_map.get(metadata.status, "processing")
             
-            # Try to get character count (used for billing)
-            character_count = getattr(metadata, "character_count", None)
-            expected_duration_sec = getattr(metadata, "expected_duration_sec", None)
-            
-            # Try to get actual cost from multiple sources
-            credits_used = None
-            source = None
-            
-            # Method 1: Check for direct cost/credits fields in metadata
-            possible_cost_fields = ['cost', 'credits_used', 'credits', 'price', 'charge', 'total_cost']
-            for field in possible_cost_fields:
-                if hasattr(metadata, field):
-                    value = getattr(metadata, field)
-                    if value is not None:
-                        credits_used = float(value)
-                        source = f"metadata.{field}"
-                        logger.info(f"💰 Found credits in {source}: {credits_used}")
-                        break
-            
-            # Method 2: Calculate from character count
-            # ElevenLabs Dubbing charges based on source audio length (character count of transcription)
-            # Pricing: https://elevenlabs.io/pricing - typically ~$0.30 per 1000 chars
-            # In credits: ~1 credit per 1000 characters
-            if not credits_used and character_count:
-                credits_used = character_count / 1000.0
-                source = "character_count"
-                logger.info(f"💰 Estimated from {source}: {character_count} chars = {credits_used:.2f} credits")
-            
-            # Log all available metadata for debugging
-            logger.info(f"📊 Full metadata for {dubbing_id}:")
-            for attr in dir(metadata):
-                if not attr.startswith('_'):
-                    try:
-                        value = getattr(metadata, attr)
-                        if not callable(value):
-                            logger.info(f"  - {attr}: {value}")
-                    except:
-                        pass
-            
             result = {
                 "status": status,
                 "dubbing_id": dubbing_id,
-                "target_lang": target_lang,
-                "credits_used": credits_used,
-                "metadata": {
-                    "name": getattr(metadata, "name", ""),
-                    "target_languages": getattr(metadata, "target_languages", []),
-                    "character_count": character_count,
-                    "duration_sec": expected_duration_sec
-                }
+                "target_lang": target_lang
             }
             
             return result
@@ -602,10 +474,6 @@ async def get_translation_status(job_id: str, current_user: dict = Depends(get_c
                 # Provide our API endpoint for download (it will proxy from ElevenLabs)
                 download_urls[lang] = f"/api/video/download/{dubbing_id}/{lang}"
                 
-                # Log character count if available (for reference)
-                if status_info.get("credits_used"):
-                    logger.info(f"📊 Dubbing {dubbing_id} estimated: {status_info['credits_used']} credits from character count")
-                
             elif status_info.get("status") == "failed":
                 failed_count += 1
                 
@@ -623,14 +491,18 @@ async def get_translation_status(job_id: str, current_user: dict = Depends(get_c
         # Get balance after completion to calculate actual credits used
         if "balance_before" in job and "balance_after" not in job:
             try:
+                logger.info(f"🔍 Getting balance after completion...")
                 sub_info = await get_user_subscription_info()
                 balance_after = sub_info.get("credits_remaining")
                 job["balance_after"] = balance_after
                 
+                logger.info(f"💰 Balance BEFORE: {job['balance_before']}")
+                logger.info(f"💰 Balance AFTER:  {balance_after}")
+                
                 if balance_after is not None:
                     actual_credits_used = job["balance_before"] - balance_after
                     job["actual_credits_used"] = actual_credits_used
-                    logger.info(f"💰 Actual credits used: {actual_credits_used} (before: {job['balance_before']}, after: {balance_after})")
+                    logger.info(f"💰 ACTUAL CREDITS USED: {actual_credits_used}")
                     
                     # Record actual usage
                     if user_id and actual_credits_used > 0:
@@ -648,14 +520,18 @@ async def get_translation_status(job_id: str, current_user: dict = Depends(get_c
                                     "target_languages": job.get("target_languages", []),
                                     "balance_before": job["balance_before"],
                                     "balance_after": balance_after,
-                                    "note": "Actual credits from balance difference"
+                                    "note": "Actual credits from ElevenLabs balance difference"
                                 }
                             )
-                            logger.info(f"✅ Recorded actual credits usage: {actual_credits_used}")
+                            logger.info(f"✅ Recorded {actual_credits_used} credits to database")
                         except Exception as e:
                             logger.error(f"❌ Failed to record actual credits: {e}")
+                            logger.exception("Full error:")
+                else:
+                    logger.error(f"❌ balance_after is None! Could not calculate credits used")
             except Exception as e:
-                logger.warning(f"⚠️ Could not get balance after: {e}")
+                logger.error(f"❌ Could not get balance after: {e}")
+                logger.exception("Full error:")
                 
     elif failed_count == total_count:
         job["status"] = "failed"
