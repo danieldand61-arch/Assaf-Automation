@@ -9,7 +9,7 @@ from pydantic import BaseModel
 import logging
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from io import BytesIO
 from middleware.auth import get_current_user
 
@@ -191,52 +191,64 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
 
 async def get_user_subscription_info() -> dict:
     """
-    Get ElevenLabs subscription info including available credits
-    Uses /v1/user/subscription endpoint which requires fewer permissions
-    Returns credits_remaining = character_limit - character_count
+    Get cumulative credit usage from ElevenLabs /v1/usage/character-stats
+    This endpoint requires no special permissions
+    Returns credits_used_cumulative for tracking before/after dubbing
     """
     api_key = get_elevenlabs_api_key()
     
     try:
         import httpx
+        from datetime import datetime, timedelta
+        
+        # Get usage for last 30 days
+        now = datetime.utcnow()
+        start_time = now - timedelta(days=30)
+        start_unix_ms = int(start_time.timestamp() * 1000)
+        end_unix_ms = int(now.timestamp() * 1000)
+        
         async with httpx.AsyncClient(timeout=30.0) as http_client:
             headers = {"xi-api-key": api_key}
             
-            # Use /v1/user/subscription endpoint (requires less permissions than /v1/user)
+            # Use /v1/usage/character-stats with cumulative metric=credits
+            logger.info(f"🔍 Fetching cumulative usage from {ELEVENLABS_API_URL}/usage/character-stats")
             response = await http_client.get(
-                f"{ELEVENLABS_API_URL}/user/subscription",
-                headers=headers
+                f"{ELEVENLABS_API_URL}/usage/character-stats",
+                headers=headers,
+                params={
+                    "start_unix": start_unix_ms,
+                    "end_unix": end_unix_ms,
+                    "aggregation_interval": "cumulative",
+                    "metric": "credits"
+                }
             )
             
             if response.status_code != 200:
-                logger.error(f"❌ ElevenLabs API error: {response.status_code} - {response.text}")
+                logger.error(f"❌ ElevenLabs usage API error: {response.status_code} - {response.text}")
                 return {}
             
-            subscription = response.json()
-            logger.info(f"💳 Subscription data received from ElevenLabs")
-            logger.info(f"🔍 Raw subscription: {subscription}")
+            usage_data = response.json()
+            logger.info(f"💳 Usage data received from ElevenLabs")
+            logger.info(f"🔍 Raw usage: {usage_data}")
             
-            # Get character counts
-            character_count = subscription.get("character_count", 0)
-            character_limit = subscription.get("character_limit", 0)
+            # Response: {"time": [...], "usage": {"All": [cumulative_credits_used]}}
+            usage_all = usage_data.get("usage", {}).get("All", [])
             
-            # Calculate remaining credits (1 character = 1 credit in ElevenLabs)
-            credits_remaining = character_limit - character_count
+            if not usage_all:
+                logger.warning("⚠️ No usage data in response")
+                return {"credits_used_cumulative": 0}
             
-            logger.info(f"📊 ElevenLabs balance:")
-            logger.info(f"   Used: {character_count:,} characters")
-            logger.info(f"   Limit: {character_limit:,} characters")
-            logger.info(f"   Remaining: {credits_remaining:,} credits")
+            # Last value = total credits used in time window
+            cumulative_credits = usage_all[-1] if isinstance(usage_all[-1], (int, float)) else 0
+            
+            logger.info(f"📊 Cumulative credits used (last 30 days): {cumulative_credits:,}")
             
             return {
-                "credits_remaining": credits_remaining,
-                "character_count": character_count,
-                "character_limit": character_limit,
-                "tier": subscription.get("tier"),
-                "status": subscription.get("status")
+                "credits_used_cumulative": cumulative_credits,
+                "timestamp": now.isoformat()
             }
     except Exception as e:
-        logger.error(f"❌ Failed to get subscription info: {e}")
+        logger.error(f"❌ Failed to get usage stats: {e}")
         logger.exception("Full error:")
         return {}
 
@@ -395,19 +407,19 @@ async def translate_video(
         if video_size_mb > 500:  # 500MB limit for ElevenLabs
             raise HTTPException(status_code=400, detail="Video too large (max 500MB)")
         
-        # Get current credits balance before starting
-        balance_before = None
+        # Get cumulative usage BEFORE dubbing starts
+        usage_before = None
         try:
-            logger.info(f"🔍 Attempting to get ElevenLabs balance...")
-            sub_info = await get_user_subscription_info()
-            logger.info(f"🔍 Subscription info received: {sub_info}")
-            balance_before = sub_info.get("credits_remaining") if sub_info else None
-            logger.info(f"💰 Credits before dubbing: {balance_before}")
+            logger.info(f"🔍 Attempting to get ElevenLabs cumulative usage...")
+            usage_info = await get_user_subscription_info()
+            logger.info(f"🔍 Usage info received: {usage_info}")
+            usage_before = usage_info.get("credits_used_cumulative") if usage_info else None
+            logger.info(f"💰 Cumulative usage before dubbing: {usage_before}")
         except Exception as e:
-            logger.error(f"❌ Failed to get balance: {e}")
+            logger.error(f"❌ Failed to get usage: {e}")
             logger.exception("Full error:")
-            # Continue without balance tracking
-            balance_before = None
+            # Continue without usage tracking
+            usage_before = None
         
         # Create a parent job ID to track all dubbing projects
         import uuid
@@ -442,9 +454,9 @@ async def translate_video(
         )
         
         job_dict = job.dict()
-        # Add balance tracking
-        if balance_before is not None:
-            job_dict["balance_before"] = balance_before
+        # Add usage tracking
+        if usage_before is not None:
+            job_dict["usage_before"] = usage_before
         
         translation_jobs[parent_job_id] = job_dict
         
@@ -511,19 +523,19 @@ async def get_translation_status(job_id: str, current_user: dict = Depends(get_c
         job["status"] = "completed"
         job["completed_at"] = datetime.now().isoformat()
         
-        # Get balance after completion to calculate actual credits used
-        if "balance_before" in job and "balance_after" not in job:
+        # Get usage after completion to calculate actual credits used
+        if "usage_before" in job and "usage_after" not in job:
             try:
-                logger.info(f"🔍 Getting balance after completion...")
-                sub_info = await get_user_subscription_info()
-                balance_after = sub_info.get("credits_remaining")
-                job["balance_after"] = balance_after
+                logger.info(f"🔍 Getting usage after completion...")
+                usage_info = await get_user_subscription_info()
+                usage_after = usage_info.get("credits_used_cumulative")
+                job["usage_after"] = usage_after
                 
-                logger.info(f"💰 Balance BEFORE: {job['balance_before']}")
-                logger.info(f"💰 Balance AFTER:  {balance_after}")
+                logger.info(f"💰 Usage BEFORE: {job['usage_before']}")
+                logger.info(f"💰 Usage AFTER:  {usage_after}")
                 
-                if balance_after is not None:
-                    actual_credits_used = job["balance_before"] - balance_after
+                if usage_after is not None:
+                    actual_credits_used = usage_after - job["usage_before"]  # NEW: after - before
                     job["actual_credits_used"] = actual_credits_used
                     logger.info(f"💰 ACTUAL CREDITS USED: {actual_credits_used}")
                     
@@ -541,9 +553,9 @@ async def get_translation_status(job_id: str, current_user: dict = Depends(get_c
                                 metadata={
                                     "job_id": job_id,
                                     "target_languages": job.get("target_languages", []),
-                                    "balance_before": job["balance_before"],
-                                    "balance_after": balance_after,
-                                    "note": "Actual credits from ElevenLabs balance difference"
+                                    "usage_before": job["usage_before"],
+                                    "usage_after": usage_after,
+                                    "note": "Actual credits from ElevenLabs cumulative usage difference"
                                 }
                             )
                             logger.info(f"✅ Recorded {actual_credits_used} credits to database")
@@ -551,9 +563,9 @@ async def get_translation_status(job_id: str, current_user: dict = Depends(get_c
                             logger.error(f"❌ Failed to record actual credits: {e}")
                             logger.exception("Full error:")
                 else:
-                    logger.error(f"❌ balance_after is None! Could not calculate credits used")
+                    logger.error(f"❌ usage_after is None! Could not calculate credits used")
             except Exception as e:
-                logger.error(f"❌ Could not get balance after: {e}")
+                logger.error(f"❌ Could not get usage after: {e}")
                 logger.exception("Full error:")
                 
     elif failed_count == total_count:
