@@ -8,12 +8,11 @@ SET
     output_tokens = 0,
     total_tokens = GREATEST(1, (total_tokens::decimal / (1024 * 1024 * 3))::integer),
     request_metadata = jsonb_set(
-        COALESCE(request_metadata, '{}'::jsonb),
-        '{migrated}',
-        'true'::jsonb
-    ),
-    request_metadata = jsonb_set(
-        request_metadata,
+        jsonb_set(
+            COALESCE(request_metadata, '{}'::jsonb),
+            '{migrated}',
+            'true'::jsonb
+        ),
         '{original_bytes}',
         to_jsonb(total_tokens)
     )
