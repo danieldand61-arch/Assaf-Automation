@@ -192,69 +192,55 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
 async def get_user_subscription_info() -> dict:
     """
     Get ElevenLabs user subscription info including available credits
+    Uses /v1/user endpoint (not /v1/user/subscription) for full data
+    Returns credits_remaining = character_limit - character_count
     """
     api_key = get_elevenlabs_api_key()
     
     try:
-        if ELEVENLABS_SDK_AVAILABLE:
-            client = ElevenLabs(api_key=api_key)
-            subscription = client.user.get_subscription()
+        import httpx
+        async with httpx.AsyncClient(timeout=30.0) as http_client:
+            headers = {"xi-api-key": api_key}
             
-            logger.info(f"💳 Subscription info: {subscription}")
-            logger.info(f"🔍 Subscription attributes: {dir(subscription)}")
-            if hasattr(subscription, '__dict__'):
-                logger.info(f"🔍 Subscription dict: {subscription.__dict__}")
+            # Use /v1/user endpoint which returns full user info including subscription
+            response = await http_client.get(
+                f"{ELEVENLABS_API_URL}/user",
+                headers=headers
+            )
             
-            # Try to get credits from different possible field names
-            credits = None
-            possible_credit_fields = ['credits', 'credits_remaining', 'available_credits', 'character_count', 'quota_remaining']
+            if response.status_code != 200:
+                logger.error(f"❌ ElevenLabs API error: {response.status_code} - {response.text}")
+                return {}
             
-            for field in possible_credit_fields:
-                if hasattr(subscription, field):
-                    value = getattr(subscription, field, None)
-                    if value is not None:
-                        credits = value
-                        logger.info(f"✅ Found credits in field '{field}': {credits}")
-                        break
+            data = response.json()
+            logger.info(f"💳 Full user data received from ElevenLabs")
             
-            if credits is None:
-                logger.error(f"❌ Could not find credits field! Available fields: {[attr for attr in dir(subscription) if not attr.startswith('_')]}")
-                credits = 0
+            # Extract subscription object
+            subscription = data.get("subscription", {})
+            logger.info(f"🔍 Subscription: {subscription}")
+            
+            # Get character counts
+            character_count = subscription.get("character_count", 0)
+            character_limit = subscription.get("character_limit", 0)
+            
+            # Calculate remaining credits (1 character = 1 credit)
+            credits_remaining = character_limit - character_count
+            
+            logger.info(f"📊 ElevenLabs balance:")
+            logger.info(f"   Used: {character_count:,} characters")
+            logger.info(f"   Limit: {character_limit:,} characters")
+            logger.info(f"   Remaining: {credits_remaining:,} credits")
             
             return {
-                "credits_remaining": credits,
-                "character_count": getattr(subscription, "character_count", 0),
-                "character_limit": getattr(subscription, "character_limit", 0)
+                "credits_remaining": credits_remaining,
+                "character_count": character_count,
+                "character_limit": character_limit,
+                "tier": subscription.get("tier"),
+                "status": subscription.get("status")
             }
-        else:
-            import httpx
-            async with httpx.AsyncClient(timeout=30.0) as http_client:
-                headers = {"xi-api-key": api_key}
-                response = await http_client.get(
-                    f"{ELEVENLABS_API_URL}/user/subscription",
-                    headers=headers
-                )
-                if response.status_code == 200:
-                    data = response.json()
-                    logger.info(f"💳 Subscription data from API: {data}")
-                    
-                    # Try to extract credits from response
-                    credits = None
-                    possible_credit_fields = ['credits', 'credits_remaining', 'available_credits', 'character_count', 'quota_remaining']
-                    
-                    for field in possible_credit_fields:
-                        if field in data and data[field] is not None:
-                            credits = data[field]
-                            logger.info(f"✅ Found credits in field '{field}': {credits}")
-                            break
-                    
-                    return {
-                        "credits_remaining": credits or 0,
-                        **data
-                    }
-                return {}
     except Exception as e:
         logger.error(f"❌ Failed to get subscription info: {e}")
+        logger.exception("Full error:")
         return {}
 
 async def get_usage_history() -> list:
