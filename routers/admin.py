@@ -139,6 +139,17 @@ async def get_users_stats(user = Depends(get_current_user)):
                     output_t = usage.get("output_tokens", 0) or 0
                     total_t = usage.get("total_tokens", 0) or 0
                     
+                    # Fix for video_dubbing: old records stored bytes instead of credits
+                    # If total_tokens > 10000 for video_dubbing, it's likely bytes not credits
+                    if service == "video_dubbing" and total_t > 10000:
+                        # Convert bytes to credits: ~1 credit per 3MB
+                        video_size_mb = total_t / (1024 * 1024)
+                        estimated_credits = max(1, int(video_size_mb / 3))
+                        logger.info(f"🔧 Converting old video_dubbing record: {total_t} bytes → {video_size_mb:.2f} MB → {estimated_credits} credits")
+                        input_t = estimated_credits
+                        output_t = 0
+                        total_t = estimated_credits
+                    
                     if total_requests == 0:  # Log first record only
                         logger.info(f"📊 First usage record for {user_id}: service={service}, input={input_t}, output={output_t}, total={total_t}")
                     
