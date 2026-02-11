@@ -2,7 +2,7 @@
 Video Translation Router - ElevenLabs Integration
 Translates and dubs videos into multiple languages using ElevenLabs API
 """
-from fastapi import APIRouter, UploadFile, File, HTTPException, Form
+from fastapi import APIRouter, UploadFile, File, HTTPException, Form, Depends
 from fastapi.responses import StreamingResponse
 from typing import List, Optional
 from pydantic import BaseModel
@@ -11,6 +11,7 @@ import os
 import json
 from datetime import datetime
 from io import BytesIO
+from middleware.auth import get_current_user
 
 # Use official ElevenLabs SDK
 try:
@@ -56,7 +57,7 @@ def get_elevenlabs_api_key() -> str:
         )
     return api_key
 
-async def create_dubbing_for_language(video_content: bytes, filename: str, target_lang: str) -> str:
+async def create_dubbing_for_language(video_content: bytes, filename: str, target_lang: str, user_id: str = None) -> str:
     """
     Create a dubbing project for a specific target language using ElevenLabs SDK
     Returns: dubbing_id
@@ -129,6 +130,33 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
             
             dubbing_id = dubbing.dubbing_id
             logger.info(f"✅ Dubbing created via SDK: {dubbing_id} for {target_lang}")
+            
+            # Track API usage
+            if user_id:
+                try:
+                    from services.credits_service import record_usage
+                    
+                    video_size_bytes = len(video_content)
+                    video_size_mb = video_size_bytes / (1024 * 1024)
+                    
+                    await record_usage(
+                        user_id=user_id,
+                        service_type="video_dubbing",
+                        input_tokens=video_size_bytes,  # Track video size in bytes
+                        output_tokens=0,
+                        total_tokens=video_size_bytes,
+                        model_name="elevenlabs_dubbing",
+                        metadata={
+                            "target_language": target_lang,
+                            "filename": filename,
+                            "dubbing_id": dubbing_id,
+                            "video_size_mb": round(video_size_mb, 2)
+                        }
+                    )
+                    logger.info(f"✅ Tracked video dubbing: {video_size_mb:.2f} MB for {target_lang}")
+                except Exception as e:
+                    logger.error(f"❌ Failed to track video dubbing: {e}")
+            
             return dubbing_id
             
         else:
@@ -174,6 +202,33 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
                 result = response.json()
                 dubbing_id = result.get("dubbing_id")
                 logger.info(f"✅ Dubbing created via httpx: {dubbing_id} for {target_lang}")
+                
+                # Track API usage
+                if user_id:
+                    try:
+                        from services.credits_service import record_usage
+                        
+                        video_size_bytes = len(video_content)
+                        video_size_mb = video_size_bytes / (1024 * 1024)
+                        
+                        await record_usage(
+                            user_id=user_id,
+                            service_type="video_dubbing",
+                            input_tokens=video_size_bytes,
+                            output_tokens=0,
+                            total_tokens=video_size_bytes,
+                            model_name="elevenlabs_dubbing",
+                            metadata={
+                                "target_language": target_lang,
+                                "filename": filename,
+                                "dubbing_id": dubbing_id,
+                                "video_size_mb": round(video_size_mb, 2)
+                            }
+                        )
+                        logger.info(f"✅ Tracked video dubbing: {video_size_mb:.2f} MB for {target_lang}")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to track video dubbing: {e}")
+                
                 return dubbing_id
             
     except HTTPException:
@@ -252,7 +307,8 @@ async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
 @router.post("/translate")
 async def translate_video(
     video: UploadFile = File(...),
-    target_languages: str = Form(...)  # Comma-separated: "en,es,pt"
+    target_languages: str = Form(...),  # Comma-separated: "en,es,pt"
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Upload video and start dubbing to multiple languages using ElevenLabs
@@ -302,12 +358,15 @@ async def translate_video(
         
         # Create separate dubbing project for each target language
         dubbing_ids = {}
+        user_id = current_user.get("user_id")
+        
         for lang in langs:
             try:
                 dubbing_id = await create_dubbing_for_language(
                     video_content, 
                     video.filename, 
-                    lang
+                    lang,
+                    user_id=user_id
                 )
                 dubbing_ids[lang] = dubbing_id
             except Exception as e:

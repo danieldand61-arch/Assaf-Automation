@@ -154,8 +154,9 @@ export function Admin() {
                 <h3 className="font-semibold text-gray-900 dark:text-white">Total API Usage</h3>
               </div>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">
-                {users.reduce((sum, u) => sum + getTotalTokens(u), 0).toLocaleString()} tokens
+                {users.reduce((sum, u) => sum + getTotalTokens(u), 0).toLocaleString()} units
               </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">tokens + video bytes</p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
@@ -256,6 +257,7 @@ export function Admin() {
                             'gemini_chat': { name: 'Gemini Chat', icon: '💬' },
                             'social_posts': { name: 'Social Posts', icon: '📱' },
                             'image_generation': { name: 'Image Gen', icon: '🖼️' },
+                            'video_dubbing': { name: 'Video Dubbing', icon: '🎬' },
                             'google_ads': { name: 'Google Ads', icon: '📢' },
                             'elevenlabs': { name: 'ElevenLabs', icon: '🔊' },
                             'video_translation': { name: 'Video Trans', icon: '🎥' }
@@ -263,6 +265,12 @@ export function Admin() {
                           
                           const serviceInfo = serviceNames[service] || { name: service, icon: '⚙️' }
                           const hasTokens = usage.total_tokens > 0
+                          
+                          // For video_dubbing, show MB instead of tokens
+                          const isVideoDubbing = service === 'video_dubbing'
+                          const displayValue = isVideoDubbing 
+                            ? `${(usage.total_tokens / (1024 * 1024)).toFixed(2)} MB`
+                            : `${usage.total_tokens.toLocaleString()} tokens`
                           
                           return (
                             <div key={service} className="flex items-center justify-between bg-gray-50 dark:bg-gray-700/50 rounded px-2 py-1">
@@ -275,7 +283,7 @@ export function Admin() {
                               <div className="flex items-center gap-2">
                                 {hasTokens ? (
                                   <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
-                                    {usage.total_tokens.toLocaleString()}
+                                    {displayValue}
                                   </span>
                                 ) : (
                                   <span className="text-sm text-gray-400">0</span>
