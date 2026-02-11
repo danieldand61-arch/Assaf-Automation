@@ -137,6 +137,13 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
             if hasattr(dubbing, '__dict__'):
                 logger.info(f"🔍 Dubbing response dict: {dubbing.__dict__}")
             
+            # Check for cost/credit fields
+            possible_cost_fields = ['cost', 'credits', 'credits_used', 'price', 'charge']
+            for field in possible_cost_fields:
+                if hasattr(dubbing, field):
+                    value = getattr(dubbing, field)
+                    logger.info(f"💰 Found cost field '{field}': {value}")
+            
             # Track API usage - for now use video duration estimate
             # ElevenLabs charges per character of source audio (~1 credit per 1000 chars)
             # We'll get exact cost from metadata after completion
@@ -299,6 +306,45 @@ async def get_user_subscription_info() -> dict:
         logger.error(f"❌ Failed to get subscription info: {e}")
         return {}
 
+async def get_usage_history() -> list:
+    """
+    Get ElevenLabs usage history/transactions
+    This may include credits spent on each operation
+    """
+    api_key = get_elevenlabs_api_key()
+    
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=30.0) as http_client:
+            headers = {"xi-api-key": api_key}
+            
+            # Try to get usage/history endpoint
+            # Note: This endpoint may not exist in all ElevenLabs tiers
+            endpoints_to_try = [
+                f"{ELEVENLABS_API_URL}/user/usage",
+                f"{ELEVENLABS_API_URL}/user/history",
+                f"{ELEVENLABS_API_URL}/history"
+            ]
+            
+            for endpoint in endpoints_to_try:
+                try:
+                    response = await http_client.get(endpoint, headers=headers)
+                    logger.info(f"🔍 Tried {endpoint}: {response.status_code}")
+                    
+                    if response.status_code == 200:
+                        data = response.json()
+                        logger.info(f"✅ Usage history from {endpoint}: {data}")
+                        return data
+                except Exception as e:
+                    logger.debug(f"⚠️ Endpoint {endpoint} failed: {e}")
+                    continue
+            
+            logger.warning("⚠️ No usage history endpoint found in ElevenLabs API")
+            return []
+    except Exception as e:
+        logger.error(f"❌ Failed to get usage history: {e}")
+        return []
+
 async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
     """
     Check dubbing job status using ElevenLabs SDK
@@ -332,18 +378,40 @@ async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
             character_count = getattr(metadata, "character_count", None)
             expected_duration_sec = getattr(metadata, "expected_duration_sec", None)
             
-            # Try to get actual cost from metadata
-            # ElevenLabs may provide 'cost' or 'credits_used' in metadata
-            credits_from_metadata = getattr(metadata, "cost", None) or getattr(metadata, "credits_used", None)
-            
-            # Fallback: calculate from character count (~1 credit per 1000 characters)
+            # Try to get actual cost from multiple sources
             credits_used = None
-            if credits_from_metadata:
-                credits_used = float(credits_from_metadata)
-                logger.info(f"💰 Dubbing cost from metadata: {credits_used} credits")
-            elif character_count:
+            source = None
+            
+            # Method 1: Check for direct cost/credits fields in metadata
+            possible_cost_fields = ['cost', 'credits_used', 'credits', 'price', 'charge', 'total_cost']
+            for field in possible_cost_fields:
+                if hasattr(metadata, field):
+                    value = getattr(metadata, field)
+                    if value is not None:
+                        credits_used = float(value)
+                        source = f"metadata.{field}"
+                        logger.info(f"💰 Found credits in {source}: {credits_used}")
+                        break
+            
+            # Method 2: Calculate from character count
+            # ElevenLabs Dubbing charges based on source audio length (character count of transcription)
+            # Pricing: https://elevenlabs.io/pricing - typically ~$0.30 per 1000 chars
+            # In credits: ~1 credit per 1000 characters
+            if not credits_used and character_count:
                 credits_used = character_count / 1000.0
-                logger.info(f"💰 Dubbing used {character_count} characters = ~{credits_used:.2f} credits (estimated)")
+                source = "character_count"
+                logger.info(f"💰 Estimated from {source}: {character_count} chars = {credits_used:.2f} credits")
+            
+            # Log all available metadata for debugging
+            logger.info(f"📊 Full metadata for {dubbing_id}:")
+            for attr in dir(metadata):
+                if not attr.startswith('_'):
+                    try:
+                        value = getattr(metadata, attr)
+                        if not callable(value):
+                            logger.info(f"  - {attr}: {value}")
+                    except:
+                        pass
             
             result = {
                 "status": status,
@@ -771,6 +839,21 @@ async def get_subscription(current_user: dict = Depends(get_current_user)):
         }
     except Exception as e:
         logger.error(f"❌ Failed to get subscription: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/usage-history")
+async def get_usage_history_endpoint(current_user: dict = Depends(get_current_user)):
+    """
+    Get ElevenLabs usage history if available
+    """
+    try:
+        history = await get_usage_history()
+        return {
+            "success": True,
+            "history": history
+        }
+    except Exception as e:
+        logger.error(f"❌ Failed to get usage history: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============= Health Check =============
