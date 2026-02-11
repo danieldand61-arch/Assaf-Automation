@@ -257,22 +257,18 @@ export function Admin() {
                             'gemini_chat': { name: 'Gemini Chat', icon: '💬' },
                             'social_posts': { name: 'Social Posts', icon: '📱' },
                             'image_generation': { name: 'Image Gen', icon: '🖼️' },
+                            'video_dubbing': { name: 'Video Dubbing', icon: '🎬' },
                             'video_dubbing_actual': { name: 'Video Dubbing', icon: '🎬' },
                             'google_ads': { name: 'Google Ads', icon: '📢' },
                             'elevenlabs': { name: 'ElevenLabs', icon: '🔊' },
                             'video_translation': { name: 'Video Trans', icon: '🎥' }
                           }
                           
-                          // Skip old estimated video_dubbing records
-                          if (service === 'video_dubbing') {
-                            return null
-                          }
-                          
                           const serviceInfo = serviceNames[service] || { name: service, icon: '⚙️' }
                           const hasTokens = usage.total_tokens > 0
                           
-                          // For video_dubbing_actual, show credits instead of tokens
-                          const isVideoDubbing = service === 'video_dubbing_actual'
+                          // For video_dubbing (both old and new), show credits instead of tokens
+                          const isVideoDubbing = service === 'video_dubbing' || service === 'video_dubbing_actual'
                           const displayValue = isVideoDubbing 
                             ? `${usage.total_tokens.toLocaleString()} credits`
                             : `${usage.total_tokens.toLocaleString()} tokens`
