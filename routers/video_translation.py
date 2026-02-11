@@ -191,8 +191,8 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
 
 async def get_user_subscription_info() -> dict:
     """
-    Get ElevenLabs user subscription info including available credits
-    Uses /v1/user endpoint (not /v1/user/subscription) for full data
+    Get ElevenLabs subscription info including available credits
+    Uses /v1/user/subscription endpoint which requires fewer permissions
     Returns credits_remaining = character_limit - character_count
     """
     api_key = get_elevenlabs_api_key()
@@ -202,9 +202,9 @@ async def get_user_subscription_info() -> dict:
         async with httpx.AsyncClient(timeout=30.0) as http_client:
             headers = {"xi-api-key": api_key}
             
-            # Use /v1/user endpoint which returns full user info including subscription
+            # Use /v1/user/subscription endpoint (requires less permissions than /v1/user)
             response = await http_client.get(
-                f"{ELEVENLABS_API_URL}/user",
+                f"{ELEVENLABS_API_URL}/user/subscription",
                 headers=headers
             )
             
@@ -212,18 +212,15 @@ async def get_user_subscription_info() -> dict:
                 logger.error(f"❌ ElevenLabs API error: {response.status_code} - {response.text}")
                 return {}
             
-            data = response.json()
-            logger.info(f"💳 Full user data received from ElevenLabs")
-            
-            # Extract subscription object
-            subscription = data.get("subscription", {})
-            logger.info(f"🔍 Subscription: {subscription}")
+            subscription = response.json()
+            logger.info(f"💳 Subscription data received from ElevenLabs")
+            logger.info(f"🔍 Raw subscription: {subscription}")
             
             # Get character counts
             character_count = subscription.get("character_count", 0)
             character_limit = subscription.get("character_limit", 0)
             
-            # Calculate remaining credits (1 character = 1 credit)
+            # Calculate remaining credits (1 character = 1 credit in ElevenLabs)
             credits_remaining = character_limit - character_count
             
             logger.info(f"📊 ElevenLabs balance:")
