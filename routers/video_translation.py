@@ -261,6 +261,44 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
             detail=f"Dubbing failed for {target_lang}: {str(e)}"
         )
 
+async def get_user_subscription_info() -> dict:
+    """
+    Get ElevenLabs user subscription info including available credits
+    """
+    api_key = get_elevenlabs_api_key()
+    
+    try:
+        if ELEVENLABS_SDK_AVAILABLE:
+            client = ElevenLabs(api_key=api_key)
+            subscription = client.user.get_subscription()
+            
+            logger.info(f"💳 Subscription info: {subscription}")
+            logger.info(f"🔍 Subscription attributes: {dir(subscription)}")
+            if hasattr(subscription, '__dict__'):
+                logger.info(f"🔍 Subscription dict: {subscription.__dict__}")
+            
+            return {
+                "character_count": getattr(subscription, "character_count", 0),
+                "character_limit": getattr(subscription, "character_limit", 0),
+                "credits_remaining": getattr(subscription, "character_limit", 0) - getattr(subscription, "character_count", 0)
+            }
+        else:
+            import httpx
+            async with httpx.AsyncClient(timeout=30.0) as http_client:
+                headers = {"xi-api-key": api_key}
+                response = await http_client.get(
+                    f"{ELEVENLABS_API_URL}/user/subscription",
+                    headers=headers
+                )
+                if response.status_code == 200:
+                    data = response.json()
+                    logger.info(f"💳 Subscription data: {data}")
+                    return data
+                return {}
+    except Exception as e:
+        logger.error(f"❌ Failed to get subscription info: {e}")
+        return {}
+
 async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
     """
     Check dubbing job status using ElevenLabs SDK
@@ -294,11 +332,18 @@ async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
             character_count = getattr(metadata, "character_count", None)
             expected_duration_sec = getattr(metadata, "expected_duration_sec", None)
             
-            # ElevenLabs charges ~1 credit per 1000 characters
+            # Try to get actual cost from metadata
+            # ElevenLabs may provide 'cost' or 'credits_used' in metadata
+            credits_from_metadata = getattr(metadata, "cost", None) or getattr(metadata, "credits_used", None)
+            
+            # Fallback: calculate from character count (~1 credit per 1000 characters)
             credits_used = None
-            if character_count:
+            if credits_from_metadata:
+                credits_used = float(credits_from_metadata)
+                logger.info(f"💰 Dubbing cost from metadata: {credits_used} credits")
+            elif character_count:
                 credits_used = character_count / 1000.0
-                logger.info(f"💰 Dubbing used {character_count} characters = ~{credits_used:.2f} credits")
+                logger.info(f"💰 Dubbing used {character_count} characters = ~{credits_used:.2f} credits (estimated)")
             
             result = {
                 "status": status,
@@ -349,6 +394,10 @@ async def translate_video(
     """
     Upload video and start dubbing to multiple languages using ElevenLabs
     
+    Cost tracking:
+    - Records balance before dubbing
+    - After completion, checks balance again to get exact credits used
+    
     ✅ Supported languages (Dubbing API):
     - en: English
     - es: Spanish  
@@ -388,6 +437,15 @@ async def translate_video(
         if video_size_mb > 500:  # 500MB limit for ElevenLabs
             raise HTTPException(status_code=400, detail="Video too large (max 500MB)")
         
+        # Get current credits balance before starting
+        balance_before = None
+        try:
+            sub_info = await get_user_subscription_info()
+            balance_before = sub_info.get("credits_remaining")
+            logger.info(f"💰 Credits before dubbing: {balance_before}")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not get balance: {e}")
+        
         # Create a parent job ID to track all dubbing projects
         import uuid
         parent_job_id = str(uuid.uuid4())
@@ -420,7 +478,12 @@ async def translate_video(
             created_at=datetime.now().isoformat()
         )
         
-        translation_jobs[parent_job_id] = job.dict()
+        job_dict = job.dict()
+        # Add balance tracking
+        if balance_before is not None:
+            job_dict["balance_before"] = balance_before
+        
+        translation_jobs[parent_job_id] = job_dict
         
         successful_count = sum(1 for did in dubbing_ids.values() if did is not None)
         logger.info(f"✅ Dubbing jobs created: {successful_count}/{len(langs)} successful")
@@ -471,30 +534,9 @@ async def get_translation_status(job_id: str, current_user: dict = Depends(get_c
                 # Provide our API endpoint for download (it will proxy from ElevenLabs)
                 download_urls[lang] = f"/api/video/download/{dubbing_id}/{lang}"
                 
-                # Update actual credits if available
-                if status_info.get("credits_used") and user_id:
-                    try:
-                        from services.credits_service import record_usage
-                        actual_credits = int(status_info["credits_used"])
-                        
-                        # Record actual credits (this will be separate entry)
-                        await record_usage(
-                            user_id=user_id,
-                            service_type="video_dubbing_actual",
-                            input_tokens=actual_credits,
-                            output_tokens=0,
-                            total_tokens=actual_credits,
-                            model_name="elevenlabs_dubbing",
-                            metadata={
-                                "target_language": lang,
-                                "dubbing_id": dubbing_id,
-                                "character_count": status_info["metadata"].get("character_count"),
-                                "note": "Actual cost from ElevenLabs API"
-                            }
-                        )
-                        logger.info(f"✅ Updated actual credits: {actual_credits} for dubbing {dubbing_id}")
-                    except Exception as e:
-                        logger.error(f"❌ Failed to update actual credits: {e}")
+                # Log character count if available (for reference)
+                if status_info.get("credits_used"):
+                    logger.info(f"📊 Dubbing {dubbing_id} estimated: {status_info['credits_used']} credits from character count")
                 
             elif status_info.get("status") == "failed":
                 failed_count += 1
@@ -509,6 +551,44 @@ async def get_translation_status(job_id: str, current_user: dict = Depends(get_c
     if completed_count == total_count:
         job["status"] = "completed"
         job["completed_at"] = datetime.now().isoformat()
+        
+        # Get balance after completion to calculate actual credits used
+        if "balance_before" in job and "balance_after" not in job:
+            try:
+                sub_info = await get_user_subscription_info()
+                balance_after = sub_info.get("credits_remaining")
+                job["balance_after"] = balance_after
+                
+                if balance_after is not None:
+                    actual_credits_used = job["balance_before"] - balance_after
+                    job["actual_credits_used"] = actual_credits_used
+                    logger.info(f"💰 Actual credits used: {actual_credits_used} (before: {job['balance_before']}, after: {balance_after})")
+                    
+                    # Record actual usage
+                    if user_id and actual_credits_used > 0:
+                        try:
+                            from services.credits_service import record_usage
+                            await record_usage(
+                                user_id=user_id,
+                                service_type="video_dubbing_actual",
+                                input_tokens=int(actual_credits_used),
+                                output_tokens=0,
+                                total_tokens=int(actual_credits_used),
+                                model_name="elevenlabs_dubbing",
+                                metadata={
+                                    "job_id": job_id,
+                                    "target_languages": job.get("target_languages", []),
+                                    "balance_before": job["balance_before"],
+                                    "balance_after": balance_after,
+                                    "note": "Actual credits from balance difference"
+                                }
+                            )
+                            logger.info(f"✅ Recorded actual credits usage: {actual_credits_used}")
+                        except Exception as e:
+                            logger.error(f"❌ Failed to record actual credits: {e}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not get balance after: {e}")
+                
     elif failed_count == total_count:
         job["status"] = "failed"
         job["error"] = "All dubbing jobs failed"
@@ -676,6 +756,22 @@ async def cancel_translation_job(job_id: str):
     translation_jobs[job_id]["status"] = "cancelled"
     
     return {"success": True, "message": "Job cancelled"}
+
+# ============= Subscription Info =============
+@router.get("/subscription")
+async def get_subscription(current_user: dict = Depends(get_current_user)):
+    """
+    Get ElevenLabs subscription info including credits balance
+    """
+    try:
+        info = await get_user_subscription_info()
+        return {
+            "success": True,
+            "subscription": info
+        }
+    except Exception as e:
+        logger.error(f"❌ Failed to get subscription: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ============= Health Check =============
 @router.get("/health")
