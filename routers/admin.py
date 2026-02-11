@@ -68,9 +68,9 @@ async def get_users_stats(user = Depends(get_current_user)):
         credits_map = {c["user_id"]: c for c in (credits_result.data or [])}
         logger.info(f"💰 Found {len(credits_map)} user_credits records")
         
-        # Get usage breakdown by service
+        # Get usage breakdown by service (include token columns!)
         usage_result = supabase.table("credits_usage")\
-            .select("user_id, service_type, credits_spent, created_at")\
+            .select("user_id, service_type, credits_spent, input_tokens, output_tokens, total_tokens, created_at")\
             .execute()
         logger.info(f"📊 Found {len(usage_result.data or [])} usage records")
         
@@ -134,10 +134,18 @@ async def get_users_stats(user = Depends(get_current_user)):
                             "total_tokens": 0
                         }
                     
+                    # Log what we're adding
+                    input_t = usage.get("input_tokens", 0) or 0
+                    output_t = usage.get("output_tokens", 0) or 0
+                    total_t = usage.get("total_tokens", 0) or 0
+                    
+                    if total_requests == 0:  # Log first record only
+                        logger.info(f"📊 First usage record for {user_id}: service={service}, input={input_t}, output={output_t}, total={total_t}")
+                    
                     usage_by_service[service]["requests"] += 1
-                    usage_by_service[service]["input_tokens"] += usage.get("input_tokens", 0)
-                    usage_by_service[service]["output_tokens"] += usage.get("output_tokens", 0)
-                    usage_by_service[service]["total_tokens"] += usage.get("total_tokens", 0)
+                    usage_by_service[service]["input_tokens"] += input_t
+                    usage_by_service[service]["output_tokens"] += output_t
+                    usage_by_service[service]["total_tokens"] += total_t
                     total_requests += 1
                     
                     if not last_activity or usage["created_at"] > last_activity:
