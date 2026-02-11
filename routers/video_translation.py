@@ -390,6 +390,11 @@ async def translate_video(
     Note: ElevenLabs creates one dubbing project per target language
     """
     try:
+        logger.info(f"🎬 ========== NEW VIDEO DUBBING REQUEST ==========")
+        logger.info(f"📥 User: {current_user.get('user_id')}")
+        logger.info(f"📥 Video filename: {video.filename}")
+        logger.info(f"📥 Target languages param: {target_languages}")
+        
         # Parse target languages
         langs = [lang.strip() for lang in target_languages.split(",")]
         
@@ -410,11 +415,16 @@ async def translate_video(
         # Get current credits balance before starting
         balance_before = None
         try:
+            logger.info(f"🔍 Attempting to get ElevenLabs balance...")
             sub_info = await get_user_subscription_info()
-            balance_before = sub_info.get("credits_remaining")
+            logger.info(f"🔍 Subscription info received: {sub_info}")
+            balance_before = sub_info.get("credits_remaining") if sub_info else None
             logger.info(f"💰 Credits before dubbing: {balance_before}")
         except Exception as e:
-            logger.warning(f"⚠️ Could not get balance: {e}")
+            logger.error(f"❌ Failed to get balance: {e}")
+            logger.exception("Full error:")
+            # Continue without balance tracking
+            balance_before = None
         
         # Create a parent job ID to track all dubbing projects
         import uuid

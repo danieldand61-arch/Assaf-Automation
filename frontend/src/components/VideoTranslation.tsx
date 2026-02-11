@@ -125,6 +125,10 @@ export function VideoTranslation({ initialJob, onJobUpdate }: VideoTranslationPr
   }
 
   const handleTranslate = async () => {
+    console.log('🎬 handleTranslate called')
+    console.log('  selectedFile:', selectedFile?.name, selectedFile?.size)
+    console.log('  selectedLanguage:', selectedLanguage)
+    
     if (!selectedFile || !selectedLanguage) {
       setError('Please select a video and a target language')
       return
@@ -137,6 +141,8 @@ export function VideoTranslation({ initialJob, onJobUpdate }: VideoTranslationPr
       const formData = new FormData()
       formData.append('video', selectedFile)
       formData.append('target_languages', selectedLanguage)
+      
+      console.log('📤 Sending video translation request...')
 
       const apiUrl = getApiUrl()
       
@@ -158,18 +164,23 @@ export function VideoTranslation({ initialJob, onJobUpdate }: VideoTranslationPr
       })
       
       clearTimeout(timeoutId)
+      
+      console.log('📥 Response status:', response.status, response.statusText)
 
       if (!response.ok) {
         const errorData = await response.json()
+        console.error('❌ Translation failed:', errorData)
         throw new Error(errorData.detail || 'Translation failed')
       }
 
       const data = await response.json()
+      console.log('✅ Translation started:', data)
       
       // Start polling for status
       pollJobStatus(data.job_id)
       
     } catch (err) {
+      console.error('❌ handleTranslate error:', err)
       setError(err instanceof Error ? err.message : 'Translation failed')
     } finally {
       setIsUploading(false)
@@ -177,6 +188,7 @@ export function VideoTranslation({ initialJob, onJobUpdate }: VideoTranslationPr
   }
 
   const pollJobStatus = async (jobId: string) => {
+    console.log('🔄 Starting to poll job status:', jobId)
     const apiUrl = getApiUrl()
     
     const poll = async () => {
@@ -186,21 +198,30 @@ export function VideoTranslation({ initialJob, onJobUpdate }: VideoTranslationPr
           return
         }
         
+        console.log('📡 Checking status for job:', jobId)
         const response = await fetch(`${apiUrl}/api/video/status/${jobId}`, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`
           }
         })
+        
+        console.log('📥 Status response:', response.status)
         if (!response.ok) throw new Error('Failed to get status')
         
         const job: TranslationJob = await response.json()
+        console.log('📊 Job status:', job.status, job)
+        
         setCurrentJob(job)
         if (onJobUpdate) onJobUpdate(job)
         
         if (job.status === 'processing') {
+          console.log('⏳ Still processing, will check again in 5s...')
           setTimeout(poll, 5000) // Poll every 5 seconds
+        } else {
+          console.log('✅ Job finished with status:', job.status)
         }
       } catch (err) {
+        console.error('❌ Poll error:', err)
         setError('Failed to check status')
       }
     }
