@@ -267,8 +267,13 @@ export function Admin() {
                           const serviceInfo = serviceNames[service] || { name: service, icon: '⚙️' }
                           const hasTokens = usage.total_tokens > 0
                           
-                          // For video_dubbing (both old and new), show credits instead of tokens
-                          const isVideoDubbing = service === 'video_dubbing' || service === 'video_dubbing_actual'
+                          // Hide old video_dubbing records (show only video_dubbing_actual)
+                          if (service === 'video_dubbing') {
+                            return null
+                          }
+                          
+                          // For video_dubbing_actual, show credits instead of tokens
+                          const isVideoDubbing = service === 'video_dubbing_actual'
                           const displayValue = isVideoDubbing 
                             ? `${usage.total_tokens.toLocaleString()} credits`
                             : `${usage.total_tokens.toLocaleString()} tokens`
