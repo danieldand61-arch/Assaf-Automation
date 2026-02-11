@@ -140,12 +140,19 @@ export function VideoTranslation({ initialJob, onJobUpdate }: VideoTranslationPr
 
       const apiUrl = getApiUrl()
       
+      if (!session) {
+        throw new Error('Please sign in to translate videos')
+      }
+      
       // For large videos, we need a longer timeout (5 minutes)
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 300000) // 5 min
       
       const response = await fetch(`${apiUrl}/api/video/translate`, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
         body: formData,
         signal: controller.signal,
       })
