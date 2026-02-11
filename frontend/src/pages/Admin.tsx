@@ -156,7 +156,7 @@ export function Admin() {
               <p className="text-3xl font-bold text-gray-900 dark:text-white">
                 {users.reduce((sum, u) => sum + getTotalTokens(u), 0).toLocaleString()} units
               </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">tokens + video bytes</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">tokens + credits</p>
             </div>
 
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg border border-gray-200 dark:border-gray-700">
@@ -257,7 +257,8 @@ export function Admin() {
                             'gemini_chat': { name: 'Gemini Chat', icon: '💬' },
                             'social_posts': { name: 'Social Posts', icon: '📱' },
                             'image_generation': { name: 'Image Gen', icon: '🖼️' },
-                            'video_dubbing': { name: 'Video Dubbing', icon: '🎬' },
+                            'video_dubbing': { name: 'Video Dubbing (Est)', icon: '🎬' },
+                            'video_dubbing_actual': { name: 'Video Dubbing', icon: '🎬' },
                             'google_ads': { name: 'Google Ads', icon: '📢' },
                             'elevenlabs': { name: 'ElevenLabs', icon: '🔊' },
                             'video_translation': { name: 'Video Trans', icon: '🎥' }
@@ -266,10 +267,10 @@ export function Admin() {
                           const serviceInfo = serviceNames[service] || { name: service, icon: '⚙️' }
                           const hasTokens = usage.total_tokens > 0
                           
-                          // For video_dubbing, show MB instead of tokens
-                          const isVideoDubbing = service === 'video_dubbing'
+                          // For video_dubbing, show credits instead of tokens
+                          const isVideoDubbing = service === 'video_dubbing' || service === 'video_dubbing_actual'
                           const displayValue = isVideoDubbing 
-                            ? `${(usage.total_tokens / (1024 * 1024)).toFixed(2)} MB`
+                            ? `${usage.total_tokens.toLocaleString()} credits`
                             : `${usage.total_tokens.toLocaleString()} tokens`
                           
                           return (

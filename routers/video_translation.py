@@ -131,7 +131,15 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
             dubbing_id = dubbing.dubbing_id
             logger.info(f"✅ Dubbing created via SDK: {dubbing_id} for {target_lang}")
             
-            # Track API usage
+            # Log dubbing response to check for credit info
+            logger.info(f"🔍 Dubbing response type: {type(dubbing)}")
+            logger.info(f"🔍 Dubbing response attributes: {dir(dubbing)}")
+            if hasattr(dubbing, '__dict__'):
+                logger.info(f"🔍 Dubbing response dict: {dubbing.__dict__}")
+            
+            # Track API usage - for now use video duration estimate
+            # ElevenLabs charges per character of source audio (~1 credit per 1000 chars)
+            # We'll get exact cost from metadata after completion
             if user_id:
                 try:
                     from services.credits_service import record_usage
@@ -139,21 +147,29 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
                     video_size_bytes = len(video_content)
                     video_size_mb = video_size_bytes / (1024 * 1024)
                     
+                    # Estimate credits based on video length
+                    # ElevenLabs dubbing: ~1000 characters = 1 credit
+                    # Rough estimate: 1 minute video = ~150 words = ~1000 chars = 1 credit
+                    # For 5MB video (~30-60 seconds), estimate ~1-2 credits
+                    estimated_credits = max(1, int(video_size_mb / 3))  # ~1 credit per 3MB
+                    
                     await record_usage(
                         user_id=user_id,
                         service_type="video_dubbing",
-                        input_tokens=video_size_bytes,  # Track video size in bytes
+                        input_tokens=estimated_credits,  # Store estimated credits
                         output_tokens=0,
-                        total_tokens=video_size_bytes,
+                        total_tokens=estimated_credits,
                         model_name="elevenlabs_dubbing",
                         metadata={
                             "target_language": target_lang,
                             "filename": filename,
                             "dubbing_id": dubbing_id,
-                            "video_size_mb": round(video_size_mb, 2)
+                            "video_size_mb": round(video_size_mb, 2),
+                            "estimated_credits": estimated_credits,
+                            "note": "Estimated cost - actual cost tracked after completion"
                         }
                     )
-                    logger.info(f"✅ Tracked video dubbing: {video_size_mb:.2f} MB for {target_lang}")
+                    logger.info(f"✅ Tracked video dubbing: ~{estimated_credits} credits (estimated) for {target_lang}")
                 except Exception as e:
                     logger.error(f"❌ Failed to track video dubbing: {e}")
             
@@ -211,21 +227,25 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
                         video_size_bytes = len(video_content)
                         video_size_mb = video_size_bytes / (1024 * 1024)
                         
+                        # Estimate credits based on video length
+                        estimated_credits = max(1, int(video_size_mb / 3))
+                        
                         await record_usage(
                             user_id=user_id,
                             service_type="video_dubbing",
-                            input_tokens=video_size_bytes,
+                            input_tokens=estimated_credits,
                             output_tokens=0,
-                            total_tokens=video_size_bytes,
+                            total_tokens=estimated_credits,
                             model_name="elevenlabs_dubbing",
                             metadata={
                                 "target_language": target_lang,
                                 "filename": filename,
                                 "dubbing_id": dubbing_id,
-                                "video_size_mb": round(video_size_mb, 2)
+                                "video_size_mb": round(video_size_mb, 2),
+                                "estimated_credits": estimated_credits
                             }
                         )
-                        logger.info(f"✅ Tracked video dubbing: {video_size_mb:.2f} MB for {target_lang}")
+                        logger.info(f"✅ Tracked video dubbing: ~{estimated_credits} credits (estimated) for {target_lang}")
                     except Exception as e:
                         logger.error(f"❌ Failed to track video dubbing: {e}")
                 
@@ -244,7 +264,7 @@ async def create_dubbing_for_language(video_content: bytes, filename: str, targe
 async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
     """
     Check dubbing job status using ElevenLabs SDK
-    Returns: {status, target_lang}
+    Returns: {status, target_lang, credits_used (if completed)}
     Note: Download URL is provided by separate endpoint
     """
     api_key = get_elevenlabs_api_key()
@@ -258,6 +278,9 @@ async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
             metadata = client.dubbing.get_dubbing_project_metadata(dubbing_id=dubbing_id)
             
             logger.info(f"📊 Dubbing {dubbing_id} status: {metadata.status}")
+            logger.info(f"🔍 Metadata attributes: {dir(metadata)}")
+            if hasattr(metadata, '__dict__'):
+                logger.info(f"🔍 Metadata dict: {metadata.__dict__}")
             
             status_map = {
                 "dubbing": "processing",
@@ -267,13 +290,26 @@ async def check_dubbing_status(dubbing_id: str, target_lang: str) -> dict:
             
             status = status_map.get(metadata.status, "processing")
             
+            # Try to get character count (used for billing)
+            character_count = getattr(metadata, "character_count", None)
+            expected_duration_sec = getattr(metadata, "expected_duration_sec", None)
+            
+            # ElevenLabs charges ~1 credit per 1000 characters
+            credits_used = None
+            if character_count:
+                credits_used = character_count / 1000.0
+                logger.info(f"💰 Dubbing used {character_count} characters = ~{credits_used:.2f} credits")
+            
             result = {
                 "status": status,
                 "dubbing_id": dubbing_id,
                 "target_lang": target_lang,
+                "credits_used": credits_used,
                 "metadata": {
                     "name": getattr(metadata, "name", ""),
                     "target_languages": getattr(metadata, "target_languages", []),
+                    "character_count": character_count,
+                    "duration_sec": expected_duration_sec
                 }
             }
             
@@ -405,15 +441,17 @@ async def translate_video(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/status/{job_id}")
-async def get_translation_status(job_id: str):
+async def get_translation_status(job_id: str, current_user: dict = Depends(get_current_user)):
     """
     Check dubbing job status and provide download endpoints for completed dubs
+    Also updates actual credits used when job completes
     """
     if job_id not in translation_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     
     job = translation_jobs[job_id]
     dubbing_ids = job.get("translated_videos", {})
+    user_id = current_user.get("user_id")
     
     # Check status for each language's dubbing project
     completed_count = 0
@@ -432,6 +470,32 @@ async def get_translation_status(job_id: str):
                 completed_count += 1
                 # Provide our API endpoint for download (it will proxy from ElevenLabs)
                 download_urls[lang] = f"/api/video/download/{dubbing_id}/{lang}"
+                
+                # Update actual credits if available
+                if status_info.get("credits_used") and user_id:
+                    try:
+                        from services.credits_service import record_usage
+                        actual_credits = int(status_info["credits_used"])
+                        
+                        # Record actual credits (this will be separate entry)
+                        await record_usage(
+                            user_id=user_id,
+                            service_type="video_dubbing_actual",
+                            input_tokens=actual_credits,
+                            output_tokens=0,
+                            total_tokens=actual_credits,
+                            model_name="elevenlabs_dubbing",
+                            metadata={
+                                "target_language": lang,
+                                "dubbing_id": dubbing_id,
+                                "character_count": status_info["metadata"].get("character_count"),
+                                "note": "Actual cost from ElevenLabs API"
+                            }
+                        )
+                        logger.info(f"✅ Updated actual credits: {actual_credits} for dubbing {dubbing_id}")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to update actual credits: {e}")
+                
             elif status_info.get("status") == "failed":
                 failed_count += 1
                 

@@ -181,7 +181,16 @@ export function VideoTranslation({ initialJob, onJobUpdate }: VideoTranslationPr
     
     const poll = async () => {
       try {
-        const response = await fetch(`${apiUrl}/api/video/status/${jobId}`)
+        if (!session) {
+          setError('Session expired. Please sign in again.')
+          return
+        }
+        
+        const response = await fetch(`${apiUrl}/api/video/status/${jobId}`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        })
         if (!response.ok) throw new Error('Failed to get status')
         
         const job: TranslationJob = await response.json()
