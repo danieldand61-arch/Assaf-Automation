@@ -133,6 +133,23 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Video translation features will NOT be available!")
 
+# Try to load video generation router (Kling AI)
+logger.info("🔄 Attempting to import video generation router...")
+try:
+    from routers import video_generation
+    logger.info("✅ Video generation router imported successfully")
+    
+    logger.info("🔄 Registering video generation router endpoints...")
+    app.include_router(video_generation.router)
+    logger.info("✅ Video generation router registered")
+    logger.info("   🎬 POST /api/video-gen/text-to-video")
+    logger.info("   🎬 POST /api/video-gen/image-to-video")
+    logger.info("   📊 GET /api/video-gen/status/{task_id}")
+except Exception as e:
+    logger.error(f"❌ Video generation router failed to load: {str(e)}")
+    logger.exception("Full import/registration traceback:")
+    logger.warning("⚠️ Video generation features will NOT be available!")
+
 # Try to load social connections router
 logger.info("🔄 Attempting to import social connections router...")
 try:

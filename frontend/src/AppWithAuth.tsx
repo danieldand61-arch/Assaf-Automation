@@ -15,6 +15,7 @@ import { MainWorkspace } from './components/MainWorkspace'
 import { LandingPage } from './components/LandingPage'
 import { Admin } from './pages/Admin'
 import { AdminLogin } from './pages/AdminLogin'
+import VideoGeneration from './pages/VideoGeneration'
 import App from './App'
 import { Loader2 } from 'lucide-react'
 
@@ -112,6 +113,14 @@ function AppRoutes() {
               element={
                 <ProtectedRoute>
                   <Scheduled />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/video-generation" 
+              element={
+                <ProtectedRoute>
+                  <VideoGeneration />
                 </ProtectedRoute>
               } 
             />

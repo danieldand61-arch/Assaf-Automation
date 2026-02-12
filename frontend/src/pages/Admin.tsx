@@ -259,6 +259,7 @@ export function Admin() {
                             'image_generation': { name: 'Image Gen', icon: '🖼️' },
                             'video_dubbing': { name: 'Video Dubbing', icon: '🎬' },
                             'video_dubbing_actual': { name: 'Video Dubbing', icon: '🎬' },
+                            'video_generation': { name: 'Video Gen', icon: '🎬' },
                             'google_ads': { name: 'Google Ads', icon: '📢' },
                             'elevenlabs': { name: 'ElevenLabs', icon: '🔊' },
                             'video_translation': { name: 'Video Trans', icon: '🎥' }
@@ -272,9 +273,9 @@ export function Admin() {
                             return null
                           }
                           
-                          // For video_dubbing_actual, show credits instead of tokens
-                          const isVideoDubbing = service === 'video_dubbing_actual'
-                          const displayValue = isVideoDubbing 
+                          // For video services, show credits instead of tokens
+                          const isVideoService = service === 'video_dubbing_actual' || service === 'video_generation'
+                          const displayValue = isVideoService 
                             ? `${usage.total_tokens.toLocaleString()} credits`
                             : `${usage.total_tokens.toLocaleString()} tokens`
                           
