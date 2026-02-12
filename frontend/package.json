@@ -13,6 +13,8 @@
     "@radix-ui/react-select": "^2.0.0",
     "@radix-ui/react-switch": "^1.0.3",
     "@radix-ui/react-tabs": "^1.0.4",
+    "@remotion/cli": "^4.0.421",
+    "@remotion/lambda": "^4.0.421",
     "@supabase/supabase-js": "^2.39.3",
     "axios": "^1.6.5",
     "file-saver": "^2.0.5",
@@ -22,6 +24,7 @@
     "react-dom": "^18.2.0",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^6.21.3",
+    "remotion": "^4.0.421",
     "zustand": "^4.5.0"
   },
   "devDependencies": {

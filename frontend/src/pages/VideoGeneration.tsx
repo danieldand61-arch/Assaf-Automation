@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { Player } from '@remotion/player'
+import { ProductVideo } from '../remotion/ProductVideo'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -15,7 +17,7 @@ interface VideoTask {
 
 export default function VideoGeneration() {
   const { session } = useAuth()
-  const [activeTab, setActiveTab] = useState<'text' | 'image'>('text')
+  const [activeTab, setActiveTab] = useState<'text' | 'image' | 'template'>('text')
   
   // Text-to-Video state
   const [textPrompt, setTextPrompt] = useState('')
@@ -28,6 +30,12 @@ export default function VideoGeneration() {
   const [imageUrls, setImageUrls] = useState<string[]>([''])
   const [imageDuration, setImageDuration] = useState('5')
   const [imageSound, setImageSound] = useState(false)
+  
+  // Template Video state
+  const [templateTitle, setTemplateTitle] = useState('iPhone 15 Pro')
+  const [templateDescription, setTemplateDescription] = useState('Titanium design with A17 Pro chip')
+  const [templatePrice, setTemplatePrice] = useState(999)
+  const [templateImageUrl, setTemplateImageUrl] = useState('https://via.placeholder.com/500x500/4A90E2/ffffff?text=Product')
   
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false)
@@ -223,6 +231,16 @@ export default function VideoGeneration() {
               >
                 🖼️ Image to Video
               </button>
+              <button
+                onClick={() => setActiveTab('template')}
+                className={`px-6 py-3 text-sm font-medium transition-colors ${
+                  activeTab === 'template'
+                    ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
+                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                }`}
+              >
+                🎨 Video Templates
+              </button>
             </div>
           </div>
 
@@ -414,6 +432,129 @@ export default function VideoGeneration() {
                 >
                   {isGenerating ? 'Generating...' : '🎬 Generate Video'}
                 </button>
+              </div>
+            )}
+
+            {/* Video Templates */}
+            {activeTab === 'template' && (
+              <div className="space-y-6">
+                {/* Live Preview */}
+                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
+                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 px-4 pt-4 mb-2">
+                    Live Preview
+                  </h3>
+                  <div className="flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
+                    <Player
+                      component={ProductVideo}
+                      inputProps={{
+                        title: templateTitle,
+                        description: templateDescription,
+                        price: templatePrice,
+                        imageUrl: templateImageUrl
+                      }}
+                      durationInFrames={150}
+                      fps={30}
+                      compositionWidth={1920}
+                      compositionHeight={1080}
+                      style={{
+                        width: '100%',
+                        maxWidth: '800px',
+                      }}
+                      controls
+                    />
+                  </div>
+                </div>
+
+                {/* Form */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Product Title
+                    </label>
+                    <input
+                      type="text"
+                      value={templateTitle}
+                      onChange={(e) => setTemplateTitle(e.target.value)}
+                      placeholder="e.g., iPhone 15 Pro"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Price ($)
+                    </label>
+                    <input
+                      type="number"
+                      value={templatePrice}
+                      onChange={(e) => setTemplatePrice(Number(e.target.value))}
+                      placeholder="999"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    value={templateDescription}
+                    onChange={(e) => setTemplateDescription(e.target.value)}
+                    rows={3}
+                    placeholder="Amazing product description that highlights key features"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Product Image URL
+                  </label>
+                  <input
+                    type="url"
+                    value={templateImageUrl}
+                    onChange={(e) => setTemplateImageUrl(e.target.value)}
+                    placeholder="https://example.com/product-image.jpg"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    You can use placeholder: https://via.placeholder.com/500x500
+                  </p>
+                </div>
+
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-sm font-medium text-green-900 dark:text-green-300">
+                        💡 Live Preview Active
+                      </span>
+                      <p className="text-xs text-green-700 dark:text-green-400 mt-1">
+                        Changes update in real-time. Press play to see the animation!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  disabled
+                  className="w-full bg-gray-400 cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium"
+                >
+                  🎬 Render Full Video (Coming Soon - requires backend setup)
+                </button>
+
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">
+                    🚀 Template Features:
+                  </h4>
+                  <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1">
+                    <li>• Professional animations (fade in, slide, spring effects)</li>
+                    <li>• 100% customizable (title, description, price, image)</li>
+                    <li>• Instant preview - see changes in real-time</li>
+                    <li>• Perfect for e-commerce product videos</li>
+                    <li>• Export to MP4 (backend integration required)</li>
+                  </ul>
+                </div>
               </div>
             )}
           </div>
