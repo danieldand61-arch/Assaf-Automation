@@ -1,16 +1,17 @@
 import { useState } from 'react'
-import { FileText, Megaphone, Video, MessageSquare, Loader2 } from 'lucide-react'
+import { FileText, Megaphone, Video, MessageSquare, Loader2, Film } from 'lucide-react'
 import { ChatApp } from './ChatApp'
 import { InputSection } from './InputSection'
 import { GoogleAdsGeneration } from './GoogleAdsGeneration'
 import { VideoTranslation } from './VideoTranslation'
 import { PreviewSection } from './PreviewSection'
+import VideoGeneration from '../pages/VideoGeneration'
 import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import Header from './Header'
 
-type TabType = 'chat' | 'social' | 'ads' | 'video'
+type TabType = 'chat' | 'social' | 'ads' | 'video' | 'videogen'
 
 interface Tab {
   id: TabType
@@ -111,6 +112,11 @@ export function MainWorkspace() {
       id: 'video',
       name: 'Video Translation',
       icon: <Video className="w-5 h-5" />
+    },
+    {
+      id: 'videogen',
+      name: 'Video Generation',
+      icon: <Film className="w-5 h-5" />
     }
   ]
 
@@ -181,6 +187,12 @@ export function MainWorkspace() {
         {activeTab === 'video' && (
           <div className="h-full overflow-auto p-6">
             <VideoTranslation />
+          </div>
+        )}
+        
+        {activeTab === 'videogen' && (
+          <div className="h-full overflow-auto">
+            <VideoGeneration />
           </div>
         )}
       </div>
