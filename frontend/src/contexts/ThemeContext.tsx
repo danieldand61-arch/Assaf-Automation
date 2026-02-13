@@ -18,6 +18,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('joyo-theme', theme)
     document.documentElement.setAttribute('data-theme', theme)
+    // Tailwind darkMode: 'class' requires class="dark" on <html>
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
   }, [theme])
 
   const toggleTheme = () => {

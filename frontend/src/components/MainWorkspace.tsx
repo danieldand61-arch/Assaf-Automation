@@ -171,7 +171,7 @@ export function MainWorkspace() {
                     zIndex: 50
                   }}>
                     <div style={{
-                      background: 'white',
+                      background: JoyoTheme.card,
                       borderRadius: 20,
                       padding: '32px',
                       maxWidth: '400px',
@@ -210,7 +210,7 @@ export function MainWorkspace() {
                   borderLeft: `1px solid ${JoyoTheme.border}`,
                   overflowY: 'auto',
                   paddingLeft: '12px',
-                  background: 'white'
+                  background: JoyoTheme.card
                 }}>
                   <PreviewSection onReset={handleReset} />
                 </div>

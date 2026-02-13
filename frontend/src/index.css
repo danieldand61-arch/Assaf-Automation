@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 /* Theme Variables */
-:root[data-theme="dark"] {
+:root[data-theme="light"] {
   --surface: #F7F8FB;
   --card: #FFFFFF;
   --text: #151821;
@@ -11,17 +11,18 @@
   --border: #E5E9F0;
 }
 
-:root[data-theme="light"] {
-  --surface: #FFFFFF;
-  --card: #F9FAFB;
-  --text: #111827;
-  --text-secondary: #6B7280;
-  --border: #E5E7EB;
+:root[data-theme="dark"] {
+  --surface: #0F1117;
+  --card: #1E2130;
+  --text: #F1F3F9;
+  --text-secondary: #9BA3B5;
+  --border: #2A2D3E;
 }
 
-html[data-theme="light"] body {
+body {
   background: var(--surface);
   color: var(--text);
+  transition: background 0.3s, color 0.3s;
 }
 
 @keyframes pulse {

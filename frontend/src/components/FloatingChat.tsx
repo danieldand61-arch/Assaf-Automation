@@ -99,7 +99,7 @@ export function FloatingChat() {
             right: 24,
             width: 380,
             height: 550,
-            background: 'white',
+            background: JoyoTheme.card,
             borderRadius: 16,
             boxShadow: '0 12px 48px rgba(0,0,0,0.2)',
             display: 'flex',
