@@ -12,6 +12,8 @@ from middleware.auth import get_current_user
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 logger = logging.getLogger(__name__)
 
+from collections import defaultdict
+
 class CreateAccountRequest(BaseModel):
     name: str
     description: Optional[str] = None
@@ -285,4 +287,49 @@ async def switch_active_account(account_id: str, user = Depends(get_current_user
         raise
     except Exception as e:
         logger.error(f"❌ Error switching account: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{account_id}/stats")
+async def get_account_stats(account_id: str, user = Depends(get_current_user)):
+    """
+    Get statistics for a specific account
+    """
+    try:
+        supabase = get_supabase()
+        
+        # Verify user has access to this account
+        account_check = supabase.table("accounts").select("id").eq("id", account_id).eq("user_id", user["user_id"]).execute()
+        
+        if not account_check.data:
+            # Check team membership
+            team_check = supabase.table("team_members").select("account_id").eq("account_id", account_id).eq("user_id", user["user_id"]).execute()
+            if not team_check.data:
+                raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Get usage statistics from credits_usage table
+        usage_data = supabase.table("credits_usage").select("service_type").eq("account_id", account_id).execute()
+        
+        # Count by service type
+        service_counts = defaultdict(int)
+        for record in usage_data.data:
+            service_counts[record['service_type']] += 1
+        
+        # Map service types to stats
+        posts_created = service_counts.get('social_post', 0)
+        images_generated = service_counts.get('image_generation', 0)
+        videos_translated = service_counts.get('video_dubbing_actual', 0) + service_counts.get('video_dubbing', 0)
+        total_requests = len(usage_data.data)
+        
+        return {
+            "posts_created": posts_created,
+            "images_generated": images_generated,
+            "videos_translated": videos_translated,
+            "total_requests": total_requests
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error fetching account stats: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

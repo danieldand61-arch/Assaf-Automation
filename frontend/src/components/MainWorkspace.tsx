@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { JoyoSidebar } from './JoyoSidebar'
 import { JoyoTopBar } from './JoyoTopBar'
-import { ChatApp } from './ChatApp'
+import { FloatingChat } from './FloatingChat'
 import { InputSection } from './InputSection'
 import { GoogleAdsGeneration } from './GoogleAdsGeneration'
 import { VideoTranslation } from './VideoTranslation'
@@ -17,7 +17,7 @@ import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import { JoyoTheme, animations } from '../styles/joyo-theme'
 
-type TabType = 'dashboard' | 'chat' | 'social' | 'ads' | 'video' | 'videogen' | 'images' | 'library' | 'calendar' | 'settings'
+type TabType = 'dashboard' | 'social' | 'ads' | 'video' | 'videogen' | 'images' | 'library' | 'calendar' | 'settings'
 
 export function MainWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard')
@@ -101,7 +101,6 @@ export function MainWorkspace() {
 
   const pageTitles: Record<TabType, string> = {
     dashboard: 'Dashboard',
-    chat: 'AI Chat',
     social: 'Social Posts',
     ads: 'Google Ads',
     video: 'Video Translation',
@@ -150,8 +149,6 @@ export function MainWorkspace() {
           }}
         >
           {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as TabType)} />}
-          
-          {activeTab === 'chat' && <ChatApp />}
           
           {activeTab === 'social' && (
             <div style={{ display: 'flex', height: '100%' }}>
@@ -253,6 +250,9 @@ export function MainWorkspace() {
           {activeTab === 'settings' && <Settings />}
         </div>
       </div>
+
+      {/* Floating Chat Assistant */}
+      <FloatingChat />
     </div>
   )
 }

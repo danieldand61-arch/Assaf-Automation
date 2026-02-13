@@ -2,3 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Theme Variables */
+:root[data-theme="dark"] {
+  --surface: #F7F8FB;
+  --card: #FFFFFF;
+  --text: #151821;
+  --text-secondary: #5C6478;
+  --border: #E5E9F0;
+}
+
+:root[data-theme="light"] {
+  --surface: #FFFFFF;
+  --card: #F9FAFB;
+  --text: #111827;
+  --text-secondary: #6B7280;
+  --border: #E5E7EB;
+}
+
+html[data-theme="light"] body {
+  background: var(--surface);
+  color: var(--text);
+}
+

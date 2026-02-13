@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import { Send, Target, ImagePlus, ArrowUp, Eye, Film } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
+import { useAccount } from '../contexts/AccountContext'
 import { JoyoTheme, cardStyle } from '../styles/joyo-theme'
 
 interface DashboardProps {
@@ -90,15 +92,46 @@ function MetricCard({ icon: Icon, label, value, change, changeDir, color, delay 
 }
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
-  const { user } = useAuth()
-  
-  // TODO: Fetch real stats from API
-  const stats = {
+  const { user, session } = useAuth()
+  const { activeAccount } = useAccount()
+  const [stats, setStats] = useState({
     postsCreated: 0,
     imagesGenerated: 0,
     videosTranslated: 0,
     totalRequests: 0
-  }
+  })
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      if (!session || !activeAccount) return
+
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'
+        const response = await fetch(`${apiUrl}/api/accounts/${activeAccount.id}/stats`, {
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setStats({
+            postsCreated: data.posts_created || 0,
+            imagesGenerated: data.images_generated || 0,
+            videosTranslated: data.videos_translated || 0,
+            totalRequests: data.total_requests || 0
+          })
+        }
+      } catch (error) {
+        console.error('Failed to fetch stats:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStats()
+  }, [session, activeAccount])
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
 

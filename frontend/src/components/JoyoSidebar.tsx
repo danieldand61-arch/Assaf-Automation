@@ -1,7 +1,7 @@
 import { 
   LayoutDashboard, Send, Megaphone, Video, Film, 
   ImagePlus, FileText, Calendar, Settings, Menu,
-  MessageSquare, Sparkles
+  Sparkles
 } from 'lucide-react'
 import { JoyoTheme } from '../styles/joyo-theme'
 
@@ -17,11 +17,10 @@ const navSections = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   
   { type: 'label', text: 'CREATE' },
-  { id: 'chat', label: 'AI Chat', icon: MessageSquare },
   { id: 'social', label: 'Social Posts', icon: Send },
   { id: 'ads', label: 'Google Ads', icon: Megaphone },
   { id: 'video', label: 'Video Translation', icon: Video },
-  { id: 'videogen', label: 'Video Generation', icon: Film },
+  { id: 'videogen', label: 'Video Generation', icon: Film, disabled: true, badge: 'Coming Soon' },
   { id: 'images', label: 'Image Studio', icon: ImagePlus },
   
   { type: 'label', text: 'MANAGE' },
@@ -136,11 +135,12 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
 
           const Icon = item.icon!
           const isActive = activeTab === item.id
+          const isDisabled = item.disabled
 
           return (
             <button
               key={item.id}
-              onClick={() => onTabChange(item.id!)}
+              onClick={() => !isDisabled && onTabChange(item.id!)}
               style={{
                 width: '100%',
                 display: 'flex',
@@ -149,17 +149,18 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
                 padding: collapsed ? '10px 0' : '10px 14px',
                 borderRadius: 10,
                 border: 'none',
-                cursor: 'pointer',
+                cursor: isDisabled ? 'not-allowed' : 'pointer',
                 background: isActive ? 'rgba(74,124,255,0.15)' : 'transparent',
-                color: isActive ? '#B4CDFF' : 'rgba(255,255,255,0.5)',
+                color: isDisabled ? 'rgba(255,255,255,0.25)' : (isActive ? '#B4CDFF' : 'rgba(255,255,255,0.5)'),
                 fontSize: 13.5,
                 fontWeight: isActive ? 600 : 500,
                 transition: 'all 0.2s',
                 justifyContent: collapsed ? 'center' : 'flex-start',
-                position: 'relative'
+                position: 'relative',
+                opacity: isDisabled ? 0.6 : 1
               }}
             >
-              {isActive && !collapsed && (
+              {isActive && !collapsed && !isDisabled && (
                 <div style={{ 
                   position: 'absolute', 
                   left: -14, 
@@ -174,9 +175,23 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
               )}
               <Icon size={18} style={{ flexShrink: 0 }} />
               {!collapsed && (
-                <span style={{ flex: 1, textAlign: 'left' }}>
-                  {item.label}
-                </span>
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ textAlign: 'left' }}>
+                    {item.label}
+                  </span>
+                  {item.badge && (
+                    <span style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      background: 'rgba(255,193,7,0.2)',
+                      color: '#FFC107'
+                    }}>
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
               )}
             </button>
           )

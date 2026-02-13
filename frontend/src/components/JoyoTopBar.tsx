@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Building2, ChevronDown, Bell, LogOut } from 'lucide-react'
+import { Building2, ChevronDown, Bell, LogOut, Sun, Moon } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { JoyoTheme } from '../styles/joyo-theme'
 
 interface JoyoTopBarProps {
@@ -11,6 +12,7 @@ interface JoyoTopBarProps {
 export function JoyoTopBar({ title }: JoyoTopBarProps) {
   const { activeAccount, accounts, switchAccount } = useAccount()
   const { user, signOut } = useAuth()
+  const { theme, toggleTheme } = useTheme()
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
 
@@ -141,6 +143,25 @@ export function JoyoTopBar({ title }: JoyoTopBarProps) {
           position: 'relative'
         }}>
           <Bell size={18} />
+        </button>
+
+        {/* Theme Toggle */}
+        <button 
+          onClick={toggleTheme}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            border: `1px solid ${JoyoTheme.border}`,
+            background: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: JoyoTheme.textMuted
+          }}
+        >
+          {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
         </button>
 
         {/* User Avatar */}
