@@ -1,6 +1,6 @@
 import { 
   LayoutDashboard, Send, Megaphone, Video, Film, 
-  ImagePlus, FileText, Calendar, Settings, Menu,
+  FileText, Calendar, Settings, Menu,
   Sparkles
 } from 'lucide-react'
 import { JoyoTheme } from '../styles/joyo-theme'
@@ -21,7 +21,6 @@ const navSections = [
   { id: 'ads', label: 'Google Ads', icon: Megaphone },
   { id: 'video', label: 'Video Translation', icon: Video },
   { id: 'videogen', label: 'Video Generation', icon: Film, disabled: true, badge: 'Coming Soon' },
-  { id: 'images', label: 'Image Studio', icon: ImagePlus },
   
   { type: 'label', text: 'MANAGE' },
   { id: 'library', label: 'Content Library', icon: FileText },

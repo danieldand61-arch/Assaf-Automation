@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Send, Target, ImagePlus, ArrowUp, Eye, Film } from 'lucide-react'
+import { Send, Target, Image as ImagePlus, ArrowUp, Eye, Film } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { JoyoTheme, cardStyle } from '../styles/joyo-theme'
@@ -255,8 +255,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         {[
           { icon: Send, title: 'Social Posts', desc: 'AI captions + images', gradient: JoyoTheme.gradient1, to: 'social' },
           { icon: Target, title: 'Google Ads', desc: 'Full campaign generation', gradient: JoyoTheme.gradient2, to: 'ads' },
-          { icon: ImagePlus, title: 'Image Studio', desc: 'AI brand visuals', gradient: JoyoTheme.gradient4, to: 'images' },
-          { icon: Film, title: 'Video Tools', desc: 'Translation & generation', gradient: JoyoTheme.gradient3, to: 'videogen' }
+          { icon: Film, title: 'Video Tools', desc: 'Translation & dubbing', gradient: JoyoTheme.gradient3, to: 'video' }
         ].map((feature, i) => {
           const Icon = feature.icon
           return (

@@ -17,7 +17,7 @@ import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import { JoyoTheme, animations } from '../styles/joyo-theme'
 
-type TabType = 'dashboard' | 'social' | 'ads' | 'video' | 'videogen' | 'images' | 'library' | 'calendar' | 'settings'
+type TabType = 'dashboard' | 'social' | 'ads' | 'video' | 'videogen' | 'library' | 'calendar' | 'settings'
 
 export function MainWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard')
@@ -105,7 +105,6 @@ export function MainWorkspace() {
     ads: 'Google Ads',
     video: 'Video Translation',
     videogen: 'Video Generation',
-    images: 'Image Studio',
     library: 'Content Library',
     calendar: 'Scheduled Posts',
     settings: 'Settings'
@@ -220,28 +219,6 @@ export function MainWorkspace() {
           {activeTab === 'video' && <VideoTranslation />}
           
           {activeTab === 'videogen' && <VideoGeneration />}
-          
-          {activeTab === 'images' && (
-            <div style={{ maxWidth: 800, margin: '0 auto' }}>
-              <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                <h2 style={{ 
-                  fontSize: 24, 
-                  fontWeight: 800, 
-                  color: JoyoTheme.text,
-                  marginBottom: 8
-                }}>
-                  Image Studio
-                </h2>
-                <p style={{ 
-                  fontSize: 14, 
-                  color: JoyoTheme.textSecondary 
-                }}>
-                  AI-powered image generation for your brand
-                </p>
-              </div>
-              <InputSection onGenerate={handleGenerate} />
-            </div>
-          )}
           
           {activeTab === 'library' && <Library />}
           

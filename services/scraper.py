@@ -27,18 +27,36 @@ async def scrape_website(url: str) -> Dict:
     
     async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
         response = await client.get(url, headers=headers)
-        html = response.text
+        
+        # Check status first
+        if response.status_code != 200:
+            raise ValueError(f"Failed to fetch website: HTTP {response.status_code}")
+        
+        # Get content with proper encoding handling
+        # httpx automatically handles gzip/deflate/br decompression
+        try:
+            html = response.text
+        except Exception as e:
+            logger.error(f"Failed to decode response as text: {e}")
+            # Fallback: try to decode bytes manually
+            html = response.content.decode('utf-8', errors='ignore')
     
     logger.info(f"🔍 Scraped {url} → Status: {response.status_code}, Size: {len(html)} bytes")
     
     # Check if we got valid content
-    if response.status_code != 200:
-        raise ValueError(f"Failed to fetch website: HTTP {response.status_code}")
-    
     if len(html) < 500:
         raise ValueError(f"Website returned too little content ({len(html)} bytes)")
     
-    soup = BeautifulSoup(html, 'html.parser')
+    # Try different parsers in case html.parser fails
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+    except Exception as e:
+        logger.warning(f"html.parser failed, trying lxml: {e}")
+        try:
+            soup = BeautifulSoup(html, 'lxml')
+        except Exception as e2:
+            logger.warning(f"lxml failed, trying html5lib: {e2}")
+            soup = BeautifulSoup(html, 'html5lib')
     
     # Extract main information
     title = _extract_title(soup)
