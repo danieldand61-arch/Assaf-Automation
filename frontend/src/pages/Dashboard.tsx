@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Send, Target, ImagePlus, CreditCard, ArrowUp, Eye, Film } from 'lucide-react'
+import { useState } from 'react'
+import { Send, Target, ImagePlus, ArrowUp, Eye, Film } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { JoyoTheme, cardStyle } from '../styles/joyo-theme'
 
@@ -92,12 +92,14 @@ function MetricCard({ icon: Icon, label, value, change, changeDir, color, delay 
 
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const { user } = useAuth()
-  const [stats, setStats] = useState({
+  
+  // TODO: Fetch real stats from API
+  const stats = {
     postsCreated: 0,
     imagesGenerated: 0,
     videosTranslated: 0,
     totalRequests: 0
-  })
+  }
 
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
 

@@ -9,7 +9,7 @@ interface JoyoTopBarProps {
 }
 
 export function JoyoTopBar({ title }: JoyoTopBarProps) {
-  const { activeAccount, accounts, setActiveAccount } = useAccount()
+  const { activeAccount, accounts, switchAccount } = useAccount()
   const { user, signOut } = useAuth()
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
@@ -100,8 +100,8 @@ export function JoyoTopBar({ title }: JoyoTopBarProps) {
                   {accounts.map((account) => (
                     <button
                       key={account.id}
-                      onClick={() => {
-                        setActiveAccount(account.id)
+                      onClick={async () => {
+                        await switchAccount(account.id)
                         setAccountMenuOpen(false)
                       }}
                       style={{
