@@ -1,43 +1,48 @@
 """
-Unified Credits System
-1 credit = $0.01 USD.  All API costs are converted to credits with a ~3x markup.
+Unified Credits System — proportional pricing.
 
-Pricing table (what the USER pays in credits):
-  - Gemini text (per 1M tokens):  input 1.0 cr,  output 4.0 cr
-  - Image generation:             15 cr per image
-  - AI Chat message:              0.1 cr minimum (+ token cost)
-  - Google Ads generation:        0.5 cr minimum (+ token cost)
-  - Video dubbing (ElevenLabs):   100 cr per minute
-  - Video generation (Kling 5s):  40 cr
-  - Video generation (Kling 10s): 80 cr
-  - Design analysis:              0.3 cr
+Base unit: 1 credit = cost of 1K Gemini Flash input tokens × 3 markup.
+Real cost of 1K Gemini input tokens = $0.000075.
+So 1 credit ≈ $0.000225 to us, we charge the user 1 credit.
+
+All services are proportional to this base:
+  Service                 | Real cost       | ÷ base ($0.000075) | ×3 markup | Credits
+  Chat message (~3K tok)  | ~$0.00045       |  6                 | ×3 = 18   | → 1 cr (rounded, min)
+  Social Post gen         | ~$0.001         | 13                 | ×3 = 39   | → 2 cr (min)
+  Text edit / regen       | ~$0.0005        |  7                 | ×3 = 21   | → 1 cr (min)
+  Google Ads gen          | ~$0.002         | 27                 | ×3 = 81   | → 3 cr (min)
+  1 Image (Gemini)        | ~$0.04          | 533                | ×3 = 1600 | → 10 cr
+  Video dubbing / min     | ~$0.24          | 3200               | ×3 = 9600 | → 150 cr/min
+  Design analysis         | ~$0.001         | 13                 | ×3 = 39   | → 1 cr
 """
 import logging
 from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 
-# ─── Unified pricing (credits, not USD) ───────────────────────────────
-# Gemini token pricing (credits per 1M tokens, ~3x real cost)
-GEMINI_INPUT_PER_1M  = 1.0    # real cost ~$0.075 → charge $0.01 * 1.0
-GEMINI_OUTPUT_PER_1M = 4.0    # real cost ~$0.30  → charge $0.01 * 4.0
+# ─── Proportional pricing ─────────────────────────────────────────────
+# Token-based: credits per 1K tokens (Gemini Flash rates × 3 markup)
+# Real: $0.075/1M input = $0.000075/1K.  ×3 → 1 credit/4.4K ≈ 0.225 cr/1K
+# Simplified: input=0.25 cr/1K, output=1.0 cr/1K
+CREDITS_PER_1K_INPUT  = 0.25
+CREDITS_PER_1K_OUTPUT = 1.0
 
-# Fixed costs per action
+# Fixed credits per operation (proportional to base cost × 3)
 FIXED_CREDITS = {
-    "image_generation":     15.0,   # per image (~$0.04 cost → $0.15 charge)
-    "video_dubbing_actual": None,   # calculated per minute: 100 cr/min
-    "video_generation_5s":  40.0,   # Kling 5s video
-    "video_generation_10s": 80.0,   # Kling 10s video
+    "image_generation": 10.0,     # ~$0.04 real → 533× base → ÷3 rounds to 10
 }
 
-# Minimum credits per service (even if tokens are tiny)
+# Per-minute rate for video dubbing
+VIDEO_DUBBING_PER_MIN = 150.0     # ~$0.24/min real → 3200× base → ÷3 ≈ 150
+
+# Minimum credits per service type (floor even if tokens are tiny)
 MIN_CREDITS = {
-    "social_posts":     0.2,
-    "gemini_chat":      0.1,
-    "chat":             0.1,
-    "google_ads":       0.5,
-    "image_generation": 15.0,
-    "design_analysis":  0.3,
+    "social_posts":     2.0,
+    "gemini_chat":      1.0,
+    "chat":             1.0,
+    "google_ads":       3.0,
+    "image_generation": 10.0,
+    "design_analysis":  1.0,
 }
 
 
@@ -48,28 +53,26 @@ def calculate_credits(
     duration_minutes: float = 0,
     video_duration_sec: int = 0,
 ) -> float:
-    """Calculate credits for any service type."""
+    """Calculate credits for any service type using proportional pricing."""
     # Fixed-cost services
-    if service_type in FIXED_CREDITS and FIXED_CREDITS[service_type] is not None:
+    if service_type in FIXED_CREDITS:
         return FIXED_CREDITS[service_type]
 
-    # Video dubbing — per minute
+    # Video dubbing — per minute (min 0.5 min)
     if service_type in ("video_dubbing_actual", "video_dubbing"):
-        return round(max(duration_minutes, 0.5) * 100.0, 2)
+        return round(max(duration_minutes, 0.5) * VIDEO_DUBBING_PER_MIN, 2)
 
-    # Video generation — by duration
+    # Video generation — not available yet, placeholder
     if service_type == "video_generation":
-        if video_duration_sec >= 10:
-            return 80.0
-        return 40.0
+        return 50.0 if video_duration_sec < 10 else 100.0
 
     # Token-based services (Gemini)
     token_credits = round(
-        (input_tokens / 1_000_000) * GEMINI_INPUT_PER_1M +
-        (output_tokens / 1_000_000) * GEMINI_OUTPUT_PER_1M,
+        (input_tokens / 1000) * CREDITS_PER_1K_INPUT +
+        (output_tokens / 1000) * CREDITS_PER_1K_OUTPUT,
         4
     )
-    minimum = MIN_CREDITS.get(service_type, 0.1)
+    minimum = MIN_CREDITS.get(service_type, 1.0)
     return round(max(token_credits, minimum), 4)
 
 
