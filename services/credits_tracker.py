@@ -9,30 +9,14 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# Model pricing (credits per 1M tokens)
+# Unified credits pricing (uses credits_service.calculate_credits for all new records)
+# This dict is kept for backward-compat in CreditsTracker._calculate_cost only.
 MODEL_PRICING = {
-    # Gemini models
-    "gemini-3-flash-preview": {
-        "input": 0.075,   # $0.075 per 1M input tokens
-        "output": 0.30    # $0.30 per 1M output tokens
-    },
-    "gemini-2.0-flash-exp": {
-        "input": 0.075,
-        "output": 0.30
-    },
-    "gemini-1.5-flash": {
-        "input": 0.075,
-        "output": 0.30
-    },
-    "gemini-1.5-pro": {
-        "input": 1.25,
-        "output": 5.00
-    },
-    
-    # Image generation (per image, not tokens)
-    "imagen-3": {
-        "image": 0.04  # $0.04 per image
-    }
+    "gemini-3-flash-preview": {"input": 1.0, "output": 4.0},
+    "gemini-2.5-flash-image": {"image": 15.0},
+    "gemini-2.0-flash-exp":   {"input": 1.0, "output": 4.0},
+    "gemini-1.5-flash":       {"input": 1.0, "output": 4.0},
+    "gemini-1.5-pro":         {"input": 5.0, "output": 20.0},
 }
 
 class CreditsTracker:
@@ -123,10 +107,9 @@ class CreditsTracker:
         
         if not pricing:
             logger.warning(f"No pricing found for model: {model_name}, using default")
-            # Default pricing (Gemini Flash rates)
-            pricing = {"input": 0.075, "output": 0.30}
+            pricing = {"input": 1.0, "output": 4.0}
         
-        # For image generation models
+        # Fixed-cost models (image generation, etc.)
         if "image" in pricing:
             return pricing["image"]
         

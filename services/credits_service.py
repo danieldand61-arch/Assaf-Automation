@@ -1,12 +1,76 @@
 """
-API Usage Tracking Service
-Tracks real API consumption metrics (tokens, characters, images, etc)
+Unified Credits System
+1 credit = $0.01 USD.  All API costs are converted to credits with a ~3x markup.
+
+Pricing table (what the USER pays in credits):
+  - Gemini text (per 1M tokens):  input 1.0 cr,  output 4.0 cr
+  - Image generation:             15 cr per image
+  - AI Chat message:              0.1 cr minimum (+ token cost)
+  - Google Ads generation:        0.5 cr minimum (+ token cost)
+  - Video dubbing (ElevenLabs):   100 cr per minute
+  - Video generation (Kling 5s):  40 cr
+  - Video generation (Kling 10s): 80 cr
+  - Design analysis:              0.3 cr
 """
 import logging
-from datetime import datetime
 from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
+
+# ─── Unified pricing (credits, not USD) ───────────────────────────────
+# Gemini token pricing (credits per 1M tokens, ~3x real cost)
+GEMINI_INPUT_PER_1M  = 1.0    # real cost ~$0.075 → charge $0.01 * 1.0
+GEMINI_OUTPUT_PER_1M = 4.0    # real cost ~$0.30  → charge $0.01 * 4.0
+
+# Fixed costs per action
+FIXED_CREDITS = {
+    "image_generation":     15.0,   # per image (~$0.04 cost → $0.15 charge)
+    "video_dubbing_actual": None,   # calculated per minute: 100 cr/min
+    "video_generation_5s":  40.0,   # Kling 5s video
+    "video_generation_10s": 80.0,   # Kling 10s video
+}
+
+# Minimum credits per service (even if tokens are tiny)
+MIN_CREDITS = {
+    "social_posts":     0.2,
+    "gemini_chat":      0.1,
+    "chat":             0.1,
+    "google_ads":       0.5,
+    "image_generation": 15.0,
+    "design_analysis":  0.3,
+}
+
+
+def calculate_credits(
+    service_type: str,
+    input_tokens: int = 0,
+    output_tokens: int = 0,
+    duration_minutes: float = 0,
+    video_duration_sec: int = 0,
+) -> float:
+    """Calculate credits for any service type."""
+    # Fixed-cost services
+    if service_type in FIXED_CREDITS and FIXED_CREDITS[service_type] is not None:
+        return FIXED_CREDITS[service_type]
+
+    # Video dubbing — per minute
+    if service_type in ("video_dubbing_actual", "video_dubbing"):
+        return round(max(duration_minutes, 0.5) * 100.0, 2)
+
+    # Video generation — by duration
+    if service_type == "video_generation":
+        if video_duration_sec >= 10:
+            return 80.0
+        return 40.0
+
+    # Token-based services (Gemini)
+    token_credits = round(
+        (input_tokens / 1_000_000) * GEMINI_INPUT_PER_1M +
+        (output_tokens / 1_000_000) * GEMINI_OUTPUT_PER_1M,
+        4
+    )
+    minimum = MIN_CREDITS.get(service_type, 0.1)
+    return round(max(token_credits, minimum), 4)
 
 
 async def record_usage(
@@ -16,37 +80,25 @@ async def record_usage(
     output_tokens: int = 0,
     total_tokens: int = None,
     model_name: str = None,
-    metadata: dict = None
+    metadata: dict = None,
+    duration_minutes: float = 0,
+    video_duration_sec: int = 0,
 ) -> bool:
-    """
-    Record API usage with real metrics
-    
-    Args:
-        user_id: User ID
-        service_type: 'gemini_chat', 'elevenlabs', 'image_generation', etc
-        input_tokens: Input tokens (Gemini) or characters (ElevenLabs) or images count
-        output_tokens: Output tokens (Gemini)
-        total_tokens: Total tokens (use API's value if provided, otherwise calculate)
-        model_name: Model/API name
-        metadata: Additional data
-    """
+    """Record API usage and deduct credits."""
     try:
         supabase = get_supabase()
-        
-        # Use explicit total from API if provided, otherwise calculate
+
         if total_tokens is None:
             total_tokens = input_tokens + output_tokens
-        
-        # Estimate credits cost based on Gemini Flash pricing
-        credits_spent = 0.0
-        if service_type == "image_generation":
-            credits_spent = 0.04  # per image
-        elif total_tokens > 0:
-            credits_spent = round(
-                (input_tokens / 1_000_000) * 0.075 + (output_tokens / 1_000_000) * 0.30,
-                6
-            )
-        
+
+        credits_spent = calculate_credits(
+            service_type=service_type,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            duration_minutes=duration_minutes,
+            video_duration_sec=video_duration_sec,
+        )
+
         usage_data = {
             "user_id": user_id,
             "service_type": service_type,
@@ -55,26 +107,23 @@ async def record_usage(
             "output_tokens": output_tokens,
             "total_tokens": total_tokens,
             "credits_spent": credits_spent,
-            "request_metadata": metadata or {}
+            "request_metadata": metadata or {},
         }
-        
-        logger.info(f"📝 About to insert: {usage_data}")
-        logger.info(f"   input_tokens type: {type(input_tokens)}, value: {input_tokens}")
-        logger.info(f"   output_tokens type: {type(output_tokens)}, value: {output_tokens}")
-        logger.info(f"   total_tokens type: {type(total_tokens)}, value: {total_tokens}")
-        
+
         result = supabase.table("credits_usage").insert(usage_data).execute()
-        
+
         if result.data:
-            logger.info(f"✅ INSERT successful. Returned data: {result.data[0]}")
-            logger.info(f"📊 Recorded usage for user {user_id[:8]}... - {service_type}: {total_tokens} units")
+            logger.info(
+                f"💰 {service_type}: {credits_spent} credits "
+                f"(in={input_tokens}, out={output_tokens}) user={user_id[:8]}"
+            )
             return True
-        else:
-            logger.error(f"❌ Failed to record usage: {result}")
-            return False
-            
+
+        logger.error(f"Failed to record usage: {result}")
+        return False
+
     except Exception as e:
-        logger.error(f"❌ Error recording usage: {e}")
+        logger.error(f"Error recording usage: {e}")
         return False
 
 

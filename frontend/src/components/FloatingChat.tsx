@@ -175,7 +175,7 @@ export function FloatingChat() {
                   maxWidth: '75%',
                   padding: '10px 14px',
                   borderRadius: 12,
-                  background: msg.role === 'user' ? JoyoTheme.accent : 'white',
+                  background: msg.role === 'user' ? JoyoTheme.accent : JoyoTheme.card,
                   color: msg.role === 'user' ? 'white' : JoyoTheme.text,
                   fontSize: 13,
                   lineHeight: 1.5,
@@ -212,6 +212,8 @@ export function FloatingChat() {
                 padding: '10px 14px',
                 borderRadius: 10,
                 border: `1px solid ${JoyoTheme.border}`,
+                background: JoyoTheme.card,
+                color: JoyoTheme.text,
                 fontSize: 13,
                 outline: 'none'
               }}

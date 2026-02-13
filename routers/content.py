@@ -1,7 +1,7 @@
 """
 Content generation and editing routes
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, HttpUrl
 from typing import List, Optional
 import logging
@@ -11,10 +11,23 @@ from services.content_generator import generate_posts
 from services.image_generator import generate_images
 from services.google_ads_generator import generate_google_ads
 from services.scraper import scrape_website
+from middleware.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/content", tags=["content"])
+
+
+async def get_optional_user(request: Request) -> Optional[dict]:
+    """Try to extract user from token; return None if not authenticated."""
+    try:
+        auth = request.headers.get("authorization", "")
+        if not auth.startswith("Bearer "):
+            return None
+        from middleware.auth import get_current_user as _get
+        return await _get(request)
+    except Exception:
+        return None
 
 class RegenerateTextRequest(BaseModel):
     website_data: dict
@@ -47,14 +60,15 @@ class GenerateGoogleAdsRequest(BaseModel):
     language: str = "en"
 
 @router.post("/regenerate-text")
-async def regenerate_text(request: RegenerateTextRequest):
+async def regenerate_text(request: RegenerateTextRequest, req: Request = None):
     """
     Regenerate a single post variation
     """
     try:
+        user = await get_optional_user(req) if req else None
+        user_id = user["user_id"] if user else None
         logger.info(f"♻️ Regenerating text variation {request.variation_index}")
         
-        # Generate all 4 variations again
         variations = await generate_posts(
             website_data=request.website_data,
             keywords=request.keywords,
@@ -62,7 +76,8 @@ async def regenerate_text(request: RegenerateTextRequest):
             style=request.style,
             target_audience=request.target_audience,
             language=request.language,
-            include_emojis=request.include_emojis
+            include_emojis=request.include_emojis,
+            user_id=user_id
         )
         
         # Return the requested variation (or fallback to first)
@@ -78,17 +93,18 @@ async def regenerate_text(request: RegenerateTextRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/regenerate-image")
-async def regenerate_image(request: RegenerateImageRequest):
+async def regenerate_image(request: RegenerateImageRequest, req: Request = None):
     """
     Regenerate image for a post
     """
     try:
+        user = await get_optional_user(req) if req else None
+        user_id = user["user_id"] if user else None
         logger.info(f"♻️ Regenerating image for platform: {request.platform}")
         
-        from main import PostVariation
+        from main import PostVariation as PV
         
-        # Create temporary variation object
-        temp_variation = PostVariation(
+        temp_variation = PV(
             text=request.post_text,
             hashtags=[],
             char_count=len(request.post_text),
@@ -96,14 +112,14 @@ async def regenerate_image(request: RegenerateImageRequest):
             call_to_action=""
         )
         
-        # Generate new image
         images = await generate_images(
             website_data=request.website_data,
             variations=[temp_variation],
             platforms=[request.platform],
             image_size=request.image_size,
             include_logo=request.include_logo,
-            custom_prompt=request.custom_prompt
+            custom_prompt=request.custom_prompt,
+            user_id=user_id
         )
         
         return {
@@ -115,13 +131,14 @@ async def regenerate_image(request: RegenerateImageRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/edit-text")
-async def edit_text(request: EditTextRequest):
+async def edit_text(request: EditTextRequest, req: Request = None):
     """
     Edit existing text with AI assistance
     Actions: shorten, lengthen, add_emojis, remove_emojis, change_tone
     """
     try:
         import google.generativeai as genai
+        user = await get_optional_user(req) if req else None
         
         action_prompts = {
             "shorten": f"Shorten this text to be more concise while keeping the main message:\n\n{request.text}",
@@ -133,7 +150,6 @@ async def edit_text(request: EditTextRequest):
         
         prompt = action_prompts.get(request.action, action_prompts["shorten"])
         
-        # Add language instruction
         language_names = {"en": "English", "he": "Hebrew", "es": "Spanish", "pt": "Portuguese"}
         lang_name = language_names.get(request.language, "English")
         prompt = f"Respond in {lang_name}. {prompt}"
@@ -142,11 +158,24 @@ async def edit_text(request: EditTextRequest):
         response = model.generate_content(prompt)
         
         edited_text = response.text.strip()
+        edited_text = edited_text.replace('**', '').replace('__', '').replace('~~', '')
         
-        # Clean markdown formatting (remove ** for bold, __ for italic, etc.)
-        edited_text = edited_text.replace('**', '')  # Remove bold
-        edited_text = edited_text.replace('__', '')  # Remove italic
-        edited_text = edited_text.replace('~~', '')  # Remove strikethrough
+        # Track usage
+        if user:
+            try:
+                from services.credits_service import record_usage
+                in_t = getattr(response.usage_metadata, 'prompt_token_count', 0) if hasattr(response, 'usage_metadata') else 0
+                out_t = getattr(response.usage_metadata, 'candidates_token_count', 0) if hasattr(response, 'usage_metadata') else 0
+                await record_usage(
+                    user_id=user["user_id"],
+                    service_type="social_posts",
+                    input_tokens=in_t,
+                    output_tokens=out_t,
+                    model_name="gemini-3-flash-preview",
+                    metadata={"action": request.action}
+                )
+            except Exception as te:
+                logger.error(f"Failed to track edit-text usage: {te}")
         
         return {
             "original": request.text,
@@ -155,27 +184,24 @@ async def edit_text(request: EditTextRequest):
         }
         
     except Exception as e:
-        logger.error(f"❌ Error editing text: {str(e)}")
+        logger.error(f"Error editing text: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/generate-google-ads")
-async def generate_google_ads_endpoint(request: GenerateGoogleAdsRequest):
+async def generate_google_ads_endpoint(request: GenerateGoogleAdsRequest, req: Request = None):
     """
     Generate complete Google Ads RSA package
-    Returns 15 headlines, 4 descriptions, and all extensions
     """
     try:
-        logger.info("🎯 ===== GOOGLE ADS GENERATION START =====")
-        logger.info(f"🎯 Website data keys: {list(request.website_data.keys())}")
-        logger.info(f"🎯 Keywords: {request.keywords}")
-        logger.info(f"🎯 Target location: {request.target_location}")
-        logger.info(f"🎯 Language: {request.language}")
+        user = await get_optional_user(req) if req else None
+        user_id = user["user_id"] if user else None
         
         ads_package = await generate_google_ads(
             website_data=request.website_data,
             keywords=request.keywords,
             target_location=request.target_location,
-            language=request.language
+            language=request.language,
+            user_id=user_id
         )
         
         logger.info(f"✅ Generated {len(ads_package.get('headlines', []))} headlines")
