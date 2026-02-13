@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Send, Target, ImagePlus, ArrowUp, Eye, Film } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { JoyoTheme, cardStyle } from '../styles/joyo-theme'
