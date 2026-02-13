@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
-import { Send, Target, ArrowUp, ArrowDown, Film, Coins, Zap, BarChart3, TrendingUp } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Send, Target, ArrowUp, ArrowDown, Film, Coins, Zap, BarChart3, MessageSquare, Image, Video, Megaphone } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
+import { getApiUrl } from '../lib/api'
 
 interface DashboardProps {
   onNavigate: (tab: string) => void
@@ -54,6 +55,174 @@ function MetricCard({ icon: Icon, label, value, sub, change, changeDir, color, d
   )
 }
 
+// Service label/icon/color mapping (same IDs as credits_usage.service_type)
+const SERVICE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  social_posts:          { label: 'Social Posts',     icon: Send,      color: '#4A7CFF' },
+  image_generation:      { label: 'Image Generation', icon: Image,     color: '#8B5CF6' },
+  google_ads:            { label: 'Google Ads',       icon: Megaphone, color: '#10B981' },
+  video_dubbing:         { label: 'Video Dubbing',    icon: Video,     color: '#F59E0B' },
+  video_dubbing_actual:  { label: 'Video Dubbing',    icon: Video,     color: '#F59E0B' },
+  video_generation:      { label: 'Video Generation', icon: Film,      color: '#EC4899' },
+  gemini_chat:           { label: 'AI Chat',          icon: MessageSquare, color: '#14B8A6' },
+  chat:                  { label: 'AI Chat',          icon: MessageSquare, color: '#14B8A6' },
+}
+
+function getServiceMeta(key: string) {
+  return SERVICE_META[key] || { label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), icon: Zap, color: '#6B7280' }
+}
+
+// ─── Usage Activity Chart (pure SVG) ────────────────────────────────
+interface HistoryRecord {
+  service_type: string
+  credits_spent: number
+  created_at: string
+}
+
+interface DayData {
+  date: string        // YYYY-MM-DD
+  label: string       // "Feb 13"
+  count: number
+  credits: number
+  byService: Record<string, number>
+}
+
+function UsageChart({ history }: { history: HistoryRecord[] }) {
+  const { theme } = useTheme()
+  const t = getJoyoTheme(theme)
+  const [hover, setHover] = useState<number | null>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
+
+  // Build last 14 days
+  const days: DayData[] = []
+  const now = new Date()
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now)
+    d.setDate(d.getDate() - i)
+    const iso = d.toISOString().slice(0, 10)
+    days.push({
+      date: iso,
+      label: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      count: 0,
+      credits: 0,
+      byService: {}
+    })
+  }
+
+  // Fill from history
+  for (const rec of history) {
+    const recDate = rec.created_at.slice(0, 10)
+    const day = days.find(d => d.date === recDate)
+    if (!day) continue
+    day.count++
+    day.credits += rec.credits_spent
+    day.byService[rec.service_type] = (day.byService[rec.service_type] || 0) + 1
+  }
+
+  const maxCount = Math.max(1, ...days.map(d => d.count))
+
+  // Chart dimensions
+  const W = 700, H = 180, PX = 40, PY = 20
+  const plotW = W - PX * 2, plotH = H - PY * 2
+  const stepX = plotW / (days.length - 1 || 1)
+
+  // Build polyline points
+  const points = days.map((d, i) => ({
+    x: PX + i * stepX,
+    y: PY + plotH - (d.count / maxCount) * plotH
+  }))
+  const line = points.map(p => `${p.x},${p.y}`).join(' ')
+
+  // Gradient fill area
+  const areaPath = `M${points[0].x},${PY + plotH} ${points.map(p => `L${p.x},${p.y}`).join(' ')} L${points[points.length - 1].x},${PY + plotH} Z`
+
+  return (
+    <div style={{
+      background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
+      padding: '22px 24px', marginBottom: 22, animation: 'fadeUp 0.5s ease 0.35s both'
+    }}>
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 12 }}>
+        Generation Activity (14 days)
+      </h3>
+      <div style={{ position: 'relative', width: '100%', overflowX: 'auto' }}>
+        <svg ref={svgRef} viewBox={`0 0 ${W} ${H + 30}`} style={{ width: '100%', height: 'auto', minHeight: 180 }}>
+          <defs>
+            <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#4A7CFF" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#4A7CFF" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          {/* Y-axis grid lines */}
+          {[0, 0.25, 0.5, 0.75, 1].map(frac => {
+            const y = PY + plotH - frac * plotH
+            return (
+              <g key={frac}>
+                <line x1={PX} y1={y} x2={PX + plotW} y2={y} stroke={t.border} strokeWidth={1} strokeDasharray={frac === 0 ? '' : '4,4'} />
+                <text x={PX - 6} y={y + 4} textAnchor="end" fontSize={10} fill={t.textMuted}>
+                  {Math.round(maxCount * frac)}
+                </text>
+              </g>
+            )
+          })}
+
+          {/* Fill area */}
+          <path d={areaPath} fill="url(#chartGrad)" />
+
+          {/* Line */}
+          <polyline points={line} fill="none" stroke="#4A7CFF" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" />
+
+          {/* Data points + hover zones */}
+          {points.map((p, i) => (
+            <g key={i}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              style={{ cursor: 'pointer' }}
+            >
+              <rect x={p.x - stepX / 2} y={PY} width={stepX} height={plotH} fill="transparent" />
+              <circle cx={p.x} cy={p.y} r={hover === i ? 5.5 : 3.5}
+                fill={hover === i ? '#4A7CFF' : t.card}
+                stroke="#4A7CFF" strokeWidth={2}
+                style={{ transition: 'r 0.15s ease' }}
+              />
+              {/* X label */}
+              <text x={p.x} y={H + 16} textAnchor="middle" fontSize={9.5} fill={t.textMuted}>
+                {i % 2 === 0 ? days[i].label : ''}
+              </text>
+            </g>
+          ))}
+
+          {/* Tooltip */}
+          {hover !== null && days[hover].count > 0 && (() => {
+            const d = days[hover]
+            const p = points[hover]
+            const lines = [
+              `${d.label}: ${d.count} generation${d.count > 1 ? 's' : ''}`,
+              `Credits: ${d.credits.toFixed(4)}`,
+              ...Object.entries(d.byService).map(([svc, cnt]) => `${getServiceMeta(svc).label}: ${cnt}`)
+            ]
+            const tw = 170, th = 16 + lines.length * 15
+            const tx = Math.min(Math.max(p.x - tw / 2, 4), W - tw - 4)
+            const ty = p.y - th - 12
+            return (
+              <g>
+                <rect x={tx} y={ty} width={tw} height={th} rx={8} fill={t.card} stroke={t.border} strokeWidth={1} filter="drop-shadow(0 4px 8px rgba(0,0,0,0.12))" />
+                {lines.map((ln, li) => (
+                  <text key={li} x={tx + 10} y={ty + 14 + li * 15} fontSize={li === 0 ? 11 : 10}
+                    fontWeight={li === 0 ? 700 : 500} fill={li === 0 ? t.text : t.textSecondary}>
+                    {ln}
+                  </text>
+                ))}
+              </g>
+            )
+          })()}
+        </svg>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main Dashboard ──────────────────────────────────────────────────
+
 interface CreditsSummary {
   balance: { total_purchased: number; used: number; remaining: number }
   usage_30_days: { total_spent: number; by_service: Record<string, { count: number; cost: number }>; total_requests: number }
@@ -64,19 +233,24 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   const { user, session } = useAuth()
   const { theme } = useTheme()
   const [summary, setSummary] = useState<CreditsSummary | null>(null)
+  const [history, setHistory] = useState<HistoryRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   const t = getJoyoTheme(theme)
 
   useEffect(() => {
     if (!session) return
-    const apiUrl = import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'
+    const apiUrl = getApiUrl()
+    const headers = { 'Authorization': `Bearer ${session.access_token}` }
 
-    fetch(`${apiUrl}/api/credits/summary`, {
-      headers: { 'Authorization': `Bearer ${session.access_token}` }
-    })
-      .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then(data => setSummary(data))
+    Promise.all([
+      fetch(`${apiUrl}/api/credits/summary`, { headers }).then(r => r.ok ? r.json() : null),
+      fetch(`${apiUrl}/api/credits/history?limit=500`, { headers }).then(r => r.ok ? r.json() : null)
+    ])
+      .then(([summaryData, historyData]) => {
+        if (summaryData) setSummary(summaryData)
+        if (historyData?.history) setHistory(historyData.history)
+      })
       .catch(e => console.error('Dashboard fetch error:', e))
       .finally(() => setLoading(false))
   }, [session])
@@ -85,18 +259,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   const bal = summary?.balance
   const u30 = summary?.usage_30_days
-  const u7 = summary?.usage_7_days
 
-  // calc change direction: if 7d avg > 30d avg => up
-  const avg30 = (u30?.total_requests || 0) / 30
-  const avg7 = (u7?.total_requests || 0) / 7
-  const trend: 'up' | 'down' = avg7 >= avg30 ? 'up' : 'down'
-  const trendPct = avg30 > 0 ? Math.round(((avg7 - avg30) / avg30) * 100) : 0
-
-  // service breakdown for 30d
+  // Generations by service (30d)
   const services = u30?.by_service || {}
-  const serviceList = Object.entries(services)
-    .sort(([, a], [, b]) => b.count - a.count)
+  const serviceList = Object.entries(services).sort(([, a], [, b]) => b.count - a.count)
+
+  // Total generations count
+  const totalGens = u30?.total_requests || 0
 
   return (
     <div style={{ maxWidth: 1160, margin: '0 auto' }}>
@@ -133,7 +302,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         <div style={{ textAlign: 'center', padding: 40, color: t.textMuted }}>Loading metrics...</div>
       ) : (
         <>
-          {/* Metric Cards */}
+          {/* Top metric cards */}
           <div style={{ display: 'flex', gap: 14, marginBottom: 22, flexWrap: 'wrap' }}>
             <MetricCard
               icon={Coins}
@@ -153,57 +322,44 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             />
             <MetricCard
               icon={BarChart3}
-              label="Requests (30d)"
-              value={(u30?.total_requests || 0).toString()}
-              change={trendPct !== 0 ? `${Math.abs(trendPct)}% vs prev week` : undefined}
-              changeDir={trend}
+              label="Total Generations"
+              value={totalGens.toString()}
+              sub="last 30 days"
               color={t.success}
               delay={0.15}
             />
-            <MetricCard
-              icon={TrendingUp}
-              label="Requests (7d)"
-              value={(u7?.total_requests || 0).toString()}
-              color={t.warning}
-              delay={0.2}
-            />
           </div>
 
-          {/* Service Breakdown */}
+          {/* Generations by service — mini cards */}
           {serviceList.length > 0 && (
-            <div style={{
-              background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
-              padding: '22px 24px', marginBottom: 22, animation: 'fadeUp 0.5s ease 0.3s both'
-            }}>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 16 }}>
-                Usage by Service (30 days)
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {serviceList.map(([service, data]) => {
-                  const maxCount = serviceList[0]?.[1]?.count || 1
-                  const pct = (data.count / maxCount) * 100
-                  return (
-                    <div key={service}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                        <span style={{ fontSize: 12.5, fontWeight: 600, color: t.text }}>
-                          {service.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                        </span>
-                        <span style={{ fontSize: 12, color: t.textSecondary }}>
-                          {data.count} req · {data.cost.toFixed(4)} credits
-                        </span>
-                      </div>
-                      <div style={{ height: 6, borderRadius: 3, background: t.borderLight }}>
-                        <div style={{
-                          height: '100%', borderRadius: 3, width: `${pct}%`,
-                          background: t.gradient1, transition: 'width 0.5s ease'
-                        }} />
-                      </div>
+            <div style={{ display: 'flex', gap: 12, marginBottom: 22, flexWrap: 'wrap', animation: 'fadeUp 0.5s ease 0.25s both' }}>
+              {serviceList.map(([svc, data], i) => {
+                const meta = getServiceMeta(svc)
+                const SvcIcon = meta.icon
+                return (
+                  <div key={svc} style={{
+                    background: t.card, borderRadius: 14, border: `1px solid ${t.border}`,
+                    padding: '14px 18px', minWidth: 150, flex: 1,
+                    animation: `fadeUp 0.4s ease ${0.25 + i * 0.05}s both`
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <SvcIcon size={15} color={meta.color} />
+                      <span style={{ fontSize: 11.5, fontWeight: 600, color: t.textSecondary }}>{meta.label}</span>
                     </div>
-                  )
-                })}
-              </div>
+                    <div style={{ fontSize: 22, fontWeight: 800, color: t.text, letterSpacing: -0.8 }}>
+                      {data.count}
+                    </div>
+                    <div style={{ fontSize: 10.5, color: t.textMuted, marginTop: 2 }}>
+                      {data.cost.toFixed(4)} credits
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
+
+          {/* Activity chart */}
+          <UsageChart history={history} />
         </>
       )}
 
