@@ -25,6 +25,7 @@ export const JoyoTheme = {
   
   // Surface Colors
   surface: "#F7F8FB",
+  surfaceSecondary: "#F0F2F5",
   card: "#FFFFFF",
   border: "#E5E9F0",
   borderLight: "#EEF1F6",
