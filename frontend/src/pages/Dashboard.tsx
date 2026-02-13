@@ -100,7 +100,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     videosTranslated: 0,
     totalRequests: 0
   })
-  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -125,8 +124,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         }
       } catch (error) {
         console.error('Failed to fetch stats:', error)
-      } finally {
-        setLoading(false)
       }
     }
 
