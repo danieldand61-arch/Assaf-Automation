@@ -1,26 +1,27 @@
 import { useState } from 'react'
-import { FileText, Megaphone, Video, MessageSquare, Loader2, Film } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
+import { JoyoSidebar } from './JoyoSidebar'
+import { JoyoTopBar } from './JoyoTopBar'
 import { ChatApp } from './ChatApp'
 import { InputSection } from './InputSection'
 import { GoogleAdsGeneration } from './GoogleAdsGeneration'
 import { VideoTranslation } from './VideoTranslation'
 import { PreviewSection } from './PreviewSection'
 import VideoGeneration from '../pages/VideoGeneration'
+import Dashboard from '../pages/Dashboard'
+import { Library } from '../pages/Library'
+import { Scheduled } from '../pages/Scheduled'
+import { Settings } from '../pages/Settings'
 import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
-import Header from './Header'
+import { JoyoTheme, animations } from '../styles/joyo-theme'
 
-type TabType = 'chat' | 'social' | 'ads' | 'video' | 'videogen'
-
-interface Tab {
-  id: TabType
-  name: string
-  icon: React.ReactNode
-}
+type TabType = 'dashboard' | 'chat' | 'social' | 'ads' | 'video' | 'videogen' | 'images' | 'library' | 'calendar' | 'settings'
 
 export function MainWorkspace() {
-  const [activeTab, setActiveTab] = useState<TabType>('chat')
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard')
+  const [collapsed, setCollapsed] = useState(false)
   const { generatedContent, setGeneratedContent } = useContentStore()
   const { loading, accounts } = useAccount()
   const { session } = useAuth()
@@ -86,115 +87,171 @@ export function MainWorkspace() {
   // Show loading while fetching accounts
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+      <div style={{ 
+        minHeight: '100vh', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        background: JoyoTheme.surface
+      }}>
+        <Loader2 className="w-12 h-12 animate-spin" style={{ color: JoyoTheme.accent }} />
       </div>
     )
   }
 
-  const tabs: Tab[] = [
-    {
-      id: 'chat',
-      name: 'AI Chat',
-      icon: <MessageSquare className="w-5 h-5" />
-    },
-    {
-      id: 'social',
-      name: 'Social Posts',
-      icon: <FileText className="w-5 h-5" />
-    },
-    {
-      id: 'ads',
-      name: 'Google Ads',
-      icon: <Megaphone className="w-5 h-5" />
-    },
-    {
-      id: 'video',
-      name: 'Video Translation',
-      icon: <Video className="w-5 h-5" />
-    },
-    {
-      id: 'videogen',
-      name: 'Video Generation',
-      icon: <Film className="w-5 h-5" />
-    }
-  ]
+  const pageTitles: Record<TabType, string> = {
+    dashboard: 'Dashboard',
+    chat: 'AI Chat',
+    social: 'Social Posts',
+    ads: 'Google Ads',
+    video: 'Video Translation',
+    videogen: 'Video Generation',
+    images: 'Image Studio',
+    library: 'Content Library',
+    calendar: 'Scheduled Posts',
+    settings: 'Settings'
+  }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <div className="border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <Header />
-      </div>
+    <div style={{ 
+      display: 'flex', 
+      minHeight: '100vh',
+      background: JoyoTheme.surface,
+      fontFamily: "'Plus Jakarta Sans','Inter',-apple-system,sans-serif"
+    }}>
+      {/* Inject animations */}
+      <style>{animations}</style>
 
-      {/* Tabs Navigation */}
-      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6">
-        <div className="flex gap-2 overflow-x-auto">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center gap-2 px-6 py-3 font-medium transition whitespace-nowrap border-b-2
-                ${activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:border-gray-300 dark:hover:border-gray-600'
-                }
-              `}
-            >
-              {tab.icon}
-              <span>{tab.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Sidebar */}
+      <JoyoSidebar
+        activeTab={activeTab}
+        onTabChange={(tab) => setActiveTab(tab as TabType)}
+        collapsed={collapsed}
+        onToggleCollapse={() => setCollapsed(!collapsed)}
+      />
 
-      {/* Tab Content */}
-      <div className="flex-1 overflow-hidden">
-        {activeTab === 'chat' && <ChatApp />}
-        {activeTab === 'social' && (
-          <div className="flex h-full">
-            <div className={`${generatedContent ? 'w-1/2' : 'flex-1'} overflow-auto p-6`}>
-              {generating && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 max-w-md mx-4 text-center">
-                    <Loader2 className="w-16 h-16 animate-spin text-blue-600 mx-auto mb-4" />
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                      Generating Content...
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Creating amazing posts and images for you
-                    </p>
+      {/* Main Content */}
+      <div style={{ 
+        flex: 1, 
+        display: 'flex', 
+        flexDirection: 'column', 
+        minWidth: 0 
+      }}>
+        {/* Top Bar */}
+        <JoyoTopBar title={pageTitles[activeTab]} />
+
+        {/* Content Area */}
+        <div 
+          key={activeTab}
+          style={{ 
+            flex: 1, 
+            padding: '28px 28px 40px', 
+            overflowY: 'auto' 
+          }}
+        >
+          {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as TabType)} />}
+          
+          {activeTab === 'chat' && <ChatApp />}
+          
+          {activeTab === 'social' && (
+            <div style={{ display: 'flex', height: '100%' }}>
+              <div style={{ 
+                flex: generatedContent ? 1 : 1, 
+                overflowY: 'auto',
+                paddingRight: generatedContent ? '12px' : 0
+              }}>
+                {generating && (
+                  <div style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 50
+                  }}>
+                    <div style={{
+                      background: 'white',
+                      borderRadius: 20,
+                      padding: '32px',
+                      maxWidth: '400px',
+                      textAlign: 'center'
+                    }}>
+                      <Loader2 
+                        size={48} 
+                        style={{ 
+                          color: JoyoTheme.accent,
+                          animation: 'spin 1s linear infinite',
+                          margin: '0 auto 16px'
+                        }} 
+                      />
+                      <h3 style={{
+                        fontSize: 18,
+                        fontWeight: 800,
+                        color: JoyoTheme.text,
+                        marginBottom: 8
+                      }}>
+                        Generating Content...
+                      </h3>
+                      <p style={{
+                        fontSize: 14,
+                        color: JoyoTheme.textSecondary
+                      }}>
+                        Creating amazing posts and images for you
+                      </p>
+                    </div>
                   </div>
+                )}
+                <InputSection onGenerate={handleGenerate} />
+              </div>
+              {generatedContent && generatedContent.variations && generatedContent.images && (
+                <div style={{ 
+                  flex: 1, 
+                  borderLeft: `1px solid ${JoyoTheme.border}`,
+                  overflowY: 'auto',
+                  paddingLeft: '12px',
+                  background: 'white'
+                }}>
+                  <PreviewSection onReset={handleReset} />
                 </div>
               )}
+            </div>
+          )}
+          
+          {activeTab === 'ads' && <GoogleAdsGeneration />}
+          
+          {activeTab === 'video' && <VideoTranslation />}
+          
+          {activeTab === 'videogen' && <VideoGeneration />}
+          
+          {activeTab === 'images' && (
+            <div style={{ maxWidth: 800, margin: '0 auto' }}>
+              <div style={{ textAlign: 'center', marginBottom: 32 }}>
+                <h2 style={{ 
+                  fontSize: 24, 
+                  fontWeight: 800, 
+                  color: JoyoTheme.text,
+                  marginBottom: 8
+                }}>
+                  Image Studio
+                </h2>
+                <p style={{ 
+                  fontSize: 14, 
+                  color: JoyoTheme.textSecondary 
+                }}>
+                  AI-powered image generation for your brand
+                </p>
+              </div>
               <InputSection onGenerate={handleGenerate} />
             </div>
-            {generatedContent && generatedContent.variations && generatedContent.images && (
-              <div className="w-1/2 border-l border-gray-200 dark:border-gray-700 overflow-auto p-6 bg-white dark:bg-gray-800">
-                <PreviewSection onReset={handleReset} />
-              </div>
-            )}
-          </div>
-        )}
-        
-        {activeTab === 'ads' && (
-          <div className="h-full overflow-auto p-6">
-            <GoogleAdsGeneration />
-          </div>
-        )}
-        
-        {activeTab === 'video' && (
-          <div className="h-full overflow-auto p-6">
-            <VideoTranslation />
-          </div>
-        )}
-        
-        {activeTab === 'videogen' && (
-          <div className="h-full overflow-auto">
-            <VideoGeneration />
-          </div>
-        )}
+          )}
+          
+          {activeTab === 'library' && <Library />}
+          
+          {activeTab === 'calendar' && <Scheduled />}
+          
+          {activeTab === 'settings' && <Settings />}
+        </div>
       </div>
     </div>
   )
