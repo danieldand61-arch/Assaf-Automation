@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { Send, Target, Image as ImagePlus, ArrowUp, Eye, Film } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
-import { JoyoTheme, cardStyle } from '../styles/joyo-theme'
+import { useTheme } from '../contexts/ThemeContext'
+import { getJoyoTheme } from '../styles/joyo-theme'
 
 interface DashboardProps {
   onNavigate: (tab: string) => void
@@ -94,6 +95,7 @@ function MetricCard({ icon: Icon, label, value, change, changeDir, color, delay 
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const { user, session } = useAuth()
   const { activeAccount } = useAccount()
+  const { theme } = useTheme()
   const [stats, setStats] = useState({
     postsCreated: 0,
     imagesGenerated: 0,
@@ -101,29 +103,52 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     totalRequests: 0
   })
 
+  const JoyoTheme = getJoyoTheme(theme)
+  const cardStyle = {
+    background: JoyoTheme.card,
+    borderRadius: 16,
+    border: `1px solid ${JoyoTheme.border}`,
+    transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
+  }
+
   useEffect(() => {
     const fetchStats = async () => {
-      if (!session || !activeAccount) return
+      console.log('📊 Dashboard: Fetching stats...')
+      console.log('📊 Active account:', activeAccount)
+      console.log('📊 Session exists:', !!session)
+      
+      if (!session || !activeAccount) {
+        console.log('⚠️ Dashboard: Missing session or activeAccount')
+        return
+      }
 
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'
-        const response = await fetch(`${apiUrl}/api/accounts/${activeAccount.id}/stats`, {
+        const url = `${apiUrl}/api/accounts/${activeAccount.id}/stats`
+        console.log('📊 Fetching from:', url)
+        
+        const response = await fetch(url, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`
           }
         })
 
+        console.log('📊 Response status:', response.status)
+
         if (response.ok) {
           const data = await response.json()
+          console.log('📊 Stats received:', data)
           setStats({
             postsCreated: data.posts_created || 0,
             imagesGenerated: data.images_generated || 0,
             videosTranslated: data.videos_translated || 0,
             totalRequests: data.total_requests || 0
           })
+        } else {
+          console.error('❌ Stats fetch failed:', response.status, await response.text())
         }
       } catch (error) {
-        console.error('Failed to fetch stats:', error)
+        console.error('❌ Failed to fetch stats:', error)
       }
     }
 

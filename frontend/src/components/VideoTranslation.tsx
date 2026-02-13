@@ -246,7 +246,7 @@ export function VideoTranslation({ initialJob, onJobUpdate }: VideoTranslationPr
           </div>
           <div>
             <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-              Video Translation
+              Video Dubbing
             </h2>
             <p className="text-gray-600 dark:text-gray-400 mt-1">
               Automatically dub your video into another language with AI

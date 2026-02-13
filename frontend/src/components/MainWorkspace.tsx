@@ -15,7 +15,8 @@ import { Settings } from '../pages/Settings'
 import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
-import { JoyoTheme, animations } from '../styles/joyo-theme'
+import { useTheme } from '../contexts/ThemeContext'
+import { getJoyoTheme, animations } from '../styles/joyo-theme'
 
 type TabType = 'dashboard' | 'social' | 'ads' | 'video' | 'videogen' | 'library' | 'calendar' | 'settings'
 
@@ -25,7 +26,10 @@ export function MainWorkspace() {
   const { generatedContent, setGeneratedContent } = useContentStore()
   const { loading, accounts } = useAccount()
   const { session } = useAuth()
+  const { theme } = useTheme()
   const [generating, setGenerating] = useState(false)
+  
+  const JoyoTheme = getJoyoTheme(theme)
   
   console.log('🏢 MainWorkspace render - loading:', loading, 'accounts:', accounts.length)
 
@@ -103,7 +107,7 @@ export function MainWorkspace() {
     dashboard: 'Dashboard',
     social: 'Social Posts',
     ads: 'Google Ads',
-    video: 'Video Translation',
+    video: 'Video Dubbing',
     videogen: 'Video Generation',
     library: 'Content Library',
     calendar: 'Scheduled Posts',

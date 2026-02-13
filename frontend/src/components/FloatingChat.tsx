@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { MessageSquare, X, Send, Loader2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
-import { JoyoTheme } from '../styles/joyo-theme'
+import { useTheme } from '../contexts/ThemeContext'
+import { getJoyoTheme } from '../styles/joyo-theme'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -16,6 +17,9 @@ export function FloatingChat() {
   const [loading, setLoading] = useState(false)
   const { session } = useAuth()
   const { activeAccount } = useAccount()
+  const { theme } = useTheme()
+  
+  const JoyoTheme = getJoyoTheme(theme)
 
   const handleSend = async () => {
     if (!input.trim() || loading || !session) return

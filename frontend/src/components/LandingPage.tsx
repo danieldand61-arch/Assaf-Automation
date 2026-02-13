@@ -492,7 +492,7 @@ export function LandingPage() {
                   marginBottom: 8,
                   fontSize: 16
                 }}>
-                  Video Translation
+                  Video Dubbing
                 </h4>
                 <p style={{
                   fontSize: 14,

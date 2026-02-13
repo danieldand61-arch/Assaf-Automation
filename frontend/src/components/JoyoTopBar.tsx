@@ -3,7 +3,7 @@ import { Building2, ChevronDown, Bell, LogOut, Sun, Moon } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
-import { JoyoTheme } from '../styles/joyo-theme'
+import { getJoyoTheme } from '../styles/joyo-theme'
 
 interface JoyoTopBarProps {
   title: string
@@ -15,6 +15,8 @@ export function JoyoTopBar({ title }: JoyoTopBarProps) {
   const { theme, toggleTheme } = useTheme()
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  
+  const JoyoTheme = getJoyoTheme(theme)
 
   const handleSignOut = async () => {
     setUserMenuOpen(false)

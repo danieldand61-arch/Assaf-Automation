@@ -1,5 +1,7 @@
 // JOYO Theme - Design System
-export const JoyoTheme = {
+type Theme = 'light' | 'dark'
+
+const darkTheme = {
   // Brand Colors
   brand: "#131B2E",
   accent: "#4A7CFF",
@@ -41,7 +43,58 @@ export const JoyoTheme = {
   gradient3: "linear-gradient(135deg, #F59E0B 0%, #F97316 100%)",
   gradient4: "linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%)",
   sidebarGrad: "linear-gradient(175deg, #131B2E 0%, #162240 35%, #1A2B52 65%, #1E2F58 100%)",
-};
+}
+
+const lightTheme = {
+  // Brand Colors
+  brand: "#131B2E",
+  accent: "#4A7CFF",
+  accentSoft: "#EEF2FF",
+  
+  // Status Colors
+  success: "#10B981",
+  successSoft: "#ECFDF5",
+  warning: "#F59E0B",
+  warningSoft: "#FFFBEB",
+  danger: "#EF4444",
+  dangerSoft: "#FEF2F2",
+  
+  // Extended Palette
+  purple: "#8B5CF6",
+  purpleSoft: "#F5F3FF",
+  pink: "#EC4899",
+  pinkSoft: "#FDF2F8",
+  orange: "#F97316",
+  orangeSoft: "#FFF7ED",
+  teal: "#14B8A6",
+  tealSoft: "#F0FDFA",
+  
+  // Surface Colors (inverted for light)
+  surface: "#FFFFFF",
+  surfaceSecondary: "#F9FAFB",
+  card: "#FFFFFF",
+  border: "#E5E7EB",
+  borderLight: "#F3F4F6",
+  
+  // Text Colors (darker for light theme)
+  text: "#111827",
+  textSecondary: "#6B7280",
+  textMuted: "#9CA3AF",
+  
+  // Gradients
+  gradient1: "linear-gradient(135deg, #4A7CFF 0%, #6366F1 50%, #8B5CF6 100%)",
+  gradient2: "linear-gradient(135deg, #10B981 0%, #14B8A6 100%)",
+  gradient3: "linear-gradient(135deg, #F59E0B 0%, #F97316 100%)",
+  gradient4: "linear-gradient(135deg, #EC4899 0%, #8B5CF6 100%)",
+  sidebarGrad: "linear-gradient(175deg, #1F2937 0%, #374151 35%, #4B5563 65%, #6B7280 100%)",
+}
+
+export function getJoyoTheme(theme: Theme = 'dark') {
+  return theme === 'light' ? lightTheme : darkTheme
+}
+
+// Default export for backward compatibility
+export const JoyoTheme = darkTheme;
 
 // Card Style Helper
 export const cardStyle = {

@@ -3,7 +3,8 @@ import {
   FileText, Calendar, Settings, Menu,
   Sparkles
 } from 'lucide-react'
-import { JoyoTheme } from '../styles/joyo-theme'
+import { useTheme } from '../contexts/ThemeContext'
+import { getJoyoTheme } from '../styles/joyo-theme'
 
 interface JoyoSidebarProps {
   activeTab: string
@@ -19,7 +20,7 @@ const navSections = [
   { type: 'label', text: 'CREATE' },
   { id: 'social', label: 'Social Posts', icon: Send },
   { id: 'ads', label: 'Google Ads', icon: Megaphone },
-  { id: 'video', label: 'Video Translation', icon: Video },
+  { id: 'video', label: 'Video Dubbing', icon: Video },
   { id: 'videogen', label: 'Video Generation', icon: Film, disabled: true, badge: 'Coming Soon' },
   
   { type: 'label', text: 'MANAGE' },
@@ -28,6 +29,8 @@ const navSections = [
 ]
 
 export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollapse }: JoyoSidebarProps) {
+  const { theme } = useTheme()
+  const JoyoTheme = getJoyoTheme(theme)
   return (
     <div 
       style={{ 
