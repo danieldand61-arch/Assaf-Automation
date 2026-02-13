@@ -1,46 +1,66 @@
 """
-Unified Credits System — proportional pricing, ×2 markup.
+Unified Credits System — ×2 markup, 1 credit = $0.001 sale price.
 
-Base unit: 1 credit = cost of 1K Gemini Flash input tokens × 2.
-Real cost of 1K Gemini input tokens = $0.000075.
-1 credit ≈ $0.00015 to us.
+Real API prices (2026):
+  Gemini 3 Flash: $0.50/1M input, $3.00/1M output
+  Gemini image:   ~$0.039/image
+  ElevenLabs dub: $0.24/min
+  Kling AI video: $0.049/sec (no audio), $0.098/sec (with audio)
 
-  Service                 | Real cost       | ÷ base | ×2  | Credits
-  Chat message (~3K tok)  | ~$0.00045       |  6     | 12  | → 1 cr (min)
-  Social Post gen         | ~$0.001         | 13     | 26  | → 2 cr (min)
-  Text edit / regen       | ~$0.0005        |  7     | 14  | → 1 cr (min)
-  Google Ads gen          | ~$0.002         | 27     | 54  | → 2 cr (min)
-  1 Image (Gemini)        | ~$0.04          | 533    | 1066| → 7 cr
-  Video dubbing / min     | ~$0.24          | 3200   | 6400| → 100 cr/min
-  Design analysis         | ~$0.001         | 13     | 26  | → 1 cr
+Formula: credits = real_cost × 2 / $0.001 = real_cost × 2000
+
+  Service                 | Real cost  | ×2 markup  | Credits
+  1K input tokens         | $0.0005    | $0.001     | 1 cr
+  1K output tokens        | $0.003     | $0.006     | 6 cr
+  Chat (~3K in + 1K out)  | $0.0045    | $0.009     | 10 cr (min)
+  Social Post gen         | $0.012     | $0.024     | 25 cr (min)
+  Text edit / regen       | $0.005     | $0.010     | 10 cr (min)
+  Google Ads gen          | $0.019     | $0.038     | 40 cr (min)
+  1 Image (Gemini 2.5)    | $0.039     | $0.078     | 80 cr
+  Design analysis         | $0.005     | $0.010     | 10 cr (min)
+  Video dubbing / min     | $0.24      | $0.48      | 500 cr/min
+  Kling 5s video          | $0.25      | $0.50      | 500 cr
+  Kling 10s video         | $0.49      | $0.98      | 1000 cr
+
+Packages: 10K cr = $10, 50K cr = $45, 200K cr = $160
 """
 import logging
 from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 
-# ─── Proportional pricing (×2 markup) ─────────────────────────────────
-# Real: $0.075/1M input = $0.000075/1K.  ×2 → 0.15 cr/1K
-# Real: $0.30/1M output = $0.0003/1K.    ×2 → 0.6 cr/1K
-CREDITS_PER_1K_INPUT  = 0.15
-CREDITS_PER_1K_OUTPUT = 0.6
+# ─── Proportional pricing (×2 markup, 1 cr = $0.001) ──────────────────
+# Gemini 3 Flash: $0.50/1M input = $0.0005/1K → ×2 = $0.001/1K = 1 cr/1K
+# Gemini 3 Flash: $3.00/1M output = $0.003/1K → ×2 = $0.006/1K = 6 cr/1K
+CREDITS_PER_1K_INPUT  = 1.0
+CREDITS_PER_1K_OUTPUT = 6.0
 
-# Fixed credits per operation (×2 markup)
+# Fixed credits per operation
 FIXED_CREDITS = {
-    "image_generation": 7.0,      # ~$0.04 real → 533× base → ×2 ÷ 150 ≈ 7
+    "image_generation": 80.0,     # $0.039 real → ×2000 = 78 → round 80
 }
 
-# Per-minute rate for video dubbing
-VIDEO_DUBBING_PER_MIN = 100.0     # ~$0.24/min real → 3200× base → ×2 ÷ 64 ≈ 100
+# Per-minute rate for video dubbing (ElevenLabs)
+VIDEO_DUBBING_PER_MIN = 500.0     # $0.24/min real → ×2000 = 480 → round 500
 
-# Minimum credits per service type
+# Kling AI video generation
+VIDEO_GEN_CREDITS = {
+    "5s_no_audio":  500,   # $0.25 → ×2000 = 500
+    "10s_no_audio": 1000,  # $0.49 → ×2000 = 980 → round 1000
+    "5s_audio":     1000,  # $0.49 → ×2000 = 980 → round 1000
+    "10s_audio":    2000,  # $0.98 → ×2000 = 1960 → round 2000
+}
+
+# Minimum credits per service type (floor)
 MIN_CREDITS = {
-    "social_posts":     2.0,
-    "gemini_chat":      1.0,
-    "chat":             1.0,
-    "google_ads":       2.0,
-    "image_generation": 7.0,
-    "design_analysis":  1.0,
+    "social_posts":     25.0,
+    "gemini_chat":      10.0,
+    "chat":             10.0,
+    "google_ads":       40.0,
+    "image_generation": 80.0,
+    "design_analysis":  10.0,
+    "text_edit":        10.0,
+    "text_regen":       10.0,
 }
 
 
@@ -51,7 +71,7 @@ def calculate_credits(
     duration_minutes: float = 0,
     video_duration_sec: int = 0,
 ) -> float:
-    """Calculate credits for any service type using proportional pricing."""
+    """Calculate credits using ×2 markup. 1 credit = $0.001 sale price."""
     # Fixed-cost services
     if service_type in FIXED_CREDITS:
         return FIXED_CREDITS[service_type]
@@ -60,18 +80,20 @@ def calculate_credits(
     if service_type in ("video_dubbing_actual", "video_dubbing"):
         return round(max(duration_minutes, 0.5) * VIDEO_DUBBING_PER_MIN, 2)
 
-    # Video generation — not available yet, placeholder ×2
+    # Video generation (Kling AI)
     if service_type == "video_generation":
-        return 35.0 if video_duration_sec < 10 else 70.0
+        if video_duration_sec <= 5:
+            return float(VIDEO_GEN_CREDITS["5s_no_audio"])
+        return float(VIDEO_GEN_CREDITS["10s_no_audio"])
 
-    # Token-based services (Gemini)
+    # Token-based services (Gemini 3 Flash)
     token_credits = round(
         (input_tokens / 1000) * CREDITS_PER_1K_INPUT +
         (output_tokens / 1000) * CREDITS_PER_1K_OUTPUT,
-        4
+        2
     )
-    minimum = MIN_CREDITS.get(service_type, 1.0)
-    return round(max(token_credits, minimum), 4)
+    minimum = MIN_CREDITS.get(service_type, 10.0)
+    return round(max(token_credits, minimum), 2)
 
 
 async def record_usage(

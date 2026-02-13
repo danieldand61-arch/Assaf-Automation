@@ -43,7 +43,7 @@ export default function VideoGeneration() {
   const [error, setError] = useState('')
 
   const calculateCredits = (duration: string, sound: boolean) => {
-    const base = duration === '5' ? 65 : 130
+    const base = duration === '5' ? 500 : 1000
     return sound ? base * 2 : base
   }
 

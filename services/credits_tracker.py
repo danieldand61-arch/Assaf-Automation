@@ -9,14 +9,15 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-# Proportional credits pricing, ×2 markup (per 1M tokens).
+# Credits per 1M tokens (×2 markup, 1 cr = $0.001).
+# Gemini 3 Flash: $0.50/1M in → ×2 = 1000 cr/1M; $3.00/1M out → ×2 = 6000 cr/1M
 # New records should use credits_service.calculate_credits instead.
 MODEL_PRICING = {
-    "gemini-3-flash-preview": {"input": 150.0, "output": 600.0},
-    "gemini-2.5-flash-image": {"image": 7.0},
-    "gemini-2.0-flash-exp":   {"input": 150.0, "output": 600.0},
-    "gemini-1.5-flash":       {"input": 150.0, "output": 600.0},
-    "gemini-1.5-pro":         {"input": 750.0, "output": 3000.0},
+    "gemini-3-flash-preview": {"input": 1000.0, "output": 6000.0},
+    "gemini-2.5-flash-image": {"image": 80.0},
+    "gemini-2.0-flash-exp":   {"input": 1000.0, "output": 6000.0},
+    "gemini-1.5-flash":       {"input": 1000.0, "output": 6000.0},
+    "gemini-1.5-pro":         {"input": 2500.0, "output": 20000.0},
 }
 
 class CreditsTracker:
@@ -107,7 +108,7 @@ class CreditsTracker:
         
         if not pricing:
             logger.warning(f"No pricing found for model: {model_name}, using default")
-            pricing = {"input": 150.0, "output": 600.0}
+            pricing = {"input": 1000.0, "output": 6000.0}
         
         # Fixed-cost models (image generation, etc.)
         if "image" in pricing:

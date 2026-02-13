@@ -57,10 +57,10 @@ async def generate_text_to_video(
     Generate video from text prompt using Kling 2.6 AI
     
     Credit costs:
-    - 5s without sound: 65 credits
-    - 10s without sound: 130 credits
-    - 5s with sound: 130 credits
-    - 10s with sound: 260 credits
+    - 5s without sound: 500 credits
+    - 10s without sound: 1000 credits
+    - 5s with sound: 1000 credits
+    - 10s with sound: 2000 credits
     """
     api_key = get_kling_api_key()
     
@@ -75,8 +75,8 @@ async def generate_text_to_video(
     if request.duration not in ["5", "10"]:
         raise HTTPException(status_code=400, detail="Invalid duration. Must be '5' or '10' seconds")
     
-    # Calculate estimated credits
-    base_credits = 65 if request.duration == "5" else 130
+    # Calculate estimated credits (×2 markup on Kling prices)
+    base_credits = 500 if request.duration == "5" else 1000
     estimated_credits = base_credits * 2 if request.sound else base_credits
     
     try:
@@ -169,10 +169,10 @@ async def generate_image_to_video(
     Generate video from image + prompt using Kling 2.6 AI
     
     Credit costs:
-    - 5s without sound: 65 credits
-    - 10s without sound: 130 credits
-    - 5s with sound: 130 credits
-    - 10s with sound: 260 credits
+    - 5s without sound: 500 credits
+    - 10s without sound: 1000 credits
+    - 5s with sound: 1000 credits
+    - 10s with sound: 2000 credits
     """
     api_key = get_kling_api_key()
     
@@ -186,8 +186,8 @@ async def generate_image_to_video(
     if request.duration not in ["5", "10"]:
         raise HTTPException(status_code=400, detail="Invalid duration. Must be '5' or '10' seconds")
     
-    # Calculate estimated credits
-    base_credits = 65 if request.duration == "5" else 130
+    # Calculate estimated credits (×2 markup on Kling prices)
+    base_credits = 500 if request.duration == "5" else 1000
     estimated_credits = base_credits * 2 if request.sound else base_credits
     
     try:
