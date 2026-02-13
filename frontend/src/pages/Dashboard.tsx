@@ -121,7 +121,7 @@ function UsageChart({ history }: { history: HistoryRecord[] }) {
   const maxCount = Math.max(1, ...days.map(d => d.count))
 
   // Chart dimensions
-  const W = 700, H = 180, PX = 40, PY = 20
+  const W = 700, H = 200, PX = 40, PY = 30
   const plotW = W - PX * 2, plotH = H - PY * 2
   const stepX = plotW / (days.length - 1 || 1)
 
@@ -200,12 +200,14 @@ function UsageChart({ history }: { history: HistoryRecord[] }) {
               `Credits: ${d.credits.toFixed(4)}`,
               ...Object.entries(d.byService).map(([svc, cnt]) => `${getServiceMeta(svc).label}: ${cnt}`)
             ]
-            const tw = 170, th = 16 + lines.length * 15
+            const tw = 180, th = 16 + lines.length * 15
             const tx = Math.min(Math.max(p.x - tw / 2, 4), W - tw - 4)
-            const ty = p.y - th - 12
+            // Flip tooltip below point if it would clip above chart
+            const above = p.y - th - 14
+            const ty = above < 0 ? p.y + 14 : above
             return (
               <g>
-                <rect x={tx} y={ty} width={tw} height={th} rx={8} fill={t.card} stroke={t.border} strokeWidth={1} filter="drop-shadow(0 4px 8px rgba(0,0,0,0.12))" />
+                <rect x={tx} y={ty} width={tw} height={th} rx={8} fill={t.card} stroke={t.border} strokeWidth={1} filter="drop-shadow(0 4px 8px rgba(0,0,0,0.15))" />
                 {lines.map((ln, li) => (
                   <text key={li} x={tx + 10} y={ty + 14 + li * 15} fontSize={li === 0 ? 11 : 10}
                     fontWeight={li === 0 ? 700 : 500} fill={li === 0 ? t.text : t.textSecondary}>
@@ -260,12 +262,28 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   const bal = summary?.balance
   const u30 = summary?.usage_30_days
 
-  // Generations by service (30d)
-  const services = u30?.by_service || {}
-  const serviceList = Object.entries(services).sort(([, a], [, b]) => b.count - a.count)
+  // Build service counts from history (more reliable — no date filter issues)
+  const serviceCounts: Record<string, { count: number; cost: number }> = {}
+  const now30 = Date.now() - 30 * 24 * 60 * 60 * 1000
+  for (const rec of history) {
+    if (new Date(rec.created_at).getTime() < now30) continue
+    const svc = rec.service_type
+    if (!serviceCounts[svc]) serviceCounts[svc] = { count: 0, cost: 0 }
+    serviceCounts[svc].count++
+    serviceCounts[svc].cost += rec.credits_spent
+  }
+  // Merge with summary data (pick whichever has more data)
+  const mergedServices = { ...serviceCounts }
+  for (const [svc, data] of Object.entries(u30?.by_service || {})) {
+    if (!mergedServices[svc] || data.count > mergedServices[svc].count) {
+      mergedServices[svc] = data
+    }
+  }
+  const serviceList = Object.entries(mergedServices).sort(([, a], [, b]) => b.count - a.count)
 
-  // Total generations count
-  const totalGens = u30?.total_requests || 0
+  // Total generations — use history count as fallback
+  const historyTotal = Object.values(serviceCounts).reduce((s, d) => s + d.count, 0)
+  const totalGens = Math.max(u30?.total_requests || 0, historyTotal)
 
   return (
     <div style={{ maxWidth: 1160, margin: '0 auto' }}>

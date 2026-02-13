@@ -200,10 +200,11 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
         })}
       </div>
 
-      {/* Settings */}
+      {/* Settings — always pinned at bottom */}
       <div style={{ 
-        padding: collapsed ? '14px 10px' : '14px', 
-        borderTop: '1px solid rgba(255,255,255,0.05)' 
+        padding: collapsed ? '14px 10px' : '14px',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        flexShrink: 0
       }}>
         <button
           onClick={() => onTabChange('settings')}
@@ -212,17 +213,19 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
             display: 'flex',
             alignItems: 'center',
             gap: 12,
-            padding: collapsed ? '10px 0' : '10px 14px',
+            padding: collapsed ? '12px 0' : '12px 14px',
             borderRadius: 10,
             border: 'none',
             cursor: 'pointer',
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.45)',
+            background: activeTab === 'settings' ? 'rgba(74,124,255,0.15)' : 'transparent',
+            color: activeTab === 'settings' ? '#B4CDFF' : 'rgba(255,255,255,0.5)',
             fontSize: 13.5,
-            justifyContent: collapsed ? 'center' : 'flex-start'
+            fontWeight: activeTab === 'settings' ? 600 : 500,
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            transition: 'all 0.2s'
           }}
         >
-          <Settings size={18} />
+          <Settings size={18} style={{ flexShrink: 0 }} />
           {!collapsed && 'Settings'}
         </button>
       </div>

@@ -37,6 +37,16 @@ async def record_usage(
         if total_tokens is None:
             total_tokens = input_tokens + output_tokens
         
+        # Estimate credits cost based on Gemini Flash pricing
+        credits_spent = 0.0
+        if service_type == "image_generation":
+            credits_spent = 0.04  # per image
+        elif total_tokens > 0:
+            credits_spent = round(
+                (input_tokens / 1_000_000) * 0.075 + (output_tokens / 1_000_000) * 0.30,
+                6
+            )
+        
         usage_data = {
             "user_id": user_id,
             "service_type": service_type,
@@ -44,7 +54,7 @@ async def record_usage(
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "total_tokens": total_tokens,
-            "credits_spent": 0.0,  # Not using credits, just tracking metrics
+            "credits_spent": credits_spent,
             "request_metadata": metadata or {}
         }
         

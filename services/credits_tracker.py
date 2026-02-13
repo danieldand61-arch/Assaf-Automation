@@ -172,11 +172,14 @@ class CreditsTracker:
     async def get_usage_stats(self, days: int = 30) -> Dict:
         """Get usage statistics for the user"""
         try:
+            from datetime import timedelta
+            since = (datetime.utcnow() - timedelta(days=days)).isoformat()
+
             # Get usage for last N days
             result = self.supabase.table("credits_usage")\
                 .select("service_type, credits_spent, created_at")\
                 .eq("user_id", self.user_id)\
-                .gte("created_at", f"now() - interval '{days} days'")\
+                .gte("created_at", since)\
                 .execute()
             
             if not result.data:
