@@ -20,10 +20,16 @@ interface MetricCardProps {
 }
 
 function MetricCard({ icon: Icon, label, value, change, changeDir, color, delay = 0 }: MetricCardProps) {
+  const { theme } = useTheme()
+  const JoyoTheme = getJoyoTheme(theme)
+  
   return (
     <div 
       style={{
-        ...cardStyle,
+        background: JoyoTheme.card,
+        borderRadius: 16,
+        border: `1px solid ${JoyoTheme.border}`,
+        transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
         padding: '20px 22px',
         flex: 1,
         minWidth: 170,
@@ -104,12 +110,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   })
 
   const JoyoTheme = getJoyoTheme(theme)
-  const cardStyle = {
-    background: JoyoTheme.card,
-    borderRadius: 16,
-    border: `1px solid ${JoyoTheme.border}`,
-    transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
-  }
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -288,7 +288,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               key={i}
               onClick={() => onNavigate(feature.to)}
               style={{
-                ...cardStyle,
+                background: JoyoTheme.card,
+                borderRadius: 16,
+                border: `1px solid ${JoyoTheme.border}`,
+                transition: "all 0.25s cubic-bezier(0.4,0,0.2,1)",
                 flex: 1,
                 minWidth: 190,
                 padding: '20px',
