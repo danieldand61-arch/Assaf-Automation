@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { MessageSquare, X, Send, Loader2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
-import { useAccount } from '../contexts/AccountContext'
+
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
 import { getApiUrl } from '../lib/api'
@@ -18,7 +18,7 @@ export function FloatingChat() {
   const [loading, setLoading] = useState(false)
   const [chatId, setChatId] = useState<string | null>(null)
   const { session } = useAuth()
-  const { activeAccount } = useAccount()
+
   const { theme } = useTheme()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
