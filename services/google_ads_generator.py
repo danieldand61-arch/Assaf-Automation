@@ -269,6 +269,21 @@ STRUCTURED SNIPPETS (8-10 values):
 - Include location in 1-2 headlines if local business
 
 ═══════════════════════════════════════════════════════════════
+📊 STRATEGY & INSIGHTS (REQUIRED):
+═══════════════════════════════════════════════════════════════
+Also provide expert-level campaign analysis:
+
+1. CAMPAIGN STRATEGY: 2-3 sentences on the recommended approach (search vs display vs both, match types, audience signals)
+2. BUDGET RECOMMENDATION: Suggest daily budget range based on industry/keywords competitiveness
+3. BIDDING STRATEGY: Recommend the best bidding strategy (Maximize Conversions, Target CPA, Target ROAS) and explain why
+4. KEYWORD STRATEGY: List 10-15 recommended keywords with match types (exact, phrase, broad)
+5. NEGATIVE KEYWORDS: List 10-15 negative keywords to exclude irrelevant traffic
+6. LANDING PAGE TIPS: 3-5 specific recommendations for the landing page to improve Quality Score
+7. COMPETITOR INSIGHTS: What competitors likely target and how to differentiate
+8. PERFORMANCE EXPECTATIONS: Estimated CTR range, CPC range, conversion rate based on industry benchmarks
+9. AB TESTING PLAN: What to test first and how to iterate
+
+═══════════════════════════════════════════════════════════════
 📤 RESPONSE FORMAT - STRICT JSON (NO MARKDOWN):
 ═══════════════════════════════════════════════════════════════
 {{
@@ -292,29 +307,39 @@ STRUCTURED SNIPPETS (8-10 values):
   ],
   "structured_snippets": {{
     "Services": ["Value 1", "Value 2", ...8-10 values]
+  }},
+  "strategy": {{
+    "campaign_strategy": "2-3 sentences on the recommended approach...",
+    "budget_recommendation": "Recommended daily budget: $X-$Y. Explanation...",
+    "bidding_strategy": "Recommended: strategy_name. Because...",
+    "keywords": [
+      {{"keyword": "water damage repair", "match_type": "exact"}},
+      ...10-15 keywords
+    ],
+    "negative_keywords": ["free", "diy", "how to", ...10-15 negatives],
+    "landing_page_tips": ["Tip 1", "Tip 2", ...3-5 tips],
+    "competitor_insights": "What competitors do and how to stand out...",
+    "performance_expectations": {{
+      "estimated_ctr": "3-6%",
+      "estimated_cpc": "$2-$5",
+      "estimated_conv_rate": "5-10%",
+      "industry_benchmark_notes": "Brief explanation..."
+    }},
+    "ab_testing_plan": "What to test first and how..."
   }}
 }}
 
 CRITICAL VALIDATION RULES:
-✅ Return ONLY valid JSON (no markdown, no ```json)
-✅ Exactly 15 headlines (count them!)
-✅ Exactly 4 descriptions
-✅ All headlines under 30 characters
-✅ All descriptions under 90 characters
-✅ No more than 1 exclamation point per text
-✅ No ALL CAPS words (except acronyms)
-✅ All callouts/sitelinks/values under their limits
-✅ No repetitive phrases across assets
-
-═══════════════════════════════════════════════════════════════
-🎯 CREATE THE MAXIMUM PERFORMANCE AD PACKAGE NOW:
-═══════════════════════════════════════════════════════════════
-- Focus on conversions and Quality Score
-- Use psychological triggers (urgency, social proof, scarcity)
-- Front-load benefits in limited characters
-- Ensure diversity for Google's AI testing
-- Prioritize mobile-friendly, action-oriented copy
-- Include location/service keywords naturally
+- Return ONLY valid JSON (no markdown, no ```json)
+- Exactly 15 headlines (count them!)
+- Exactly 4 descriptions
+- All headlines under 30 characters
+- All descriptions under 90 characters
+- No more than 1 exclamation point per text
+- No ALL CAPS words (except acronyms)
+- All callouts/sitelinks/values under their limits
+- No repetitive phrases across assets
+- Strategy section is REQUIRED and must be detailed and actionable
 
 BEGIN JSON OUTPUT:
 """
@@ -374,12 +399,13 @@ def _parse_google_ads_response(content: str) -> Dict:
         
         # Ensure we return exactly what's required
         return {
-            "headlines": headlines[:15],  # Ensure max 15
-            "descriptions": descriptions[:4],  # Ensure max 4
+            "headlines": headlines[:15],
+            "descriptions": descriptions[:4],
             "display_paths": data.get('display_paths', []),
-            "callouts": data.get('callouts', [])[:12],  # Max 12
-            "sitelinks": data.get('sitelinks', [])[:10],  # Max 10
-            "structured_snippets": data.get('structured_snippets', {})
+            "callouts": data.get('callouts', [])[:12],
+            "sitelinks": data.get('sitelinks', [])[:10],
+            "structured_snippets": data.get('structured_snippets', {}),
+            "strategy": data.get('strategy', {}),
         }
         
     except Exception as e:

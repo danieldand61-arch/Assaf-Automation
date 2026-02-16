@@ -1,11 +1,28 @@
 import { useState, useEffect } from 'react'
 import { getApiUrl } from '../lib/api'
 import { useAuth } from '../contexts/AuthContext'
-import { Loader2, Copy, Download, Check, Upload, X } from 'lucide-react'
+import { Loader2, Copy, Download, Check, Upload, X, TrendingUp, Target, DollarSign, Lightbulb, BarChart3, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface GoogleAdsGenerationProps {
   onGenerate?: (data: any) => void
   initialData?: GoogleAdsPackage | null
+}
+
+interface StrategyData {
+  campaign_strategy?: string
+  budget_recommendation?: string
+  bidding_strategy?: string
+  keywords?: Array<{ keyword: string; match_type: string }>
+  negative_keywords?: string[]
+  landing_page_tips?: string[]
+  competitor_insights?: string
+  performance_expectations?: {
+    estimated_ctr?: string
+    estimated_cpc?: string
+    estimated_conv_rate?: string
+    industry_benchmark_notes?: string
+  }
+  ab_testing_plan?: string
 }
 
 interface GoogleAdsPackage {
@@ -21,6 +38,7 @@ interface GoogleAdsPackage {
   structured_snippets: {
     [key: string]: string[]
   }
+  strategy?: StrategyData
 }
 
 export function GoogleAdsGeneration({ onGenerate, initialData }: GoogleAdsGenerationProps) {
@@ -469,6 +487,9 @@ export function GoogleAdsGeneration({ onGenerate, initialData }: GoogleAdsGenera
               </div>
             </div>
           )}
+
+          {/* Strategy & Insights */}
+          {adsPackage.strategy && <StrategySection strategy={adsPackage.strategy} />}
         </div>
       )}
       
@@ -604,6 +625,142 @@ export function GoogleAdsGeneration({ onGenerate, initialData }: GoogleAdsGenera
               </div>
             </div>
           </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Strategy & Insights sub-component ──────────────────────────── */
+function StrategySection({ strategy }: { strategy: StrategyData }) {
+  const [expanded, setExpanded] = useState(true)
+
+  const Card = ({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) => (
+    <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl">
+      <div className="flex items-center gap-2 mb-2">
+        {icon}
+        <h5 className="font-semibold text-sm text-gray-900 dark:text-white">{title}</h5>
+      </div>
+      <div className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{children}</div>
+    </div>
+  )
+
+  const perf = strategy.performance_expectations
+
+  return (
+    <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center justify-between w-full mb-4"
+      >
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+          <Lightbulb className="w-5 h-5 text-amber-500" />
+          Campaign Strategy & Insights
+        </h3>
+        {expanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+      </button>
+
+      {expanded && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {strategy.campaign_strategy && (
+            <Card icon={<Target className="w-4 h-4 text-blue-500" />} title="Campaign Strategy">
+              <p>{strategy.campaign_strategy}</p>
+            </Card>
+          )}
+
+          {strategy.budget_recommendation && (
+            <Card icon={<DollarSign className="w-4 h-4 text-green-500" />} title="Budget Recommendation">
+              <p>{strategy.budget_recommendation}</p>
+            </Card>
+          )}
+
+          {strategy.bidding_strategy && (
+            <Card icon={<TrendingUp className="w-4 h-4 text-purple-500" />} title="Bidding Strategy">
+              <p>{strategy.bidding_strategy}</p>
+            </Card>
+          )}
+
+          {perf && (
+            <Card icon={<BarChart3 className="w-4 h-4 text-indigo-500" />} title="Performance Expectations">
+              <div className="grid grid-cols-3 gap-3 mb-2">
+                {perf.estimated_ctr && (
+                  <div className="text-center p-2 bg-white dark:bg-gray-700 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">CTR</div>
+                    <div className="font-bold text-indigo-600 dark:text-indigo-400">{perf.estimated_ctr}</div>
+                  </div>
+                )}
+                {perf.estimated_cpc && (
+                  <div className="text-center p-2 bg-white dark:bg-gray-700 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">CPC</div>
+                    <div className="font-bold text-indigo-600 dark:text-indigo-400">{perf.estimated_cpc}</div>
+                  </div>
+                )}
+                {perf.estimated_conv_rate && (
+                  <div className="text-center p-2 bg-white dark:bg-gray-700 rounded-lg">
+                    <div className="text-xs text-gray-500 dark:text-gray-400">Conv. Rate</div>
+                    <div className="font-bold text-indigo-600 dark:text-indigo-400">{perf.estimated_conv_rate}</div>
+                  </div>
+                )}
+              </div>
+              {perf.industry_benchmark_notes && <p className="text-xs mt-1">{perf.industry_benchmark_notes}</p>}
+            </Card>
+          )}
+
+          {strategy.keywords && strategy.keywords.length > 0 && (
+            <Card icon={<Target className="w-4 h-4 text-cyan-500" />} title="Recommended Keywords">
+              <div className="flex flex-wrap gap-1.5">
+                {strategy.keywords.map((kw, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-cyan-50 dark:bg-cyan-900/30 text-cyan-700 dark:text-cyan-300 rounded text-xs"
+                  >
+                    {kw.keyword}
+                    <span className="text-[10px] opacity-60">[{kw.match_type}]</span>
+                  </span>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {strategy.negative_keywords && strategy.negative_keywords.length > 0 && (
+            <Card icon={<X className="w-4 h-4 text-red-500" />} title="Negative Keywords">
+              <div className="flex flex-wrap gap-1.5">
+                {strategy.negative_keywords.map((kw, i) => (
+                  <span
+                    key={i}
+                    className="inline-flex px-2 py-0.5 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded text-xs"
+                  >
+                    -{kw}
+                  </span>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {strategy.landing_page_tips && strategy.landing_page_tips.length > 0 && (
+            <Card icon={<Lightbulb className="w-4 h-4 text-amber-500" />} title="Landing Page Tips">
+              <ul className="space-y-1">
+                {strategy.landing_page_tips.map((tip, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="text-amber-500 shrink-0">•</span>
+                    {tip}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+
+          {strategy.competitor_insights && (
+            <Card icon={<BarChart3 className="w-4 h-4 text-orange-500" />} title="Competitor Insights">
+              <p>{strategy.competitor_insights}</p>
+            </Card>
+          )}
+
+          {strategy.ab_testing_plan && (
+            <Card icon={<TrendingUp className="w-4 h-4 text-teal-500" />} title="A/B Testing Plan">
+              <p>{strategy.ab_testing_plan}</p>
+            </Card>
+          )}
         </div>
       )}
     </div>
