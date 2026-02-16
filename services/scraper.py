@@ -189,31 +189,72 @@ def _analyze_brand_voice(soup: BeautifulSoup) -> str:
 
 
 def _extract_products(soup: BeautifulSoup) -> List[str]:
-    """Extracts product/service information"""
+    """Extracts product/service names from headings and structured data."""
     products = []
-    
-    # Find structured data
-    product_tags = soup.find_all(['h2', 'h3'], string=re.compile('product|service', re.I))
-    
-    for tag in product_tags[:5]:
-        products.append(tag.get_text().strip())
-    
-    return products
+    seen = set()
+
+    # 1. JSON-LD structured data
+    for script in soup.find_all('script', type='application/ld+json'):
+        try:
+            import json
+            data = json.loads(script.string or '')
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                name = item.get('name', '')
+                if name and name not in seen:
+                    products.append(name)
+                    seen.add(name)
+        except Exception:
+            pass
+
+    # 2. All h1/h2/h3 — take short, meaningful headings (likely product/section names)
+    for tag in soup.find_all(['h1', 'h2', 'h3']):
+        text = tag.get_text(strip=True)
+        # Skip navigation, empty, or very long headings
+        if 5 < len(text) < 80 and text not in seen:
+            # Skip common non-product headings
+            skip = ['menu', 'footer', 'header', 'nav', 'cookie', 'privacy', 'copyright']
+            if not any(s in text.lower() for s in skip):
+                products.append(text)
+                seen.add(text)
+
+    # 3. og:title as fallback
+    og = soup.find('meta', attrs={'property': 'og:title'})
+    if og and og.get('content') and og['content'] not in seen:
+        products.append(og['content'])
+
+    return products[:10]
 
 
 def _extract_key_features(soup: BeautifulSoup) -> List[str]:
-    """Extracts key features/benefits"""
+    """Extracts key features/benefits from lists and meta content."""
     features = []
-    
-    # Find benefit lists
-    feature_lists = soup.find_all(['ul', 'ol'])
-    
-    for ul in feature_lists[:3]:
-        items = ul.find_all('li')
-        for item in items[:3]:
-            text = item.get_text().strip()
-            if len(text) < 100 and len(text) > 10:
+    seen = set()
+
+    # 1. Meta keywords
+    meta_kw = soup.find('meta', attrs={'name': 'keywords'})
+    if meta_kw and meta_kw.get('content'):
+        for kw in meta_kw['content'].split(','):
+            kw = kw.strip()
+            if kw and kw not in seen:
+                features.append(kw)
+                seen.add(kw)
+
+    # 2. Short list items from main content area
+    main = soup.find('main') or soup.find('article') or soup.find('div', class_=re.compile('content|main'))
+    search_area = main or soup
+
+    for ul in search_area.find_all(['ul', 'ol']):
+        # Skip navigation lists (inside nav/header/footer)
+        if ul.find_parent(['nav', 'header', 'footer']):
+            continue
+        for item in ul.find_all('li'):
+            text = item.get_text(strip=True)
+            if 10 < len(text) < 120 and text not in seen:
                 features.append(text)
-    
-    return features[:5]
+                seen.add(text)
+                if len(features) >= 8:
+                    return features
+
+    return features[:8]
 

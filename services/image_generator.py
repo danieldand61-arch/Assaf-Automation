@@ -303,7 +303,7 @@ def _get_aspect_ratio(dimensions: str) -> str:
 
 
 def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_prompt: str = None) -> str:
-    """Build a concise, narrative scene prompt for Gemini image generation."""
+    """Build a concrete, scene-based prompt tightly coupled to the brand."""
 
     if custom_prompt:
         logger.info(f"🎨 Using custom prompt: {custom_prompt[:100]}...")
@@ -311,46 +311,59 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
 
     title = website_data.get('title', 'a brand')
     description = website_data.get('description', '')
-    industry = website_data.get('industry', 'business')
     products = website_data.get('products', [])
     features = website_data.get('key_features', [])
     colors = website_data.get('colors', [])
+    content = website_data.get('content', '')
 
-    # Concrete product/service string
-    product_str = ', '.join(products[:3]) if products else description[:120]
-    feature_str = ', '.join(features[:3]) if features else ''
-    color_hint = f"Brand palette: {', '.join(colors[:3])}. " if colors else ''
+    # Build a rich brand context from ALL available data
+    brand_context_parts = [f'Brand: "{title}".']
+    if description:
+        brand_context_parts.append(f'About: {description[:200]}.')
+    if products:
+        brand_context_parts.append(f'Products/sections: {", ".join(products[:6])}.')
+    if features:
+        brand_context_parts.append(f'Key points: {", ".join(features[:4])}.')
+    if content:
+        # Give Gemini actual page text so it understands the business
+        brand_context_parts.append(f'Website content excerpt: "{content[:400]}".')
 
-    # Determine visual style from industry
-    style_map = {
-        'food': 'overhead flat-lay food photography, warm natural lighting, wooden table surface',
-        'restaurant': 'moody restaurant interior, warm ambient lighting, shallow depth of field',
-        'fashion': 'editorial fashion photography, clean studio backdrop, dramatic directional lighting',
-        'beauty': 'close-up beauty photography, soft diffused lighting, pastel tones, dewy skin texture',
-        'tech': 'sleek product photography on dark gradient background, rim lighting, reflective surface',
-        'fitness': 'dynamic action shot, natural gym or outdoor setting, energetic composition',
-        'health': 'bright airy lifestyle photograph, natural daylight, green and white tones',
-        'real_estate': 'architectural interior photography, wide-angle, bright natural light flooding through windows',
-        'education': 'candid lifestyle photo of people learning together, warm indoor lighting',
-        'finance': 'clean corporate photography, modern office, blue and grey tones, confident professionals',
-    }
-    visual_style = style_map.get(industry, 'professional commercial photography, clean composition, natural lighting')
+    brand_context = ' '.join(brand_context_parts)
+    color_hint = f'Brand colors: {", ".join(colors[:3])}. ' if colors else ''
 
-    # Build a narrative scene description (Google's recommended approach)
-    prompt = f"""A photorealistic, high-resolution social media photograph for "{title}".
+    # Post text gives Gemini the specific topic/mood for this image
+    post_excerpt = variation.text[:200]
 
-Scene: {visual_style}. The image showcases {product_str} in a real-world, aspirational context. {f'Highlight: {feature_str}. ' if feature_str else ''}{color_hint}
+    prompt = f"""Generate a photorealistic social media image.
 
-The composition is clean with a single clear focal point, shot with an 85mm lens for soft bokeh background. Lighting is natural and flattering. The mood is {_detect_mood(variation.text)} and modern.
+BRAND CONTEXT (use this to understand what the business sells):
+{brand_context}
 
-This image must feel authentic and premium — like a professional brand campaign photo, NOT a stock photo. Show the product/service being used or enjoyed by real people in a lifestyle setting.
+POST THIS IMAGE IS FOR:
+"{post_excerpt}"
+
+{color_hint}
+
+INSTRUCTIONS:
+1. First, understand what this brand/company actually does based on the context above.
+2. Create an image that DIRECTLY represents this brand's products or services.
+3. The image must clearly relate to the post text above.
+4. Style: professional commercial photography, 85mm lens, soft bokeh, natural lighting.
+5. Show the actual product/service in use — people enjoying it in a lifestyle setting.
+6. Mood: {_detect_mood(variation.text)}.
+
+EXAMPLES of correct interpretation:
+- If the brand sells coffee → show a beautifully crafted latte in a cozy cafe setting
+- If the brand sells phones/tech → show a sleek device being used in everyday life
+- If the brand is a restaurant → show appetizing food on a beautiful table
+- If the post mentions "friends" → show friends together with the product
 
 CRITICAL RULES:
-- Do NOT render any text, words, letters, numbers, watermarks, or logos on the image
-- Do NOT include any UI elements, buttons, or overlays
-- Pure photographic image only
-- No collages or split compositions — one cohesive scene
-- The subject should fill at least 60% of the frame"""
+- Do NOT render any text, words, letters, numbers, watermarks, or logos
+- Do NOT add UI elements, buttons, or overlays
+- Pure photograph only — no collages, no split frames
+- The main subject must fill at least 60% of the frame
+- Image must be DIRECTLY related to what the brand sells — not generic stock"""
 
     return prompt.strip()
 
