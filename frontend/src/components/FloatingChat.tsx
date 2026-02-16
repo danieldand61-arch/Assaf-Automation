@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { MessageSquare, X, Send, Loader2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
+import { getApiUrl } from '../lib/api'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -15,50 +16,88 @@ export function FloatingChat() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [chatId, setChatId] = useState<string | null>(null)
   const { session } = useAuth()
   const { activeAccount } = useAccount()
   const { theme } = useTheme()
-  
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
   const JoyoTheme = getJoyoTheme(theme)
+  const apiUrl = getApiUrl()
+
+  // Auto-scroll to bottom on new messages
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
+
+  const ensureChat = async (): Promise<string | null> => {
+    if (chatId) return chatId
+
+    try {
+      const res = await fetch(`${apiUrl}/api/chats/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session!.access_token}`
+        },
+        body: JSON.stringify({ title: 'Quick Chat' })
+      })
+      if (!res.ok) throw new Error('Failed to create chat')
+      const data = await res.json()
+      const id = data.chat?.id || data.id
+      setChatId(id)
+      return id
+    } catch (e) {
+      console.error('Failed to create chat:', e)
+      return null
+    }
+  }
 
   const handleSend = async () => {
     if (!input.trim() || loading || !session) return
 
     const userMessage: Message = { role: 'user', content: input }
+    const text = input
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setLoading(true)
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'
-      
-      const response = await fetch(`${apiUrl}/api/chat`, {
+      const id = await ensureChat()
+      if (!id) throw new Error('No chat session')
+
+      const response = await fetch(`${apiUrl}/api/chats/${id}/message`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({
-          message: input,
-          account_id: activeAccount?.id,
-          history: messages.slice(-10)
-        })
+        body: JSON.stringify({ content: text })
       })
 
-      if (!response.ok) throw new Error('Chat request failed')
+      if (!response.ok) throw new Error(`Chat request failed: ${response.status}`)
 
       const data = await response.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response }])
+      const reply = data.assistant_message?.content || data.response || 'No response'
+      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch (error) {
       console.error('Chat error:', error)
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: 'Sorry, something went wrong. Please try again.' 
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: 'Sorry, something went wrong. Please try again.'
       }])
     } finally {
       setLoading(false)
     }
   }
+
+  // Dark theme: use explicit light/dark colors for message bubbles
+  const isDark = theme === 'dark'
+  const userBubbleBg = JoyoTheme.accent
+  const assistantBubbleBg = isDark ? '#2A2D3E' : '#F0F1F5'
+  const assistantTextColor = isDark ? '#E8EAF0' : '#1A1D2B'
+  const inputBg = isDark ? '#1A1D2B' : '#FFFFFF'
+  const inputColor = isDark ? '#E8EAF0' : '#151821'
 
   return (
     <>
@@ -101,7 +140,7 @@ export function FloatingChat() {
             height: 550,
             background: JoyoTheme.card,
             borderRadius: 16,
-            boxShadow: '0 12px 48px rgba(0,0,0,0.2)',
+            boxShadow: '0 12px 48px rgba(0,0,0,0.25)',
             display: 'flex',
             flexDirection: 'column',
             zIndex: 1000,
@@ -158,13 +197,13 @@ export function FloatingChat() {
             }}
           >
             {messages.length === 0 && (
-              <div style={{ 
-                textAlign: 'center', 
-                color: JoyoTheme.textSecondary, 
+              <div style={{
+                textAlign: 'center',
+                color: JoyoTheme.textSecondary,
                 fontSize: 13,
                 marginTop: 40
               }}>
-                👋 Hi! How can I help you today?
+                Hi! How can I help you today?
               </div>
             )}
             {messages.map((msg, i) => (
@@ -172,24 +211,27 @@ export function FloatingChat() {
                 key={i}
                 style={{
                   alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '75%',
+                  maxWidth: '80%',
                   padding: '10px 14px',
                   borderRadius: 12,
-                  background: msg.role === 'user' ? JoyoTheme.accent : JoyoTheme.card,
-                  color: msg.role === 'user' ? 'white' : JoyoTheme.text,
+                  background: msg.role === 'user' ? userBubbleBg : assistantBubbleBg,
+                  color: msg.role === 'user' ? '#FFFFFF' : assistantTextColor,
                   fontSize: 13,
-                  lineHeight: 1.5,
-                  boxShadow: msg.role === 'user' ? 'none' : '0 2px 8px rgba(0,0,0,0.08)'
+                  lineHeight: 1.6,
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                  whiteSpace: 'pre-wrap',
+                  wordBreak: 'break-word'
                 }}
               >
                 {msg.content}
               </div>
             ))}
             {loading && (
-              <div style={{ alignSelf: 'flex-start', display: 'flex', gap: 4 }}>
+              <div style={{ alignSelf: 'flex-start', padding: '10px 14px', borderRadius: 12, background: assistantBubbleBg }}>
                 <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: JoyoTheme.accent }} />
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           {/* Input */}
@@ -198,13 +240,14 @@ export function FloatingChat() {
               padding: '14px',
               borderTop: `1px solid ${JoyoTheme.border}`,
               display: 'flex',
-              gap: 8
+              gap: 8,
+              background: JoyoTheme.card
             }}
           >
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+              onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
               placeholder="Type your message..."
               disabled={loading}
               style={{
@@ -212,8 +255,8 @@ export function FloatingChat() {
                 padding: '10px 14px',
                 borderRadius: 10,
                 border: `1px solid ${JoyoTheme.border}`,
-                background: JoyoTheme.card,
-                color: JoyoTheme.text,
+                background: inputBg,
+                color: inputColor,
                 fontSize: 13,
                 outline: 'none'
               }}
