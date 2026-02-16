@@ -46,29 +46,47 @@ async def generate_images(
     
     logger.info(f"🔍 Using model: {model_name}")
     
+    # Create model once, reuse for all variations
+    model = genai.GenerativeModel(model_name)
+    
     # Generate unique image for each variation
     for idx, variation in enumerate(variations):
+        # Pause between requests to avoid rate limiting (skip first)
+        if idx > 0:
+            await asyncio.sleep(2)
+        
+        last_error = None
+        response = None
+        
+        for attempt in range(3):
+            try:
+                logger.info(f"🔍 Generating image {idx + 1}/{len(variations)} (attempt {attempt + 1}) for: {variation.text[:50]}...")
+                
+                image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt)
+                
+                response = await asyncio.to_thread(
+                    model.generate_content,
+                    image_prompt,
+                    generation_config={
+                        "temperature": 0.4,
+                    }
+                )
+                
+                logger.info(f"✅ Response received")
+                last_error = None
+                break
+            except Exception as e:
+                last_error = e
+                logger.warning(f"⚠️ Attempt {attempt + 1} failed: {type(e).__name__}: {e}")
+                if attempt < 2:
+                    await asyncio.sleep(3 * (attempt + 1))
+        
+        if last_error or response is None:
+            logger.error(f"❌ Image {idx + 1} all attempts failed: {last_error}")
+            images.append(_get_placeholder_image(size_info))
+            continue
+        
         try:
-            logger.info(f"🔍 Generating image {idx + 1}/{len(variations)} for variation: {variation.text[:50]}...")
-            
-            # Create unique prompt for this variation (use custom prompt if provided)
-            image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt)
-            
-            # Calculate aspect ratio for config
-            w, h = map(int, image_size.split('x'))
-            aspect = "1:1" if w == h else ("16:9" if w > h else "9:16")
-            
-            # Generate image (run sync call in thread)
-            model = genai.GenerativeModel(model_name)
-            response = await asyncio.to_thread(
-                model.generate_content,
-                image_prompt,
-                generation_config={
-                    "temperature": 0.4,
-                }
-            )
-            
-            logger.info(f"✅ Response received")
             
             # Track API usage for this image
             if user_id:
@@ -309,6 +327,7 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
         logger.info(f"🎨 Using custom prompt: {custom_prompt[:100]}...")
         return custom_prompt.strip()
 
+    url = website_data.get('url', '')
     title = website_data.get('title', 'a brand')
     description = website_data.get('description', '')
     products = website_data.get('products', [])
@@ -316,54 +335,60 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
     colors = website_data.get('colors', [])
     content = website_data.get('content', '')
 
-    # Build a rich brand context from ALL available data
-    brand_context_parts = [f'Brand: "{title}".']
+    # Pick the main product mentioned in this specific post variation
+    post_lower = variation.text.lower()
+    matching_products = [p for p in products if any(w in post_lower for w in p.lower().split() if len(w) > 3)]
+    hero_product = matching_products[0] if matching_products else (products[0] if products else '')
+
+    # Build brand identity block
+    brand_lines = [f'Company: {title}']
+    if url:
+        brand_lines.append(f'Website: {url}')
     if description:
-        brand_context_parts.append(f'About: {description[:200]}.')
+        brand_lines.append(f'Description: {description[:250]}')
     if products:
-        brand_context_parts.append(f'Products/sections: {", ".join(products[:6])}.')
+        brand_lines.append(f'Their products/services: {", ".join(products[:8])}')
     if features:
-        brand_context_parts.append(f'Key points: {", ".join(features[:4])}.')
+        brand_lines.append(f'Key selling points: {", ".join(features[:5])}')
     if content:
-        # Give Gemini actual page text so it understands the business
-        brand_context_parts.append(f'Website content excerpt: "{content[:400]}".')
+        brand_lines.append(f'Page text: {content[:500]}')
 
-    brand_context = ' '.join(brand_context_parts)
-    color_hint = f'Brand colors: {", ".join(colors[:3])}. ' if colors else ''
+    brand_block = '\n'.join(brand_lines)
+    color_hint = f'Incorporate brand colors: {", ".join(colors[:3])}.' if colors else ''
+    post_excerpt = variation.text[:250]
 
-    # Post text gives Gemini the specific topic/mood for this image
-    post_excerpt = variation.text[:200]
+    # Determine what to show
+    if hero_product:
+        subject = f'The main subject is "{hero_product}" — show this specific product/service prominently.'
+    else:
+        subject = f'Show the core product or service of this brand as the main subject.'
 
-    prompt = f"""Generate a photorealistic social media image.
+    prompt = f"""You are creating a social media advertisement photo for this brand:
 
-BRAND CONTEXT (use this to understand what the business sells):
-{brand_context}
+{brand_block}
 
-POST THIS IMAGE IS FOR:
+The post text that accompanies this image:
 "{post_excerpt}"
 
-{color_hint}
+YOUR TASK:
+Create a single photorealistic photograph that looks like it belongs on this brand's official social media page.
 
-INSTRUCTIONS:
-1. First, understand what this brand/company actually does based on the context above.
-2. Create an image that DIRECTLY represents this brand's products or services.
-3. The image must clearly relate to the post text above.
-4. Style: professional commercial photography, 85mm lens, soft bokeh, natural lighting.
-5. Show the actual product/service in use — people enjoying it in a lifestyle setting.
-6. Mood: {_detect_mood(variation.text)}.
+{subject}
 
-EXAMPLES of correct interpretation:
-- If the brand sells coffee → show a beautifully crafted latte in a cozy cafe setting
-- If the brand sells phones/tech → show a sleek device being used in everyday life
-- If the brand is a restaurant → show appetizing food on a beautiful table
-- If the post mentions "friends" → show friends together with the product
+REQUIREMENTS:
+- The image MUST be recognizably about THIS specific brand and what they sell
+- Show the actual product being used, held, consumed, or displayed in real life
+- Professional commercial photography quality: 85mm lens, shallow depth of field, natural lighting
+- Lifestyle context: real people interacting with the product in an aspirational setting
+- Mood: {_detect_mood(variation.text)}
+- {color_hint}
 
-CRITICAL RULES:
-- Do NOT render any text, words, letters, numbers, watermarks, or logos
-- Do NOT add UI elements, buttons, or overlays
-- Pure photograph only — no collages, no split frames
-- The main subject must fill at least 60% of the frame
-- Image must be DIRECTLY related to what the brand sells — not generic stock"""
+STRICT RULES:
+- ZERO text, words, letters, numbers, watermarks, or logos anywhere in the image
+- ZERO UI elements, buttons, or overlays
+- ONE single cohesive photograph, no collages or split frames
+- Main subject fills 60%+ of the frame
+- Must look like an ad for THIS brand, not a random stock photo"""
 
     return prompt.strip()
 
