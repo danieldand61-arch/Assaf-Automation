@@ -130,48 +130,62 @@ export function Onboarding() {
   const handleSkip = () => saveAccount(true)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-8">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-2xl mb-4">
-              <Sparkles className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Welcome to Joyo Marketing! 🎉
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-3">
-              Tell us about your company so we can create better marketing content for you
-            </p>
-            <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-sm text-blue-700 dark:text-blue-300">
-              💡 <strong>Note:</strong> This information will be used as context for AI content generation. You can override it anytime by saying "don't use my company data" in your prompts.
-            </div>
-          </div>
+    <div style={{ minHeight: '100vh', background: '#F7F8FB', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: "'Plus Jakarta Sans','Inter',sans-serif" }}>
+      <div style={{ maxWidth: 640, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        {/* Card with gradient accent line */}
+        <div style={{
+          background: '#FFFFFF',
+          borderRadius: 20,
+          boxShadow: '0 8px 40px rgba(0,0,0,0.06)',
+          overflow: 'hidden',
+        }}>
+          {/* Gradient accent line */}
+          <div style={{ height: 4, background: 'linear-gradient(135deg, #4A7CFF, #6366F1, #8B5CF6)' }} />
 
-          {/* Progress Bar */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Step {currentStep} of 3
-              </span>
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {Math.round((currentStep / 3) * 100)}% Complete
-              </span>
+          <div style={{ padding: '36px 32px 28px' }}>
+            {/* Header */}
+            <div className="text-center mb-8">
+              <div style={{
+                width: 56, height: 56, borderRadius: 16,
+                background: 'linear-gradient(135deg, #4A7CFF, #8B5CF6)',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                marginBottom: 16, boxShadow: '0 4px 16px rgba(74,124,255,0.3)'
+              }}>
+                <Sparkles className="w-7 h-7 text-white" />
+              </div>
+              <h1 style={{ fontSize: 26, fontWeight: 800, color: '#151821', marginBottom: 6 }}>
+                Welcome to JOYO
+              </h1>
+              <p style={{ fontSize: 14, color: '#5C6478' }}>
+                Tell us about your business so AI can create better content for you
+              </p>
             </div>
-            <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-purple-600 to-pink-600 transition-all duration-300"
-                style={{ width: `${(currentStep / 3) * 100}%` }}
-              />
+
+            {/* Progress Bar */}
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-2">
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#151821' }}>
+                  Step {currentStep} of 3
+                </span>
+                <span style={{ fontSize: 12, color: '#959DAF' }}>
+                  {Math.round((currentStep / 3) * 100)}%
+                </span>
+              </div>
+              <div style={{ height: 6, background: '#E5E9F0', borderRadius: 99, overflow: 'hidden' }}>
+                <div style={{
+                  height: '100%', borderRadius: 99,
+                  background: 'linear-gradient(135deg, #4A7CFF, #8B5CF6)',
+                  transition: 'width 0.3s',
+                  width: `${(currentStep / 3) * 100}%`,
+                }} />
+              </div>
             </div>
-          </div>
 
           {/* Step Content */}
           {currentStep === 1 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                Company Information
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821', marginBottom: 4 }}>
+                Your Business
               </h2>
 
               <div>
@@ -182,7 +196,8 @@ export function Onboarding() {
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+                  style={{ color: '#151821' }}
                   placeholder="Acme Inc"
                 />
               </div>
@@ -195,7 +210,7 @@ export function Onboarding() {
                   type="text"
                   value={industry}
                   onChange={(e) => setIndustry(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                   placeholder="E-commerce, SaaS, Healthcare, etc."
                 />
               </div>
@@ -208,7 +223,7 @@ export function Onboarding() {
                   value={products}
                   onChange={(e) => setProducts(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                   placeholder="What do you offer?"
                 />
               </div>
@@ -221,7 +236,7 @@ export function Onboarding() {
                   type="text"
                   value={targetAudience}
                   onChange={(e) => setTargetAudience(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                   placeholder="Small business owners, young professionals, etc."
                 />
               </div>
@@ -230,8 +245,8 @@ export function Onboarding() {
 
           {currentStep === 2 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                Marketing Goals
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821', marginBottom: 4 }}>
+                Your Industry & Goals
               </h2>
 
               <div>
@@ -241,7 +256,7 @@ export function Onboarding() {
                 <select
                   value={marketingGoal}
                   onChange={(e) => setMarketingGoal(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                 >
                   <option value="">Select a goal...</option>
                   <option value="brand_awareness">Brand Awareness</option>
@@ -260,7 +275,7 @@ export function Onboarding() {
                   type="url"
                   value={websiteUrl}
                   onChange={(e) => setWebsiteUrl(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                   placeholder="https://example.com"
                 />
               </div>
@@ -272,7 +287,7 @@ export function Onboarding() {
                 <select
                   value={brandVoice}
                   onChange={(e) => setBrandVoice(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                 >
                   <option value="professional">Professional</option>
                   <option value="casual">Casual / Friendly</option>
@@ -286,10 +301,10 @@ export function Onboarding() {
 
           {currentStep === 3 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
-                Location & Budget
+              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821', marginBottom: 4 }}>
+                Your Goals
               </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400">
+              <p style={{ fontSize: 13, color: '#5C6478' }}>
                 Where you operate and your marketing scale
               </p>
 
@@ -301,7 +316,7 @@ export function Onboarding() {
                   type="text"
                   value={geographicFocus}
                   onChange={(e) => setGeographicFocus(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                   placeholder="United States, Europe, Global, etc."
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -316,7 +331,7 @@ export function Onboarding() {
                 <select
                   value={budgetRange}
                   onChange={(e) => setBudgetRange(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                 >
                   <option value="">Select budget range...</option>
                   <option value="under_500">Under $500 (Starting out)</option>
@@ -345,35 +360,45 @@ export function Onboarding() {
               <button
                 onClick={prevStep}
                 disabled={loading}
-                className="flex-1 px-6 py-3 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-semibold hover:bg-gray-300 dark:hover:bg-gray-600 transition disabled:opacity-50"
+                style={{
+                  flex: 1, padding: '12px 24px', borderRadius: 12,
+                  border: '1px solid #E5E9F0', background: '#FFFFFF',
+                  color: '#5C6478', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                }}
               >
-                ← Back
+                Back
               </button>
             )}
 
             {currentStep < 3 ? (
               <button
                 onClick={nextStep}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-105"
+                style={{
+                  flex: 1, padding: '12px 24px', borderRadius: 12,
+                  border: 'none', background: 'linear-gradient(135deg, #4A7CFF, #8B5CF6)',
+                  color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(74,124,255,0.3)',
+                }}
               >
-                Next Step →
+                Next Step
               </button>
             ) : (
               <button
                 onClick={handleSubmit}
                 disabled={loading}
-                className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg font-semibold shadow-lg hover:shadow-xl transition transform hover:scale-105 disabled:opacity-50 flex items-center justify-center gap-2"
+                style={{
+                  flex: 1, padding: '12px 24px', borderRadius: 12,
+                  border: 'none', background: 'linear-gradient(135deg, #4A7CFF, #8B5CF6)',
+                  color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer',
+                  boxShadow: '0 4px 16px rgba(74,124,255,0.3)',
+                  opacity: loading ? 0.6 : 1,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}
               >
                 {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Creating...
-                  </>
+                  <><Loader2 className="w-5 h-5 animate-spin" /> Creating...</>
                 ) : (
-                  <>
-                    <Sparkles className="w-5 h-5" />
-                    Complete Setup
-                  </>
+                  <><Sparkles className="w-5 h-5" /> Launch my dashboard</>
                 )}
               </button>
             )}
@@ -383,10 +408,28 @@ export function Onboarding() {
           <button
             onClick={handleSkip}
             disabled={loading}
-            className="w-full mt-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition"
+            style={{
+              width: '100%', marginTop: 12, padding: '8px 0',
+              background: 'none', border: 'none',
+              color: '#959DAF', fontSize: 13, cursor: 'pointer',
+            }}
           >
             Skip for now
           </button>
+
+          </div>
+        </div>
+
+        {/* Trust badges */}
+        <div style={{
+          display: 'flex', justifyContent: 'center', gap: 24,
+          padding: '16px 0', marginTop: 16,
+        }}>
+          {['No credit card needed', '100 free credits', 'Ready in 60 seconds'].map((badge, i) => (
+            <span key={i} style={{ fontSize: 12, color: '#959DAF', fontWeight: 500 }}>
+              {['✨', '🚀', '⚡'][i]} {badge}
+            </span>
+          ))}
         </div>
       </div>
     </div>

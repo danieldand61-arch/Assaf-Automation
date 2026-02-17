@@ -11,6 +11,7 @@ class PostVariation(BaseModel):
     char_count: int
     engagement_score: float
     call_to_action: str
+    platform: str = ""
 
 
 class ImageVariation(BaseModel):

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Sparkles, Globe, Upload, X, Image as ImageIcon, Check } from 'lucide-react'
+import { Sparkles, Globe, Upload, X, Image as ImageIcon, Check, AlertCircle } from 'lucide-react'
+import { useAccount } from '../contexts/AccountContext'
 
 /* ── Platform SVG icons ────────────────────────────────────────── */
 const PlatformIcon = ({ id, size = 18 }: { id: string; size?: number }) => {
@@ -53,9 +54,9 @@ const STYLES = [
 
 const LANGUAGES = [
   { value: 'en', label: '🇺🇸 English' },
-  { value: 'es', label: '🇪🇸 Spanish' },
-  { value: 'he', label: '🇮🇱 Hebrew' },
-  { value: 'fr', label: '🇫🇷 French' },
+  { value: 'es', label: '🇪🇸 Español' },
+  { value: 'he', label: '🇮🇱 עברית' },
+  { value: 'fr', label: '🇫🇷 Français' },
 ]
 
 const AUDIENCES = [
@@ -87,6 +88,9 @@ interface InputSectionProps {
 
 /* ── Component ────────────────────────────────────────────────── */
 export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
+  const { activeAccount } = useAccount()
+  const hasLogo = !!(activeAccount?.logo_url)
+
   const loadDraft = (): GenerateFormData => {
     if (savedForm) return savedForm
     try {
@@ -316,17 +320,34 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
         </div>
 
         {/* ── 9. Toggles ───────────────────────────────────────── */}
-        <div className="flex gap-6">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" checked={form.include_emojis} onChange={e => set('include_emojis', e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500" />
-            <span className="text-sm text-gray-700 dark:text-gray-300">Include Emojis</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" checked={form.include_logo} onChange={e => set('include_logo', e.target.checked)}
-              className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500" />
-            <span className="text-sm text-gray-700 dark:text-gray-300">Include Logo</span>
-          </label>
+        <div className="space-y-2">
+          <div className="flex gap-6">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked={form.include_emojis} onChange={e => set('include_emojis', e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Include Emojis</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked={form.include_logo}
+                onChange={e => {
+                  const checked = e.target.checked
+                  set('include_logo', checked)
+                }}
+                className="w-4 h-4 text-blue-600 rounded border-gray-300 dark:border-gray-600 focus:ring-blue-500" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">Include Logo</span>
+            </label>
+          </div>
+
+          {/* Logo prompt when no logo is uploaded */}
+          {form.include_logo && !hasLogo && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700">
+              <AlertCircle size={16} className="text-amber-500 mt-0.5 flex-shrink-0" />
+              <div className="text-xs text-amber-700 dark:text-amber-300">
+                <p className="font-semibold mb-1">No logo found</p>
+                <p>Upload your logo in <span className="underline font-medium">Settings → Account</span> so it can be overlaid on generated images.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── 10. Generate button ──────────────────────────────── */}

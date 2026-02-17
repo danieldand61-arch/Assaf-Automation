@@ -3,6 +3,19 @@ export const translations = {
     // Header
     title: "Joyo Marketing",
     poweredBy: "AI-Powered Marketing Automation",
+
+    // Sidebar / Nav
+    navDashboard: "Dashboard",
+    navGoogleAds: "Google Ads",
+    navPostGenerator: "Post Generator",
+    navAIAdvisor: "AI Advisor & Analyst",
+    navMediaStudio: "Media Studio",
+    navVideoStudio: "Video Studio",
+    navContentLibrary: "Content Library",
+    navCalendar: "Calendar",
+    navIntegrations: "Integrations",
+    navSettings: "Settings",
+    comingSoon: "Soon",
     
     // Hero
     heroTitle: "Create Professional Posts in Seconds",
@@ -102,6 +115,19 @@ export const translations = {
     // Header
     title: "Joyo Marketing",
     poweredBy: "אוטומציה שיווקית מבוססת AI",
+
+    // Sidebar / Nav
+    navDashboard: "לוח בקרה",
+    navGoogleAds: "Google Ads",
+    navPostGenerator: "מחולל פוסטים",
+    navAIAdvisor: "יועץ AI ואנליסט",
+    navMediaStudio: "סטודיו מדיה",
+    navVideoStudio: "סטודיו וידאו",
+    navContentLibrary: "ספריית תוכן",
+    navCalendar: "יומן",
+    navIntegrations: "אינטגרציות",
+    navSettings: "הגדרות",
+    comingSoon: "בקרוב",
     
     // Hero
     heroTitle: "צור פוסטים מקצועיים בשניות",

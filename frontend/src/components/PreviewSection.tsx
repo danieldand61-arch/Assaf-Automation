@@ -53,6 +53,22 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
     return `${v.text}${tags ? '\n\n' + tags : ''}${cta ? '\n\n' + cta : ''}`
   }
 
+  const autoSaveToLibrary = async (idx: number) => {
+    if (!session) return
+    try {
+      const v = variations[idx]
+      const img = images[idx] || images[0]
+      await fetch(`${getApiUrl()}/api/saved-posts/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          text: v.text, hashtags: v.hashtags, call_to_action: v.call_to_action,
+          image_url: img.url, platforms,
+        })
+      })
+    } catch { /* silent — publish/schedule is the primary action */ }
+  }
+
   const handleDownloadAll = async () => {
     const zip = new JSZip()
     variations.forEach((v: any, i: number) => {
@@ -132,7 +148,7 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
       <div className={`grid ${cols} gap-5`}>
         {variations.map((v: any, idx: number) => {
           const img = images[idx] || images[0]
-          const platform = platforms[idx % platforms.length]
+          const platform = v.platform || platforms[idx % platforms.length]
           const meta = PLATFORM_META[platform] || PLATFORM_META.facebook
           const fullText = getFullText(v)
           const overLimit = fullText.length > meta.charLimit
@@ -256,7 +272,11 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
       {postingIdx !== null && (
         <PostToSocial
           isOpen
-          onClose={() => { setPostingIdx(null) }}
+          onClose={() => {
+            autoSaveToLibrary(postingIdx)
+            setPublishedStatus(prev => ({ ...prev, [postingIdx!]: 'Published ✓' }))
+            setPostingIdx(null)
+          }}
           prefilledData={{
             text: getFullText(variations[postingIdx]),
             imageUrl: (images[postingIdx] || images[0]).url,
@@ -268,6 +288,7 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
         <SchedulePostModal
           isOpen
           onClose={() => {
+            autoSaveToLibrary(schedulingIdx)
             setPublishedStatus(prev => ({ ...prev, [schedulingIdx!]: 'Scheduled ✓' }))
             setSchedulingIdx(null)
           }}

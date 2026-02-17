@@ -1,10 +1,12 @@
 import { 
-  LayoutDashboard, Send, Megaphone, Video, Film, 
-  FileText, Calendar, Settings, Menu,
+  LayoutDashboard, Send, Megaphone, MessageSquare, Image, Film, 
+  FileText, Calendar, Link2, Settings, Menu,
   Sparkles
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
+import { useApp } from '../contexts/AppContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
+import { TranslationKey } from '../i18n/translations'
 
 interface JoyoSidebarProps {
   activeTab: string
@@ -13,24 +15,22 @@ interface JoyoSidebarProps {
   onToggleCollapse: () => void
 }
 
-const navSections = [
-  { type: 'label', text: 'OVERVIEW' },
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  
-  { type: 'label', text: 'CREATE' },
-  { id: 'social', label: 'Social Posts', icon: Send },
-  { id: 'ads', label: 'Google Ads', icon: Megaphone },
-  { id: 'video', label: 'Video Dubbing', icon: Video },
-  { id: 'videogen', label: 'Video Generation', icon: Film, disabled: true, badge: 'Coming Soon' },
-  
-  { type: 'label', text: 'MANAGE' },
-  { id: 'library', label: 'Content Library', icon: FileText },
-  { id: 'calendar', label: 'Scheduled Posts', icon: Calendar },
-  { id: 'settings', label: 'Settings', icon: Settings },
+const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: boolean; badgeKey?: TranslationKey }[] = [
+  { id: 'dashboard',    labelKey: 'navDashboard',       icon: LayoutDashboard },
+  { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone },
+  { id: 'social',       labelKey: 'navPostGenerator',   icon: Send },
+  { id: 'chat',         labelKey: 'navAIAdvisor',       icon: MessageSquare },
+  { id: 'media',        labelKey: 'navMediaStudio',     icon: Image },
+  { id: 'videogen',     labelKey: 'navVideoStudio',     icon: Film, disabled: true, badgeKey: 'comingSoon' },
+  { id: 'library',      labelKey: 'navContentLibrary',  icon: FileText },
+  { id: 'calendar',     labelKey: 'navCalendar',        icon: Calendar },
+  { id: 'integrations', labelKey: 'navIntegrations',    icon: Link2 },
+  { id: 'settings',     labelKey: 'navSettings',        icon: Settings },
 ]
 
 export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollapse }: JoyoSidebarProps) {
   const { theme } = useTheme()
+  const { t } = useApp()
   const JoyoTheme = getJoyoTheme(theme)
   return (
     <div 
@@ -117,26 +117,8 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
         padding: collapsed ? '4px 10px' : '4px 14px', 
         overflowY: 'auto' 
       }}>
-        {navSections.map((item, i) => {
-          if (item.type === 'label') {
-            if (collapsed) return <div key={i} style={{ height: 16 }} />
-            return (
-              <div 
-                key={i} 
-                style={{ 
-                  fontSize: 9.5, 
-                  fontWeight: 700, 
-                  letterSpacing: 2, 
-                  color: 'rgba(255,255,255,0.2)', 
-                  padding: '18px 14px 7px' 
-                }}
-              >
-                {item.text}
-              </div>
-            )
-          }
-
-          const Icon = item.icon!
+        {navItems.map((item) => {
+          const Icon = item.icon
           const isActive = activeTab === item.id
           const isDisabled = item.disabled
 
@@ -180,9 +162,9 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
               {!collapsed && (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ textAlign: 'left' }}>
-                    {item.label}
+                    {t(item.labelKey)}
                   </span>
-                  {item.badge && (
+                  {item.badgeKey && (
                     <span style={{
                       fontSize: 9,
                       fontWeight: 700,
@@ -191,7 +173,7 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
                       background: 'rgba(255,193,7,0.2)',
                       color: '#FFC107'
                     }}>
-                      {item.badge}
+                      {t(item.badgeKey)}
                     </span>
                   )}
                 </div>

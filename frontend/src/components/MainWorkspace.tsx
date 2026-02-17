@@ -3,6 +3,7 @@ import { Loader2, Check, Sparkles } from 'lucide-react'
 import { JoyoSidebar } from './JoyoSidebar'
 import { JoyoTopBar } from './JoyoTopBar'
 import { FloatingChat } from './FloatingChat'
+import { ConnectToolsScreen } from './ConnectToolsScreen'
 import { InputSection, GenerateFormData } from './InputSection'
 import { GoogleAdsGeneration } from './GoogleAdsGeneration'
 import { VideoTranslation } from './VideoTranslation'
@@ -19,7 +20,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme, animations } from '../styles/joyo-theme'
 import { getApiUrl } from '../lib/api'
 
-type TabType = 'dashboard' | 'social' | 'ads' | 'video' | 'videogen' | 'library' | 'calendar' | 'settings'
+type TabType = 'dashboard' | 'social' | 'ads' | 'chat' | 'media' | 'video' | 'videogen' | 'library' | 'calendar' | 'integrations' | 'settings'
 type SocialScreen = 'form' | 'generating' | 'results'
 
 /* ── Platform display info for loading screen ─────────────────── */
@@ -31,6 +32,9 @@ const PLATFORM_LABELS: Record<string, string> = {
 export function MainWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard')
   const [collapsed, setCollapsed] = useState(false)
+  const [showConnectTools, setShowConnectTools] = useState(
+    () => !localStorage.getItem('joyo_tools_connected')
+  )
   const { generatedContent, setGeneratedContent } = useContentStore()
   const { loading } = useAccount()
   const { session } = useAuth()
@@ -144,9 +148,15 @@ export function MainWorkspace() {
   }
 
   const pageTitles: Record<TabType, string> = {
-    dashboard: 'Dashboard', social: 'Social Posts', ads: 'Google Ads',
-    video: 'Video Dubbing', videogen: 'Video Generation',
-    library: 'Content Library', calendar: 'Scheduled Posts', settings: 'Settings',
+    dashboard: 'Dashboard', social: 'Post Generator', ads: 'Google Ads',
+    chat: 'AI Advisor & Analyst', media: 'Media Studio',
+    video: 'Video Dubbing', videogen: 'Video Studio',
+    library: 'Content Library', calendar: 'Calendar',
+    integrations: 'Integrations', settings: 'Settings',
+  }
+
+  if (showConnectTools) {
+    return <ConnectToolsScreen onComplete={() => setShowConnectTools(false)} />
   }
 
   return (
@@ -191,10 +201,13 @@ export function MainWorkspace() {
           )}
 
           {activeTab === 'ads' && <GoogleAdsGeneration />}
+          {activeTab === 'chat' && <PlaceholderPage title="AI Advisor & Analyst" description="Your marketing AI assistant — ask questions, get insights, and receive data-driven recommendations." />}
+          {activeTab === 'media' && <PlaceholderPage title="Media Studio" description="Create, edit, and manage your visual content — templates, batch resize, background removal, and more." />}
           {activeTab === 'video' && <VideoTranslation />}
           {activeTab === 'videogen' && <VideoGeneration />}
           {activeTab === 'library' && <Library />}
           {activeTab === 'calendar' && <Scheduled />}
+          {activeTab === 'integrations' && <PlaceholderPage title="Integrations" description="Connect your marketing tools — social accounts, ad platforms, analytics, and more." />}
           {activeTab === 'settings' && <Settings />}
         </div>
       </div>
@@ -204,6 +217,20 @@ export function MainWorkspace() {
   )
 }
 
+
+/* ── Placeholder page for upcoming sections ──────────────────── */
+function PlaceholderPage({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center text-center" style={{ minHeight: '50vh' }}>
+      <Sparkles size={48} className="text-blue-500 mb-4" />
+      <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{title}</h2>
+      <p className="text-gray-500 dark:text-gray-400 max-w-md">{description}</p>
+      <span className="mt-4 px-4 py-1.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
+        Coming Soon
+      </span>
+    </div>
+  )
+}
 
 /* ── Screen 2: Generating ────────────────────────────────────── */
 function GeneratingScreen({

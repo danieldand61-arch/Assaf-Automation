@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { Building2, ChevronDown, Bell, LogOut, Sun, Moon } from 'lucide-react'
+import { Building2, ChevronDown, Bell, LogOut, Sun, Moon, Globe } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { useApp } from '../contexts/AppContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
 
 interface JoyoTopBarProps {
@@ -13,8 +14,10 @@ export function JoyoTopBar({ title }: JoyoTopBarProps) {
   const { activeAccount, accounts, switchAccount } = useAccount()
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const { language, setLanguage } = useApp()
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
+  const [langMenuOpen, setLangMenuOpen] = useState(false)
   
   const JoyoTheme = getJoyoTheme(theme)
 
@@ -146,6 +149,66 @@ export function JoyoTopBar({ title }: JoyoTopBarProps) {
         }}>
           <Bell size={18} />
         </button>
+
+        {/* Language Toggle */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => setLangMenuOpen(!langMenuOpen)}
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 10,
+              border: `1px solid ${JoyoTheme.border}`,
+              background: JoyoTheme.card,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: JoyoTheme.textMuted,
+            }}
+            title={language === 'en' ? 'Language' : 'שפה'}
+          >
+            <Globe size={18} />
+          </button>
+          {langMenuOpen && (
+            <>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 40 }} onClick={() => setLangMenuOpen(false)} />
+              <div style={{
+                position: 'absolute',
+                top: 'calc(100% + 6px)',
+                right: 0,
+                background: JoyoTheme.card,
+                border: `1px solid ${JoyoTheme.border}`,
+                borderRadius: 12,
+                boxShadow: '0 12px 36px rgba(0,0,0,0.1)',
+                padding: 6,
+                minWidth: 140,
+                zIndex: 50,
+              }}>
+                {([['en', 'English'], ['he', 'עברית']] as const).map(([code, label]) => (
+                  <button
+                    key={code}
+                    onClick={() => { setLanguage(code); setLangMenuOpen(false) }}
+                    style={{
+                      width: '100%',
+                      textAlign: 'left',
+                      padding: '10px 14px',
+                      borderRadius: 8,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: language === code ? JoyoTheme.accentSoft : 'transparent',
+                      fontSize: 13,
+                      color: language === code ? JoyoTheme.accent : JoyoTheme.textSecondary,
+                      fontWeight: language === code ? 650 : 500,
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
 
         {/* Theme Toggle */}
         <button 

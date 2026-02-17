@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, Target, ArrowUp, ArrowDown, Film, Coins, Zap, BarChart3, MessageSquare, Image, Video, Megaphone } from 'lucide-react'
+import { Send, Target, ArrowUp, ArrowDown, Film, Coins, Zap, MessageSquare, Image, Video, Megaphone, Lightbulb, TrendingUp, FileText } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
@@ -138,10 +138,10 @@ function UsageChart({ history }: { history: HistoryRecord[] }) {
   return (
     <div style={{
       background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
-      padding: '22px 24px', marginBottom: 22, animation: 'fadeUp 0.5s ease 0.35s both'
+      padding: '22px 24px', animation: 'fadeUp 0.5s ease 0.35s both'
     }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 12 }}>
-        Generation Activity (14 days)
+        Weekly Performance
       </h3>
       <div style={{ position: 'relative', width: '100%', overflowX: 'auto' }}>
         <svg ref={svgRef} viewBox={`0 0 ${W} ${H + 30}`} style={{ width: '100%', height: 'auto', minHeight: 180 }}>
@@ -279,8 +279,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       mergedServices[svc] = data
     }
   }
-  const serviceList = Object.entries(mergedServices).sort(([, a], [, b]) => b.count - a.count)
-
   // Total generations — use history count as fallback
   const historyTotal = Object.values(serviceCounts).reduce((s, d) => s + d.count, 0)
   const totalGens = Math.max(u30?.total_requests || 0, historyTotal)
@@ -320,73 +318,83 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         <div style={{ textAlign: 'center', padding: 40, color: t.textMuted }}>Loading metrics...</div>
       ) : (
         <>
-          {/* Top metric cards */}
+          {/* Metric cards row */}
           <div style={{ display: 'flex', gap: 14, marginBottom: 22, flexWrap: 'wrap' }}>
             <MetricCard
-              icon={Coins}
-              label="Credits Remaining"
-              value={bal?.remaining?.toFixed(2) || '0'}
-              sub={`of ${bal?.total_purchased?.toFixed(2) || '0'} purchased`}
+              icon={FileText}
+              label="Posts Created"
+              value={totalGens.toString()}
+              sub="last 30 days"
               color={t.accent}
               delay={0.05}
             />
             <MetricCard
-              icon={Zap}
-              label="Credits Used"
-              value={bal?.used?.toFixed(2) || '0'}
-              sub={`${u30?.total_spent?.toFixed(4) || '0'} last 30d`}
-              color={t.purple}
+              icon={Megaphone}
+              label="Active Campaigns"
+              value={(mergedServices['google_ads']?.count || 0).toString()}
+              sub="Google Ads"
+              color={t.success}
               delay={0.1}
             />
             <MetricCard
-              icon={BarChart3}
-              label="Total Generations"
-              value={totalGens.toString()}
-              sub="last 30 days"
-              color={t.success}
+              icon={TrendingUp}
+              label="Total Reach"
+              value={totalGens > 0 ? `~${(totalGens * 150).toLocaleString()}` : '0'}
+              sub="estimated impressions"
+              color={t.purple}
               delay={0.15}
+            />
+            <MetricCard
+              icon={Coins}
+              label="Credits"
+              value={bal?.remaining?.toFixed(0) || '0'}
+              sub={`${bal?.used?.toFixed(0) || '0'} used`}
+              color={t.warning}
+              delay={0.2}
             />
           </div>
 
-          {/* Generations by service — mini cards */}
-          {serviceList.length > 0 && (
-            <div style={{ display: 'flex', gap: 12, marginBottom: 22, flexWrap: 'wrap', animation: 'fadeUp 0.5s ease 0.25s both' }}>
-              {serviceList.map(([svc, data], i) => {
-                const meta = getServiceMeta(svc)
-                const SvcIcon = meta.icon
-                return (
-                  <div key={svc} style={{
-                    background: t.card, borderRadius: 14, border: `1px solid ${t.border}`,
-                    padding: '14px 18px', minWidth: 150, flex: 1,
-                    animation: `fadeUp 0.4s ease ${0.25 + i * 0.05}s both`
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                      <SvcIcon size={15} color={meta.color} />
-                      <span style={{ fontSize: 11.5, fontWeight: 600, color: t.textSecondary }}>{meta.label}</span>
-                    </div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: t.text, letterSpacing: -0.8 }}>
-                      {data.count}
-                    </div>
-                    <div style={{ fontSize: 10.5, color: t.textMuted, marginTop: 2 }}>
-                      {data.cost.toFixed(4)} credits
-                    </div>
-                  </div>
-                )
-              })}
+          {/* Two-column: Chart + AI Recommendations */}
+          <div style={{ display: 'flex', gap: 18, marginBottom: 22, flexWrap: 'wrap' }}>
+            <div style={{ flex: 2, minWidth: 400 }}>
+              <UsageChart history={history} />
             </div>
-          )}
-
-          {/* Activity chart */}
-          <UsageChart history={history} />
+            <div style={{ flex: 1, minWidth: 280 }}>
+              <div style={{
+                background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
+                padding: '22px 24px', height: '100%', animation: 'fadeUp 0.5s ease 0.35s both'
+              }}>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Lightbulb size={16} color={t.warning} /> AI Recommendations
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {[
+                    { text: 'Try posting on TikTok — short videos get 3x more engagement', color: t.accent },
+                    { text: 'Your LinkedIn posts perform best on Tuesdays at 10 AM', color: t.success },
+                    { text: 'Add more hashtags to Instagram posts for wider reach', color: t.purple },
+                  ].map((rec, i) => (
+                    <div key={i} style={{
+                      padding: '12px 14px', borderRadius: 12,
+                      background: `${rec.color}10`, borderLeft: `3px solid ${rec.color}`,
+                      fontSize: 12.5, color: t.textSecondary, lineHeight: 1.5,
+                    }}>
+                      {rec.text}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
         </>
       )}
 
-      {/* Quick Actions */}
+      {/* Quick-action feature cards */}
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', animation: 'fadeUp 0.5s ease 0.4s both' }}>
         {[
-          { icon: Send, title: 'Social Posts', desc: 'AI captions + images', gradient: t.gradient1, to: 'social' },
-          { icon: Target, title: 'Google Ads', desc: 'Full campaign generation', gradient: t.gradient2, to: 'ads' },
-          { icon: Film, title: 'Video Tools', desc: 'Translation & dubbing', gradient: t.gradient3, to: 'video' }
+          { icon: Send, title: 'Post Generator', desc: 'AI captions + images for every platform', gradient: t.gradient1, to: 'social' },
+          { icon: Target, title: 'Google Ads', desc: 'Full campaign strategy & RSA assets', gradient: t.gradient2, to: 'ads' },
+          { icon: Image, title: 'Media Studio', desc: 'Templates, resize, background removal', gradient: t.gradient4, to: 'media' },
+          { icon: MessageSquare, title: 'AI Advisor', desc: 'Insights, analytics & recommendations', gradient: t.gradient3, to: 'chat' },
         ].map((f, i) => (
           <div key={i} onClick={() => onNavigate(f.to)} style={{
             background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
