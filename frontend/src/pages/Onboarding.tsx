@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, Loader2 } from 'lucide-react'
+import { Sparkles, Loader2, Globe, Check } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
+import { getApiUrl } from '../lib/api'
 
 export function Onboarding() {
-  const { user } = useAuth()
+  const { user, session } = useAuth()
   const { createAccount, updateAccount, accounts, loading: accountsLoading } = useAccount()
   const navigate = useNavigate()
   const [currentStep, setCurrentStep] = useState(1)
@@ -22,6 +23,11 @@ export function Onboarding() {
   const [marketingGoal, setMarketingGoal] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [brandVoice, setBrandVoice] = useState('professional')
+
+  // Brand Kit from URL analysis
+  const [analyzing, setAnalyzing] = useState(false)
+  const [analyzed, setAnalyzed] = useState(false)
+  const [brandKit, setBrandKit] = useState<any>(null)
 
   // Step 3
   const [geographicFocus, setGeographicFocus] = useState('')
@@ -80,18 +86,47 @@ export function Onboarding() {
     if (currentStep > 1) setCurrentStep(currentStep - 1)
   }
 
+  const handleAnalyzeUrl = async () => {
+    if (!websiteUrl.trim() || !session) return
+    setAnalyzing(true)
+    setError('')
+    try {
+      const res = await fetch(`${getApiUrl()}/api/accounts/analyze-url`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+        body: JSON.stringify({ url: websiteUrl }),
+      })
+      if (!res.ok) throw new Error((await res.json()).detail || 'Analysis failed')
+      const { brand_kit } = await res.json()
+      setBrandKit(brand_kit)
+      setAnalyzed(true)
+      // Auto-fill fields from brand kit
+      if (brand_kit.business_name && !companyName) setCompanyName(brand_kit.business_name)
+      if (brand_kit.industry && !industry) setIndustry(brand_kit.industry)
+      if (brand_kit.products?.length && !products) setProducts(brand_kit.products.slice(0, 5).join(', '))
+      if (brand_kit.brand_voice) setBrandVoice(brand_kit.brand_voice)
+    } catch (e: any) {
+      setError(e.message || 'Could not analyze website')
+    } finally {
+      setAnalyzing(false)
+    }
+  }
+
   const buildAccountData = (onboardingComplete: boolean) => ({
     name: companyName || user?.email?.split('@')[0] || 'My Business',
     description: products || undefined,
     industry: industry || undefined,
     target_audience: targetAudience || undefined,
     brand_voice: brandVoice,
+    logo_url: brandKit?.logo_url || undefined,
+    brand_colors: brandKit?.brand_colors || [],
     metadata: {
       marketing_goal: marketingGoal || undefined,
       website_url: websiteUrl || undefined,
       geographic_focus: geographicFocus || undefined,
       budget_range: budgetRange || undefined,
       onboarding_complete: onboardingComplete,
+      brand_kit: brandKit || undefined,
     }
   })
 
@@ -188,8 +223,54 @@ export function Onboarding() {
                 Your Business
               </h2>
 
+              {/* URL Analyze */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium mb-2" style={{ color: '#5C6478' }}>
+                  <Globe className="inline w-4 h-4 mr-1" style={{ verticalAlign: '-2px' }} />
+                  Website URL
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={websiteUrl}
+                    onChange={(e) => { setWebsiteUrl(e.target.value); setAnalyzed(false) }}
+                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+                    placeholder="yourbusiness.com"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAnalyzeUrl}
+                    disabled={!websiteUrl.trim() || analyzing}
+                    style={{
+                      padding: '0 20px', borderRadius: 12, border: 'none',
+                      background: analyzed ? '#10B981' : 'linear-gradient(135deg, #4A7CFF, #8B5CF6)',
+                      color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                      opacity: (!websiteUrl.trim() || analyzing) ? 0.5 : 1,
+                      display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' as const,
+                    }}
+                  >
+                    {analyzing ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing...</> :
+                     analyzed ? <><Check className="w-4 h-4" /> Analyzed</> :
+                     'Analyze'}
+                  </button>
+                </div>
+                <p style={{ fontSize: 11, color: '#959DAF', marginTop: 4 }}>
+                  Paste your URL and click Analyze — AI will extract your brand data automatically
+                </p>
+              </div>
+
+              {/* Auto-filled brand colors preview */}
+              {brandKit?.brand_colors?.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span style={{ fontSize: 12, color: '#5C6478', fontWeight: 600 }}>Detected colors:</span>
+                  {brandKit.brand_colors.slice(0, 5).map((c: string, i: number) => (
+                    <div key={i} style={{ width: 20, height: 20, borderRadius: 6, background: c, border: '1px solid #E5E9F0' }} />
+                  ))}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Company Name *
                 </label>
                 <input
@@ -203,7 +284,7 @@ export function Onboarding() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Industry / Niche
                 </label>
                 <input
@@ -265,19 +346,6 @@ export function Onboarding() {
                   <option value="engagement">Social Media Engagement</option>
                   <option value="traffic">Website Traffic</option>
                 </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Website URL
-                </label>
-                <input
-                  type="url"
-                  value={websiteUrl}
-                  onChange={(e) => setWebsiteUrl(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
-                  placeholder="https://example.com"
-                />
               </div>
 
               <div>

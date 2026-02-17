@@ -6,11 +6,74 @@ from pydantic import BaseModel
 from typing import List, Optional
 import logging
 import asyncio
+import re
 from database.supabase_client import get_supabase
 from middleware.auth import get_current_user
 
 router = APIRouter(prefix="/api/accounts", tags=["accounts"])
 logger = logging.getLogger(__name__)
+
+
+class AnalyzeUrlRequest(BaseModel):
+    url: str
+
+
+@router.post("/analyze-url")
+async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)):
+    """Scrape a website URL and return extracted Brand Kit data."""
+    url = request.url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+    if not re.match(r'^https?://', url):
+        url = f"https://{url}"
+
+    try:
+        from services.scraper import scrape_website
+        data = await scrape_website(url)
+
+        # Guess industry from content
+        industry = _guess_industry(data.get("content", "") + " " + data.get("description", ""))
+
+        return {
+            "brand_kit": {
+                "business_name": data.get("title", "").split("|")[0].split("–")[0].split("-")[0].strip(),
+                "description": data.get("description", ""),
+                "industry": industry,
+                "brand_voice": data.get("brand_voice", "professional"),
+                "logo_url": data.get("logo_url", ""),
+                "brand_colors": data.get("colors", []),
+                "products": data.get("products", []),
+                "key_features": data.get("key_features", []),
+                "website_url": url,
+                "content_preview": data.get("content", "")[:500],
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to analyze URL {url}: {e}")
+        raise HTTPException(status_code=422, detail=f"Could not analyze website: {str(e)}")
+
+
+def _guess_industry(text: str) -> str:
+    """Simple keyword-based industry detection."""
+    text = text.lower()
+    mapping = {
+        "e-commerce": ["shop", "store", "buy", "cart", "product", "price", "shipping"],
+        "SaaS": ["saas", "software", "platform", "api", "dashboard", "subscription", "cloud"],
+        "Healthcare": ["health", "medical", "doctor", "patient", "clinic", "hospital", "wellness"],
+        "Finance": ["finance", "banking", "invest", "loan", "credit", "insurance", "mortgage"],
+        "Education": ["education", "learn", "course", "student", "university", "training", "school"],
+        "Real Estate": ["real estate", "property", "apartment", "rent", "house", "mortgage"],
+        "Restaurant & Food": ["restaurant", "food", "menu", "coffee", "recipe", "delivery", "dining"],
+        "Technology": ["technology", "tech", "digital", "innovation", "ai", "machine learning"],
+        "Marketing": ["marketing", "seo", "advertising", "campaign", "brand", "social media"],
+        "Fitness": ["fitness", "gym", "workout", "exercise", "yoga", "training", "sport"],
+    }
+    best, best_score = "General Business", 0
+    for industry, keywords in mapping.items():
+        score = sum(1 for kw in keywords if kw in text)
+        if score > best_score:
+            best, best_score = industry, score
+    return best
 
 from collections import defaultdict
 
