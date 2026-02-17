@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Loader2, Check, Sparkles } from 'lucide-react'
 import { JoyoSidebar } from './JoyoSidebar'
 import { JoyoTopBar } from './JoyoTopBar'
 import { FloatingChat } from './FloatingChat'
-import { InputSection } from './InputSection'
+import { InputSection, GenerateFormData } from './InputSection'
 import { GoogleAdsGeneration } from './GoogleAdsGeneration'
 import { VideoTranslation } from './VideoTranslation'
 import { PreviewSection } from './PreviewSection'
@@ -17,223 +17,252 @@ import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme, animations } from '../styles/joyo-theme'
+import { getApiUrl } from '../lib/api'
 
 type TabType = 'dashboard' | 'social' | 'ads' | 'video' | 'videogen' | 'library' | 'calendar' | 'settings'
+type SocialScreen = 'form' | 'generating' | 'results'
+
+/* ── Platform display info for loading screen ─────────────────── */
+const PLATFORM_LABELS: Record<string, string> = {
+  facebook: 'Facebook', instagram: 'Instagram', linkedin: 'LinkedIn',
+  tiktok: 'TikTok', x: 'X (Twitter)', google_business: 'Google Business',
+}
 
 export function MainWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>('dashboard')
   const [collapsed, setCollapsed] = useState(false)
   const { generatedContent, setGeneratedContent } = useContentStore()
-  const { loading, accounts } = useAccount()
+  const { loading } = useAccount()
   const { session } = useAuth()
   const { theme } = useTheme()
-  const [generating, setGenerating] = useState(false)
-  
-  const JoyoTheme = getJoyoTheme(theme)
-  
-  console.log('🏢 MainWorkspace render - loading:', loading, 'accounts:', accounts.length)
 
-  const handleGenerate = async (data: any) => {
-    console.log('🎯 handleGenerate called with:', data)
-    
-    try {
-      setGenerating(true)
-      setGeneratedContent(null)
-      
-      console.log('🔐 Session check:', session ? 'exists' : 'missing')
-      
-      if (!session) {
-        alert('Please sign in to generate content')
-        setGenerating(false)
-        return
+  // Social post generator state
+  const [socialScreen, setSocialScreen] = useState<SocialScreen>('form')
+  const [progress, setProgress] = useState(0)
+  const [platformStatus, setPlatformStatus] = useState<Record<string, 'pending' | 'done'>>({})
+  const savedFormRef = useRef<GenerateFormData | null>(null)
+
+  const JoyoTheme = getJoyoTheme(theme)
+
+  const handleGenerate = async (data: GenerateFormData) => {
+    if (!session) { alert('Please sign in to generate content'); return }
+
+    // Save form for "Back" button
+    savedFormRef.current = data
+
+    // Normalize URL — add https:// if missing
+    let url = data.url.trim()
+    if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`
+
+    // Switch to generating screen
+    setSocialScreen('generating')
+    setGeneratedContent(null)
+    setProgress(0)
+
+    // Init platform statuses
+    const statuses: Record<string, 'pending' | 'done'> = {}
+    data.platforms.forEach(p => { statuses[p] = 'pending' })
+    setPlatformStatus({ ...statuses })
+
+    // Simulate per-platform progress while waiting for API
+    const totalPlatforms = data.platforms.length
+    let completed = 0
+    const interval = setInterval(() => {
+      if (completed < totalPlatforms) {
+        const next = data.platforms[completed]
+        statuses[next] = 'done'
+        completed++
+        setPlatformStatus({ ...statuses })
+        setProgress(Math.min(Math.round((completed / totalPlatforms) * 90), 90))
       }
-      
-      const apiUrl = import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'
-      const endpoint = `${apiUrl}/api/generate`
-      console.log('🌐 Sending request to:', endpoint)
-      console.log('📦 Request payload:', data)
-      console.log('🔑 Has token:', !!session.access_token)
-      
-      const response = await fetch(endpoint, {
+    }, 1500)
+
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({
+          url,
+          keywords: data.keywords,
+          platforms: data.platforms,
+          image_size: data.image_size,
+          style: data.style,
+          language: data.language,
+          target_audience: data.target_audience,
+          include_emojis: data.include_emojis,
+          include_logo: data.include_logo,
+        })
       })
-      
-      console.log('📥 Response status:', response.status)
-      console.log('📥 Response ok:', response.ok)
-      
+
+      clearInterval(interval)
+
       if (!response.ok) {
         const errorText = await response.text()
-        console.error('❌ Error response:', errorText)
         throw new Error(`Generation failed: ${response.status} - ${errorText}`)
       }
-      
+
       const result = await response.json()
-      console.log('✅ Generation complete. Variations:', result.variations?.length, 'Images:', result.images?.length)
-      
-      setGeneratedContent(result)
+
+      // Mark all platforms done
+      data.platforms.forEach(p => { statuses[p] = 'done' })
+      setPlatformStatus({ ...statuses })
+      setProgress(100)
+
+      // Store result with form params
+      setGeneratedContent({ ...result, request_params: data })
+
+      // Auto-transition to results after short delay
+      setTimeout(() => setSocialScreen('results'), 600)
     } catch (error: any) {
-      console.error('❌ Generation error:', error)
+      clearInterval(interval)
+      console.error('Generation error:', error)
       alert(`Failed to generate content: ${error.message}`)
-    } finally {
-      setGenerating(false)
+      setSocialScreen('form')
     }
+  }
+
+  const handleBackToForm = () => {
+    setSocialScreen('form')
   }
 
   const handleReset = () => {
     setGeneratedContent(null)
+    savedFormRef.current = null
+    setSocialScreen('form')
   }
 
-  // Show loading while fetching accounts
   if (loading) {
     return (
-      <div style={{ 
-        minHeight: '100vh', 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        background: JoyoTheme.surface
-      }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: JoyoTheme.surface }}>
         <Loader2 className="w-12 h-12 animate-spin" style={{ color: JoyoTheme.accent }} />
       </div>
     )
   }
 
   const pageTitles: Record<TabType, string> = {
-    dashboard: 'Dashboard',
-    social: 'Social Posts',
-    ads: 'Google Ads',
-    video: 'Video Dubbing',
-    videogen: 'Video Generation',
-    library: 'Content Library',
-    calendar: 'Scheduled Posts',
-    settings: 'Settings'
+    dashboard: 'Dashboard', social: 'Social Posts', ads: 'Google Ads',
+    video: 'Video Dubbing', videogen: 'Video Generation',
+    library: 'Content Library', calendar: 'Scheduled Posts', settings: 'Settings',
   }
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      minHeight: '100vh',
-      background: JoyoTheme.surface,
-      fontFamily: "'Plus Jakarta Sans','Inter',-apple-system,sans-serif"
-    }}>
-      {/* Inject animations */}
+    <div style={{ display: 'flex', minHeight: '100vh', background: JoyoTheme.surface, fontFamily: "'Plus Jakarta Sans','Inter',-apple-system,sans-serif" }}>
       <style>{animations}</style>
 
-      {/* Sidebar */}
       <JoyoSidebar
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab as TabType)}
+        onTabChange={(tab) => { setActiveTab(tab as TabType); if (tab === 'social') setSocialScreen(generatedContent ? 'results' : 'form') }}
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed(!collapsed)}
       />
 
-      {/* Main Content */}
-      <div style={{ 
-        flex: 1, 
-        display: 'flex', 
-        flexDirection: 'column', 
-        minWidth: 0 
-      }}>
-        {/* Top Bar */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <JoyoTopBar title={pageTitles[activeTab]} />
 
-        {/* Content Area */}
-        <div 
-          key={activeTab}
-          style={{ 
-            flex: 1, 
-            padding: '28px 28px 40px', 
-            overflowY: 'auto' 
-          }}
-        >
+        <div key={activeTab} style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto' }}>
           {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as TabType)} />}
-          
+
+          {/* ── Social Post Generator — 3 screens ──────────────── */}
           {activeTab === 'social' && (
-            <div style={{ display: 'flex', height: '100%' }}>
-              <div style={{ 
-                flex: generatedContent ? 1 : 1, 
-                overflowY: 'auto',
-                paddingRight: generatedContent ? '12px' : 0
-              }}>
-                {generating && (
-                  <div style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: 'rgba(0,0,0,0.5)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 50
-                  }}>
-                    <div style={{
-                      background: JoyoTheme.card,
-                      borderRadius: 20,
-                      padding: '32px',
-                      maxWidth: '400px',
-                      textAlign: 'center'
-                    }}>
-                      <Loader2 
-                        size={48} 
-                        style={{ 
-                          color: JoyoTheme.accent,
-                          animation: 'spin 1s linear infinite',
-                          margin: '0 auto 16px'
-                        }} 
-                      />
-                      <h3 style={{
-                        fontSize: 18,
-                        fontWeight: 800,
-                        color: JoyoTheme.text,
-                        marginBottom: 8
-                      }}>
-                        Generating Content...
-                      </h3>
-                      <p style={{
-                        fontSize: 14,
-                        color: JoyoTheme.textSecondary
-                      }}>
-                        Creating amazing posts and images for you
-                      </p>
-                    </div>
-                  </div>
-                )}
-                <InputSection onGenerate={handleGenerate} />
-              </div>
-              {generatedContent && generatedContent.variations && generatedContent.images && (
-                <div style={{ 
-                  flex: 1, 
-                  borderLeft: `1px solid ${JoyoTheme.border}`,
-                  overflowY: 'auto',
-                  paddingLeft: '12px',
-                  background: JoyoTheme.card
-                }}>
-                  <PreviewSection onReset={handleReset} />
-                </div>
+            <>
+              {/* Screen 1: Form */}
+              {socialScreen === 'form' && (
+                <InputSection onGenerate={handleGenerate} savedForm={savedFormRef.current} />
               )}
-            </div>
+
+              {/* Screen 2: Generating */}
+              {socialScreen === 'generating' && (
+                <GeneratingScreen
+                  progress={progress}
+                  platformStatus={platformStatus}
+                  theme={JoyoTheme}
+                />
+              )}
+
+              {/* Screen 3: Results */}
+              {socialScreen === 'results' && generatedContent && (
+                <PreviewSection onReset={handleReset} onBack={handleBackToForm} />
+              )}
+            </>
           )}
-          
+
           {activeTab === 'ads' && <GoogleAdsGeneration />}
-          
           {activeTab === 'video' && <VideoTranslation />}
-          
           {activeTab === 'videogen' && <VideoGeneration />}
-          
           {activeTab === 'library' && <Library />}
-          
           {activeTab === 'calendar' && <Scheduled />}
-          
           {activeTab === 'settings' && <Settings />}
         </div>
       </div>
 
-      {/* Floating Chat Assistant */}
       <FloatingChat />
+    </div>
+  )
+}
+
+
+/* ── Screen 2: Generating ────────────────────────────────────── */
+function GeneratingScreen({
+  progress, platformStatus, theme
+}: {
+  progress: number
+  platformStatus: Record<string, 'pending' | 'done'>
+  theme: any
+}) {
+  return (
+    <div className="flex flex-col items-center justify-center" style={{ minHeight: '60vh' }}>
+      {/* Sparkle icon */}
+      <div className="mb-6">
+        <Sparkles size={56} style={{ color: theme.accent, animation: 'spin 2s linear infinite' }} />
+      </div>
+
+      <h2 className="text-2xl font-bold mb-2" style={{ color: theme.text }}>
+        Creating your posts...
+      </h2>
+      <p className="text-sm mb-8" style={{ color: theme.textSecondary }}>
+        AI is crafting optimized content for each platform
+      </p>
+
+      {/* Progress bar */}
+      <div className="w-full max-w-md mb-8">
+        <div className="h-3 rounded-full overflow-hidden" style={{ background: theme.border }}>
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${progress}%`,
+              background: 'linear-gradient(90deg, #4A7CFF, #7C3AED)',
+            }}
+          />
+        </div>
+        <p className="text-xs text-center mt-2" style={{ color: theme.textSecondary }}>
+          {progress}%
+        </p>
+      </div>
+
+      {/* Per-platform status */}
+      <div className="space-y-3 w-full max-w-sm">
+        {Object.entries(platformStatus).map(([platform, status]) => (
+          <div key={platform} className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
+            style={{ background: theme.card }}
+          >
+            {status === 'done' ? (
+              <Check size={18} className="text-green-500 shrink-0" />
+            ) : (
+              <Loader2 size={18} className="animate-spin shrink-0" style={{ color: theme.accent }} />
+            )}
+            <span className="text-sm font-medium" style={{ color: theme.text }}>
+              {PLATFORM_LABELS[platform] || platform}
+            </span>
+            {status === 'done' && (
+              <span className="ml-auto text-xs text-green-500 font-medium">ready!</span>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

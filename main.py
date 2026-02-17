@@ -303,11 +303,20 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
     logger.info(f"   Language: {request.language}")
     
     try:
-        # 1. Scrape website
-        logger.info("📄 Step 1: Scraping website...")
-        from services.scraper import scrape_website
-        website_data = await scrape_website(str(request.url))
-        logger.info(f"✅ Website scraped: {website_data.get('title', 'No title')}")
+        # 1. Scrape website (or build from keywords if no URL)
+        logger.info("📄 Step 1: Getting website data...")
+        url_str = str(request.url).strip()
+        if url_str and url_str != 'None':
+            from services.scraper import scrape_website
+            website_data = await scrape_website(url_str)
+            logger.info(f"✅ Website scraped: {website_data.get('title', 'No title')}")
+        else:
+            website_data = {
+                "url": "", "title": "Brand", "description": request.keywords,
+                "content": request.keywords, "colors": [], "logo_url": "",
+                "brand_voice": "professional", "products": [], "key_features": [],
+            }
+            logger.info("ℹ️ No URL provided, using keywords as context")
         
         # 2. Generate post texts (with tracking)
         logger.info("✍️  Step 2: Generating post texts...")

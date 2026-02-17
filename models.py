@@ -27,13 +27,13 @@ class GeneratedContent(BaseModel):
 
 
 class GenerateRequest(BaseModel):
-    url: HttpUrl
-    keywords: str
-    platforms: List[str]  # ["facebook", "instagram"]
-    image_size: str = "1080x1080"  # Image dimensions
-    style: str
-    target_audience: str
-    language: str = "en"  # Language: "en", "he", "es", "pt"
+    url: str = ""  # Accepts any format, frontend normalizes
+    keywords: str = ""
+    platforms: List[str] = ["facebook", "instagram"]
+    image_size: str = "1080x1080"
+    style: str = "professional"
+    target_audience: str = "b2c"
+    language: str = "en"
     include_emojis: bool = True
     include_logo: bool = False
-    account_id: Optional[str] = None  # For authenticated users
+    account_id: Optional[str] = None
