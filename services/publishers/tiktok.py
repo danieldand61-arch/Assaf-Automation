@@ -95,7 +95,7 @@ async def _init_direct_post(client, headers, video_size: int, caption: str):
             json={
                 "post_info": {
                     "title": caption[:150] if caption else "",
-                    "privacy_level": "SELF_ONLY",
+                    "privacy_level": "PUBLIC_TO_EVERYONE",
                     "disable_duet": False,
                     "disable_comment": False,
                     "disable_stitch": False,
