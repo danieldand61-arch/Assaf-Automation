@@ -2,12 +2,74 @@
 TikTok publisher - publishes video content directly to TikTok
 Uses Direct Post API (requires video.publish scope)
 Falls back to Inbox API if direct post is not approved
+Auto-refreshes expired OAuth tokens
 """
 import httpx
 import logging
-from typing import Dict, Any
+import os
+from typing import Dict, Any, Optional
+from datetime import datetime, timezone, timedelta
 
 logger = logging.getLogger(__name__)
+
+TIKTOK_CLIENT_KEY = os.getenv("TIKTOK_CLIENT_KEY")
+TIKTOK_CLIENT_SECRET = os.getenv("TIKTOK_CLIENT_SECRET")
+
+
+async def _refresh_tiktok_token(refresh_token: str) -> Optional[Dict[str, str]]:
+    if not TIKTOK_CLIENT_KEY or not TIKTOK_CLIENT_SECRET or not refresh_token:
+        return None
+    try:
+        async with httpx.AsyncClient(timeout=15) as c:
+            resp = await c.post(
+                "https://open.tiktokapis.com/v2/oauth/token/",
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                data={
+                    "client_key": TIKTOK_CLIENT_KEY,
+                    "client_secret": TIKTOK_CLIENT_SECRET,
+                    "grant_type": "refresh_token",
+                    "refresh_token": refresh_token,
+                },
+            )
+        if resp.status_code == 200:
+            data = resp.json()
+            logger.info("✅ TikTok token refreshed")
+            return {
+                "access_token": data["access_token"],
+                "refresh_token": data.get("refresh_token", refresh_token),
+                "expires_in": data.get("expires_in", 86400),
+            }
+        logger.error(f"❌ TikTok token refresh failed: {resp.status_code} - {resp.text[:200]}")
+    except Exception as e:
+        logger.error(f"❌ TikTok token refresh error: {e}")
+    return None
+
+
+async def _update_token_in_db(connection_id: str, new_tokens: Dict[str, str]):
+    try:
+        from database.supabase_client import get_supabase
+        supabase = get_supabase()
+        expires_at = datetime.now(timezone.utc) + timedelta(seconds=int(new_tokens.get("expires_in", 86400)))
+        supabase.table("account_connections").update({
+            "access_token": new_tokens["access_token"],
+            "refresh_token": new_tokens["refresh_token"],
+            "token_expires_at": expires_at.isoformat(),
+        }).eq("id", connection_id).execute()
+    except Exception as e:
+        logger.error(f"❌ Failed to save refreshed TikTok token: {e}")
+
+
+def _token_expired(connection: Dict[str, Any]) -> bool:
+    expires_at = connection.get("token_expires_at")
+    if not expires_at:
+        return True
+    try:
+        exp = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        return datetime.now(timezone.utc) >= exp - timedelta(minutes=5)
+    except Exception:
+        return True
 
 
 async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url: str) -> Dict[str, Any]:
@@ -22,6 +84,18 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
 
         if not access_token or not open_id:
             raise Exception("Missing access token or user ID")
+
+        # Auto-refresh if expired
+        if _token_expired(connection):
+            logger.info("🔄 TikTok token expired, refreshing...")
+            new_tokens = await _refresh_tiktok_token(connection.get("refresh_token", ""))
+            if new_tokens:
+                access_token = new_tokens["access_token"]
+                conn_id = connection.get("id")
+                if conn_id:
+                    await _update_token_in_db(conn_id, new_tokens)
+            else:
+                logger.warning("⚠️ TikTok token refresh failed, trying with existing token")
 
         logger.info(f"🎵 Publishing to TikTok: {open_id}")
 
