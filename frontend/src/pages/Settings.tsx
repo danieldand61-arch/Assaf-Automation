@@ -246,7 +246,7 @@ function BrandKitTab() {
     finally { setSaving(false) }
   }
 
-  const fieldCls = "w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+  const fieldCls = "w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">

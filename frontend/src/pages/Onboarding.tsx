@@ -234,7 +234,7 @@ export function Onboarding() {
                     type="text"
                     value={websiteUrl}
                     onChange={(e) => { setWebsiteUrl(e.target.value); setAnalyzed(false) }}
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+                    className="flex-1 px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                     placeholder="yourbusiness.com"
                   />
                   <button
@@ -277,8 +277,7 @@ export function Onboarding() {
                   type="text"
                   value={companyName}
                   onChange={(e) => setCompanyName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
-                  style={{ color: '#151821' }}
+                  className="w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                   placeholder="Acme Inc"
                 />
               </div>
@@ -291,7 +290,7 @@ export function Onboarding() {
                   type="text"
                   value={industry}
                   onChange={(e) => setIndustry(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                   placeholder="E-commerce, SaaS, Healthcare, etc."
                 />
               </div>
@@ -304,7 +303,7 @@ export function Onboarding() {
                   value={products}
                   onChange={(e) => setProducts(e.target.value)}
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                   placeholder="What do you offer?"
                 />
               </div>
@@ -317,7 +316,7 @@ export function Onboarding() {
                   type="text"
                   value={targetAudience}
                   onChange={(e) => setTargetAudience(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                   placeholder="Small business owners, young professionals, etc."
                 />
               </div>
@@ -337,7 +336,7 @@ export function Onboarding() {
                 <select
                   value={marketingGoal}
                   onChange={(e) => setMarketingGoal(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                 >
                   <option value="">Select a goal...</option>
                   <option value="brand_awareness">Brand Awareness</option>
@@ -355,7 +354,7 @@ export function Onboarding() {
                 <select
                   value={brandVoice}
                   onChange={(e) => setBrandVoice(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                 >
                   <option value="professional">Professional</option>
                   <option value="casual">Casual / Friendly</option>
@@ -384,7 +383,7 @@ export function Onboarding() {
                   type="text"
                   value={geographicFocus}
                   onChange={(e) => setGeographicFocus(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                   placeholder="United States, Europe, Global, etc."
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -399,7 +398,7 @@ export function Onboarding() {
                 <select
                   value={budgetRange}
                   onChange={(e) => setBudgetRange(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
+                  className="w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
                 >
                   <option value="">Select budget range...</option>
                   <option value="under_500">Under $500 (Starting out)</option>
