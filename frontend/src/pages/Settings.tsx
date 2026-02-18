@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Connections } from './Connections'
 import { CreditsUsage } from './CreditsUsage'
 import { ArrowLeft, Loader2, Globe } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 
-type Tab = 'brandkit' | 'connections' | 'profile' | 'accounts' | 'credits'
+type Tab = 'brandkit' | 'profile' | 'accounts' | 'credits'
 
 export function Settings() {
   const { user } = useAuth()
@@ -21,8 +20,6 @@ export function Settings() {
     const tabParam = searchParams.get('tab')
     if (tabParam === 'brandkit' || tabParam === 'brand-kit') {
       setActiveTab('brandkit')
-    } else if (tabParam === 'social' || tabParam === 'connections') {
-      setActiveTab('connections')
     } else if (tabParam === 'profile') {
       setActiveTab('profile')
     } else if (tabParam === 'accounts') {
@@ -59,15 +56,6 @@ export function Settings() {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-        </svg>
-      )
-    },
-    {
-      id: 'connections' as Tab,
-      name: 'Integrations',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
         </svg>
       )
     },
@@ -156,9 +144,6 @@ export function Settings() {
           <div className="flex-1">
             {activeTab === 'brandkit' && (
               <BrandKitTab />
-            )}
-            {activeTab === 'connections' && (
-              <ConnectionsTab />
             )}
             {activeTab === 'credits' && (
               <CreditsTab />
@@ -350,11 +335,6 @@ function BrandKitTab() {
       </div>
     </div>
   )
-}
-
-// Connections Tab (uses existing Connections component)
-function ConnectionsTab() {
-  return <Connections />
 }
 
 // Credits Tab (uses existing CreditsUsage component)

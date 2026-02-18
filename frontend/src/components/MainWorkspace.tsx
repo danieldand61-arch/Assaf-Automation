@@ -13,6 +13,7 @@ import Dashboard from '../pages/Dashboard'
 import { Library } from '../pages/Library'
 import { Scheduled } from '../pages/Scheduled'
 import { Settings } from '../pages/Settings'
+import { Connections } from '../pages/Connections'
 import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -207,7 +208,7 @@ export function MainWorkspace() {
           {activeTab === 'videogen' && <VideoGeneration />}
           {activeTab === 'library' && <Library />}
           {activeTab === 'calendar' && <Scheduled />}
-          {activeTab === 'integrations' && <PlaceholderPage title="Integrations" description="Connect your marketing tools — social accounts, ad platforms, analytics, and more." />}
+          {activeTab === 'integrations' && <Connections />}
           {activeTab === 'settings' && <Settings />}
         </div>
       </div>

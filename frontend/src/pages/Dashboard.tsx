@@ -223,6 +223,72 @@ function UsageChart({ history }: { history: HistoryRecord[] }) {
   )
 }
 
+// ─── AI Recommendations based on real data ──────────────────────────
+
+function buildRecommendations(
+  services: Record<string, { count: number; cost: number }>,
+  bal: { total_purchased: number; used: number; remaining: number } | undefined,
+  totalGens: number,
+  t: any
+): { text: string; color: string }[] {
+  const recs: { text: string; color: string }[] = []
+
+  const postCount = (services['social_posts']?.count || 0)
+  const imgCount = (services['image_generation']?.count || 0)
+  const adsCount = (services['google_ads']?.count || 0)
+  const chatCount = (services['gemini_chat']?.count || 0) + (services['chat']?.count || 0)
+  const videoCount = (services['video_dubbing']?.count || 0) + (services['video_dubbing_actual']?.count || 0)
+
+  if (totalGens === 0) {
+    recs.push({ text: 'Get started! Create your first social post to see AI-powered recommendations here.', color: t.accent })
+    recs.push({ text: 'Try Google Ads generator to build a complete RSA campaign strategy.', color: t.success })
+    recs.push({ text: 'Set up your Brand Kit in Settings so AI can tailor content to your brand.', color: t.purple })
+    return recs
+  }
+
+  // Platform mix
+  if (postCount > 0 && adsCount === 0) {
+    recs.push({ text: `You've created ${postCount} posts but haven't tried Google Ads yet — it can drive targeted traffic fast.`, color: t.success })
+  }
+  if (adsCount > 0 && postCount === 0) {
+    recs.push({ text: `You're running ${adsCount} ad campaigns — complement them with organic social posts for better ROI.`, color: t.accent })
+  }
+  if (postCount > 5 && imgCount < postCount / 2) {
+    recs.push({ text: 'Posts with images get 2.3x more engagement. Try generating images for more of your posts.', color: t.purple })
+  }
+
+  // Chat usage
+  if (chatCount === 0) {
+    recs.push({ text: 'Use the AI chat to get marketing insights and content ideas tailored to your brand.', color: t.accent })
+  }
+
+  // Credits
+  if (bal) {
+    const pct = bal.remaining / (bal.total_purchased || 1)
+    if (pct < 0.15 && bal.remaining > 0) {
+      recs.push({ text: `You have only ${bal.remaining.toFixed(0)} credits left (${(pct * 100).toFixed(0)}%). Consider topping up soon.`, color: t.warning })
+    }
+    if (pct > 0.8) {
+      recs.push({ text: `You still have ${(pct * 100).toFixed(0)}% of your credits — now is a great time to experiment with new content types.`, color: t.success })
+    }
+  }
+
+  // Volume-based
+  if (postCount >= 10) {
+    recs.push({ text: `Great momentum with ${postCount} posts this month! Try scheduling posts in advance for consistent publishing.`, color: t.accent })
+  }
+  if (videoCount > 0) {
+    recs.push({ text: `You've translated ${videoCount} videos — consider creating short social clips from them for more reach.`, color: t.purple })
+  }
+
+  // Ensure at least 2 recommendations
+  if (recs.length < 2) {
+    recs.push({ text: 'Consistency is key — aim to create content at least 3 times per week for optimal engagement.', color: t.accent })
+  }
+
+  return recs.slice(0, 4)
+}
+
 // ─── Main Dashboard ──────────────────────────────────────────────────
 
 interface CreditsSummary {
@@ -368,11 +434,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                   <Lightbulb size={16} color={t.warning} /> AI Recommendations
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {[
-                    { text: 'Try posting on TikTok — short videos get 3x more engagement', color: t.accent },
-                    { text: 'Your LinkedIn posts perform best on Tuesdays at 10 AM', color: t.success },
-                    { text: 'Add more hashtags to Instagram posts for wider reach', color: t.purple },
-                  ].map((rec, i) => (
+                  {buildRecommendations(mergedServices, bal, totalGens, t).map((rec, i) => (
                     <div key={i} style={{
                       padding: '12px 14px', borderRadius: 12,
                       background: `${rec.color}10`, borderLeft: `3px solid ${rec.color}`,
