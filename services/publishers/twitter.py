@@ -144,6 +144,9 @@ async def publish_to_twitter(connection: Dict[str, Any], content: str, image_url
                 json=tweet_payload
             )
 
+            if response.status_code == 402:
+                logger.error("❌ Twitter API credits depleted — upgrade plan or wait for reset")
+                raise Exception("Twitter API credits depleted. The Twitter Developer account needs more API credits (upgrade to Basic plan or wait for monthly reset).")
             if response.status_code not in [200, 201]:
                 error_text = response.text
                 logger.error(f"❌ Twitter publish failed: {error_text}")
