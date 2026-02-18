@@ -206,18 +206,28 @@ function BrandKitTab() {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({ url }),
       })
-      if (!res.ok) throw new Error('Analysis failed')
-      const { brand_kit } = await res.json()
-      if (brand_kit.business_name) setName(brand_kit.business_name)
-      if (brand_kit.industry) setIndustry(brand_kit.industry)
-      if (brand_kit.description) setDescription(brand_kit.description)
-      if (brand_kit.brand_voice) setVoice(brand_kit.brand_voice)
-      if (brand_kit.logo_url) setLogoUrl(brand_kit.logo_url)
-      if (brand_kit.brand_colors?.length) setColors(brand_kit.brand_colors)
-      if (brand_kit.products?.length) setProducts(brand_kit.products.join(', '))
-      if (brand_kit.key_features?.length) setFeatures(brand_kit.key_features.join(', '))
-    } catch { alert('Could not analyze website') }
-    finally { setAnalyzing(false) }
+      if (!res.ok) {
+        const errBody = await res.text()
+        console.error('Analyze URL failed:', res.status, errBody)
+        throw new Error(`Analysis failed: ${res.status}`)
+      }
+      const data = await res.json()
+      console.log('Analyze URL response:', data)
+      const bk = data.brand_kit
+      if (!bk) throw new Error('No brand_kit in response')
+      if (bk.business_name) setName(bk.business_name)
+      if (bk.industry) setIndustry(bk.industry)
+      if (bk.description) setDescription(bk.description)
+      if (bk.brand_voice) setVoice(bk.brand_voice)
+      if (bk.logo_url) setLogoUrl(bk.logo_url)
+      setColors(bk.brand_colors?.length ? bk.brand_colors : [])
+      if (bk.products?.length) setProducts(bk.products.join(', '))
+      if (bk.key_features?.length) setFeatures(bk.key_features.join(', '))
+      setWebsiteUrl(url)
+    } catch (err) {
+      console.error('Re-analyze error:', err)
+      alert('Could not analyze website. Check console for details.')
+    } finally { setAnalyzing(false) }
   }
 
   const handleSave = async () => {

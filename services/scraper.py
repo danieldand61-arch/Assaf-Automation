@@ -58,28 +58,34 @@ async def scrape_website(url: str) -> Dict:
             logger.warning(f"lxml failed, trying html5lib: {e2}")
             soup = BeautifulSoup(html, 'html5lib')
     
-    # Extract main information
+    # Extract non-destructive data FIRST (before _extract_main_content mutates soup)
     title = _extract_title(soup)
     description = _extract_description(soup)
+    colors = await _extract_colors(soup, url)
+    logo_url = _extract_logo(soup, url)
+    brand_voice = _analyze_brand_voice(soup)
+    products = _extract_products(soup)
+    key_features = _extract_key_features(soup)
+
+    # This call uses decompose() — must be last
     content = _extract_main_content(soup)
     
     logger.info(f"📄 Extracted - Title: '{title[:80]}'")
     logger.info(f"📄 Description: '{description[:100]}'")
+    logger.info(f"📄 Colors: {colors}")
     logger.info(f"📄 Content preview: '{content[:150]}...'")
     
-    data = {
+    return {
         "url": url,
         "title": title,
         "description": description,
         "content": content,
-        "colors": await _extract_colors(soup, url),
-        "logo_url": _extract_logo(soup, url),
-        "brand_voice": _analyze_brand_voice(soup),
-        "products": _extract_products(soup),
-        "key_features": _extract_key_features(soup)
+        "colors": colors,
+        "logo_url": logo_url,
+        "brand_voice": brand_voice,
+        "products": products,
+        "key_features": key_features
     }
-    
-    return data
 
 
 def _extract_title(soup: BeautifulSoup) -> str:

@@ -63,7 +63,7 @@ def _guess_industry(text: str) -> str:
         "Finance": ["finance", "banking", "invest", "loan", "credit", "insurance", "mortgage"],
         "Education": ["education", "learn", "course", "student", "university", "training", "school"],
         "Real Estate": ["real estate", "property", "apartment", "rent", "house", "mortgage"],
-        "Restaurant & Food": ["restaurant", "food", "menu", "coffee", "recipe", "delivery", "dining"],
+        "Restaurant & Food": ["restaurant", "food", "menu", "coffee", "recipe", "delivery", "dining", "café", "cafe", "starbucks", "drink", "beverage", "bakery"],
         "Technology": ["technology", "tech", "digital", "innovation", "ai", "machine learning"],
         "Marketing": ["marketing", "seo", "advertising", "campaign", "brand", "social media"],
         "Fitness": ["fitness", "gym", "workout", "exercise", "yoga", "training", "sport"],
