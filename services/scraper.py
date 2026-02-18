@@ -128,25 +128,75 @@ def _extract_main_content(soup: BeautifulSoup) -> str:
 
 
 async def _extract_colors(soup: BeautifulSoup, base_url: str) -> List[str]:
-    """Extracts website color palette"""
-    colors = []
-    
-    # Find CSS color variables
+    """Extracts website color palette from meta tags, CSS variables, inline styles, and external stylesheets."""
+    raw: List[str] = []
+
+    # 1. Meta theme-color / msapplication-TileColor (most reliable)
+    for attr in [{'name': 'theme-color'}, {'name': 'msapplication-TileColor'}, {'name': 'msapplication-navbutton-color'}]:
+        tag = soup.find('meta', attrs=attr)
+        if tag and tag.get('content'):
+            val = tag['content'].strip()
+            if re.match(r'^#(?:[0-9a-fA-F]{3}){1,2}$', val):
+                raw.append(val.lower())
+
+    # 2. Inline <style> blocks — CSS custom properties and color/background declarations
     for style_tag in soup.find_all('style'):
-        content = style_tag.string
-        if content:
-            color_matches = re.findall(r'#(?:[0-9a-fA-F]{3}){1,2}', content)
-            colors.extend(color_matches[:5])
-    
-    # Extract inline styles
+        css = style_tag.string or ''
+        raw.extend(re.findall(r'#(?:[0-9a-fA-F]{6})\b', css))
+        raw.extend(re.findall(r'#(?:[0-9a-fA-F]{3})\b', css))
+
+    # 3. Inline style attributes on elements
     for tag in soup.find_all(style=True):
-        style = tag['style']
-        color_matches = re.findall(r'#(?:[0-9a-fA-F]{3}){1,2}', style)
-        colors.extend(color_matches)
-    
-    # Remove duplicates and limit
-    unique_colors = list(dict.fromkeys(colors))
-    return unique_colors[:5] if unique_colors else ["#1877f2", "#000000"]
+        raw.extend(re.findall(r'#(?:[0-9a-fA-F]{6})\b', tag['style']))
+
+    # 4. Try fetching main external stylesheet for more colors
+    link = soup.find('link', rel='stylesheet')
+    if link and link.get('href'):
+        css_url = urljoin(base_url, link['href'])
+        try:
+            async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+                css_resp = await client.get(css_url)
+                if css_resp.status_code == 200:
+                    css_text = css_resp.text[:50000]
+                    raw.extend(re.findall(r'#(?:[0-9a-fA-F]{6})\b', css_text))
+        except Exception:
+            pass
+
+    # Normalize to lowercase 6-char hex
+    normalized = []
+    for c in raw:
+        c = c.lower()
+        if len(c) == 4:
+            c = f'#{c[1]*2}{c[2]*2}{c[3]*2}'
+        normalized.append(c)
+
+    # Filter out non-brand colors (pure white, near-white, pure black, grays)
+    skip = {'#ffffff', '#fff', '#000000', '#000', '#f5f5f5', '#fafafa', '#eeeeee',
+            '#e5e5e5', '#cccccc', '#999999', '#666666', '#333333', '#111111',
+            '#f0f0f0', '#e0e0e0', '#d0d0d0', '#c0c0c0', '#b0b0b0', '#a0a0a0',
+            '#808080', '#transparent', '#none', '#inherit'}
+    filtered = []
+    seen = set()
+    for c in normalized:
+        if c in skip or c in seen:
+            continue
+        # Also skip near-gray: R≈G≈B within 15
+        if len(c) == 7:
+            try:
+                r, g, b = int(c[1:3], 16), int(c[3:5], 16), int(c[5:7], 16)
+                if max(r, g, b) - min(r, g, b) < 20:
+                    continue
+            except ValueError:
+                continue
+        seen.add(c)
+        filtered.append(c)
+
+    # Count occurrences for ranking — more used = more likely brand color
+    from collections import Counter
+    counts = Counter(normalized)
+    filtered.sort(key=lambda c: counts.get(c, 0), reverse=True)
+
+    return filtered[:6] if filtered else []
 
 
 def _extract_logo(soup: BeautifulSoup, base_url: str) -> str:

@@ -11,6 +11,26 @@ interface Message {
   content: string
 }
 
+function renderMarkdown(text: string): string {
+  let html = text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  // headers
+  html = html.replace(/^### (.+)$/gm, '<strong style="font-size:14px">$1</strong>')
+  html = html.replace(/^## (.+)$/gm, '<strong style="font-size:15px">$1</strong>')
+  html = html.replace(/^# (.+)$/gm, '<strong style="font-size:16px">$1</strong>')
+  // bold & italic
+  html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
+  // inline code
+  html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.1);padding:1px 4px;border-radius:3px;font-size:12px">$1</code>')
+  // bullet lists
+  html = html.replace(/^[-•]\s+(.+)$/gm, '<span style="display:block;padding-left:12px">• $1</span>')
+  // numbered lists
+  html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<span style="display:block;padding-left:12px">$1. $2</span>')
+  return html
+}
+
 export function FloatingChat() {
   const [isOpen, setIsOpen] = useState(false)
   const [messages, setMessages] = useState<Message[]>([])
@@ -206,26 +226,25 @@ export function FloatingChat() {
                 Hi! How can I help you today?
               </div>
             )}
-            {messages.map((msg, i) => (
-              <div
-                key={i}
-                style={{
-                  alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '80%',
-                  padding: '10px 14px',
-                  borderRadius: 12,
-                  background: msg.role === 'user' ? userBubbleBg : assistantBubbleBg,
-                  color: msg.role === 'user' ? '#FFFFFF' : assistantTextColor,
-                  fontSize: 13,
-                  lineHeight: 1.6,
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word'
-                }}
-              >
-                {msg.content}
-              </div>
-            ))}
+            {messages.map((msg, i) => {
+              const bubbleStyle = {
+                alignSelf: msg.role === 'user' ? 'flex-end' as const : 'flex-start' as const,
+                maxWidth: '80%',
+                padding: '10px 14px',
+                borderRadius: 12,
+                background: msg.role === 'user' ? userBubbleBg : assistantBubbleBg,
+                color: msg.role === 'user' ? '#FFFFFF' : assistantTextColor,
+                fontSize: 13,
+                lineHeight: 1.6,
+                boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+                wordBreak: 'break-word' as const
+              }
+              return msg.role === 'assistant' ? (
+                <div key={i} style={bubbleStyle} dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+              ) : (
+                <div key={i} style={bubbleStyle}>{msg.content}</div>
+              )
+            })}
             {loading && (
               <div style={{ alignSelf: 'flex-start', padding: '10px 14px', borderRadius: 12, background: assistantBubbleBg }}>
                 <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: JoyoTheme.accent }} />
