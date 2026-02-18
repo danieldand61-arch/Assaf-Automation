@@ -14,31 +14,40 @@ logger = logging.getLogger(__name__)
 async def scrape_website(url: str) -> Dict:
     """Analyzes website and extracts brand information"""
     
-    # Headers to bypass bot detection
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'gzip, deflate, br',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate',
         'DNT': '1',
         'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1'
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
     }
     
-    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-        response = await client.get(url, headers=headers)
+    logger.info(f"🔍 Starting scrape of {url}")
+    
+    async with httpx.AsyncClient(timeout=45.0, follow_redirects=True) as client:
+        try:
+            response = await client.get(url, headers=headers)
+        except httpx.TimeoutException:
+            logger.error(f"⏱️ Timeout scraping {url}")
+            raise ValueError(f"Website took too long to respond (>45s)")
+        except httpx.ConnectError as e:
+            logger.error(f"🔌 Connection error scraping {url}: {e}")
+            raise ValueError(f"Could not connect to website: {e}")
         
-        # Check status first
+        logger.info(f"📡 Response: {response.status_code}, content-type: {response.headers.get('content-type', 'unknown')}")
+        
         if response.status_code != 200:
             raise ValueError(f"Failed to fetch website: HTTP {response.status_code}")
         
-        # Get content with proper encoding handling
-        # httpx automatically handles gzip/deflate/br decompression
         try:
             html = response.text
         except Exception as e:
             logger.error(f"Failed to decode response as text: {e}")
-            # Fallback: try to decode bytes manually
             html = response.content.decode('utf-8', errors='ignore')
     
     logger.info(f"🔍 Scraped {url} → Status: {response.status_code}, Size: {len(html)} bytes")

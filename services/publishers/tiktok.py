@@ -32,17 +32,21 @@ async def publish_to_tiktok(connection: Dict[str, Any], content: str, image_url:
         logger.info(f"🎵 Publishing to TikTok: {open_id}")
         logger.info(f"📹 Video URL: {image_url}")
         
-        # Check if this is actually video content
+        if not image_url:
+            raise Exception("TikTok requires a video URL to publish")
+        
         is_video = any([
             'video' in image_url.lower(),
             '.mp4' in image_url.lower(),
             '/video/' in image_url.lower(),
-            image_url.startswith('data:video')
+            image_url.startswith('data:video'),
+            '/download/' in image_url.lower(),
+            '/api/video/' in image_url.lower(),
         ])
         
         if not is_video:
             logger.warning("⚠️ TikTok publishing requires video content")
-            raise Exception("TikTok requires video content. Please use the Video Translation feature to create TikTok videos.")
+            raise Exception("TikTok requires video content. Please use Video Dubbing to create TikTok videos.")
         
         # Download video to memory
         async with httpx.AsyncClient(timeout=120.0) as client:

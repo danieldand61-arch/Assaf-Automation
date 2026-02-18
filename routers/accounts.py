@@ -29,27 +29,28 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
 
     try:
         from services.scraper import scrape_website
+        logger.info(f"🔍 analyze-url called for: {url}")
         data = await scrape_website(url)
+        logger.info(f"✅ Scrape done — title: {data.get('title', '')[:60]}, colors: {data.get('colors', [])}")
 
-        # Guess industry from content
         industry = _guess_industry(data.get("content", "") + " " + data.get("description", ""))
 
-        return {
-            "brand_kit": {
-                "business_name": data.get("title", "").split("|")[0].split("–")[0].split("-")[0].strip(),
-                "description": data.get("description", ""),
-                "industry": industry,
-                "brand_voice": data.get("brand_voice", "professional"),
-                "logo_url": data.get("logo_url", ""),
-                "brand_colors": data.get("colors", []),
-                "products": data.get("products", []),
-                "key_features": data.get("key_features", []),
-                "website_url": url,
-                "content_preview": data.get("content", "")[:500],
-            }
+        brand_kit = {
+            "business_name": data.get("title", "").split("|")[0].split("–")[0].split("-")[0].strip(),
+            "description": data.get("description", ""),
+            "industry": industry,
+            "brand_voice": data.get("brand_voice", "professional"),
+            "logo_url": data.get("logo_url", ""),
+            "brand_colors": data.get("colors", []),
+            "products": data.get("products", []),
+            "key_features": data.get("key_features", []),
+            "website_url": url,
+            "content_preview": data.get("content", "")[:500],
         }
+        logger.info(f"✅ Returning brand_kit: name={brand_kit['business_name']}, industry={brand_kit['industry']}, colors={brand_kit['brand_colors']}")
+        return {"brand_kit": brand_kit}
     except Exception as e:
-        logger.error(f"Failed to analyze URL {url}: {e}")
+        logger.error(f"❌ Failed to analyze URL {url}: {e}", exc_info=True)
         raise HTTPException(status_code=422, detail=f"Could not analyze website: {str(e)}")
 
 

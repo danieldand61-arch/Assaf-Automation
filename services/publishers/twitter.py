@@ -39,12 +39,22 @@ async def publish_to_twitter(connection: Dict[str, Any], content: str, image_url
             
             # Upload image if provided
             if image_url:
-                # Download image
-                img_response = await client.get(image_url)
-                if img_response.status_code == 200:
-                    image_data = img_response.content
-                    
-                    # Upload to Twitter
+                image_data = None
+                if image_url.startswith("data:"):
+                    # Handle base64 data URLs from AI image generation
+                    try:
+                        header, b64data = image_url.split(",", 1)
+                        image_data = base64.b64decode(b64data)
+                        logger.info(f"📷 Decoded base64 image: {len(image_data)} bytes")
+                    except Exception as e:
+                        logger.error(f"❌ Failed to decode base64 image: {e}")
+                elif image_url.startswith("http"):
+                    img_response = await client.get(image_url)
+                    if img_response.status_code == 200:
+                        image_data = img_response.content
+                        logger.info(f"📷 Downloaded image: {len(image_data)} bytes")
+                
+                if image_data:
                     media_response = await client.post(
                         "https://upload.twitter.com/1.1/media/upload.json",
                         headers={"Authorization": f"Bearer {access_token}"},
@@ -54,8 +64,13 @@ async def publish_to_twitter(connection: Dict[str, Any], content: str, image_url
                     if media_response.status_code == 200:
                         media_id = media_response.json().get("media_id_string")
                         logger.info(f"✅ Image uploaded: {media_id}")
+                    else:
+                        logger.warning(f"⚠️ Image upload failed: {media_response.status_code} - {media_response.text[:200]}")
             
-            # Create tweet
+            # Truncate to Twitter 280 char limit
+            if len(content) > 280:
+                content = content[:277] + "..."
+            
             tweet_data = {"text": content}
             
             if media_id:
