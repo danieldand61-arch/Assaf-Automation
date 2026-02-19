@@ -129,6 +129,8 @@ export function Connections() {
 
   // Meta Ads state
   const [metaAdsConnected, setMetaAdsConnected] = useState(false)
+  const [metaAdAccounts, setMetaAdAccounts] = useState<any[]>([])
+  const [metaSelectedAccount, setMetaSelectedAccount] = useState<string>('')
 
   useEffect(() => {
     // Check for OAuth callback messages
@@ -209,6 +211,15 @@ export function Connections() {
         const metaConn = (data.connections || []).find((c: Connection) => c.platform === 'meta_ads')
         setMetaAdsConnected(!!metaConn?.is_connected)
       }
+      // Fetch ad accounts list
+      const accRes = await fetch(`${apiUrl}/api/social/meta-ads/ad-accounts`, {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      })
+      if (accRes.ok) {
+        const accData = await accRes.json()
+        setMetaAdAccounts(accData.ad_accounts || [])
+        setMetaSelectedAccount(accData.selected || '')
+      }
     } catch (err) { console.error('Failed to check Meta Ads status:', err) }
   }
 
@@ -234,6 +245,8 @@ export function Connections() {
         method: 'DELETE', headers: { 'Authorization': `Bearer ${session?.access_token}` }
       })
       setMetaAdsConnected(false)
+      setMetaAdAccounts([])
+      setMetaSelectedAccount('')
       setSuccessMessage('Meta Ads disconnected successfully')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to disconnect Meta Ads')
@@ -619,6 +632,39 @@ export function Connections() {
                         )}
                       </div>
                     </div>
+                    {/* Meta Ads: Ad Account selector */}
+                    {isMeta && isConn && metaAdAccounts.length > 1 && (
+                      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center gap-3">
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Ad Account:</label>
+                          <select
+                            value={metaSelectedAccount}
+                            onChange={async (e) => {
+                              const newId = e.target.value
+                              setMetaSelectedAccount(newId)
+                              try {
+                                const apiUrl = getApiUrl()
+                                await fetch(`${apiUrl}/api/social/meta-ads/select-account`, {
+                                  method: 'POST',
+                                  headers: {
+                                    'Authorization': `Bearer ${session?.access_token}`,
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({ ad_account_id: newId }),
+                                })
+                              } catch (err) { console.error('Failed to switch ad account:', err) }
+                            }}
+                            className="flex-1 px-3 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-900 dark:text-white"
+                          >
+                            {metaAdAccounts.map((a: any) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name || a.id} {a.currency ? `(${a.currency})` : ''} {a.account_status === 1 ? '' : '⚠️ inactive'}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}

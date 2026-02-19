@@ -1057,8 +1057,24 @@ async def disconnect_platform(
             "account_id": active_account_id,
             "platform": platform
         }).execute()
-        
-        logger.info(f"✅ Disconnected {platform} from account {active_account_id}")
+
+        # Clean up cached analytics data
+        ads_platform = "meta" if platform == "meta_ads" else platform
+        for tbl in ("ad_campaigns", "ad_groups", "ad_device_stats", "ad_geo_stats", "ad_placement_stats"):
+            try:
+                supabase.table(tbl).delete().eq("account_id", active_account_id).eq("platform", ads_platform).execute()
+            except Exception:
+                pass
+        try:
+            supabase.table("ad_keywords").delete().eq("account_id", active_account_id).execute()
+        except Exception:
+            pass
+        try:
+            supabase.table("ad_sync_log").delete().eq("account_id", active_account_id).eq("platform", ads_platform).execute()
+        except Exception:
+            pass
+
+        logger.info(f"✅ Disconnected {platform} from account {active_account_id} (analytics cache cleared)")
         
         return {
             "success": True,
@@ -1163,6 +1179,70 @@ async def meta_ads_callback(
     except Exception as e:
         logger.error(f"❌ Meta Ads OAuth error: {e}", exc_info=True)
         return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error={str(e)[:100]}")
+
+
+@router.get("/meta-ads/ad-accounts")
+async def get_meta_ad_accounts(current_user: dict = Depends(get_current_user)):
+    """Return list of available Meta Ad Accounts for the connected user."""
+    supabase = get_supabase()
+    user_settings = supabase.table("user_settings").select("active_account_id").eq("user_id", current_user["user_id"]).single().execute()
+    account_id = user_settings.data["active_account_id"] if user_settings.data else None
+    if not account_id:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    conn = supabase.table("account_connections").select("metadata,platform_user_id").eq("account_id", account_id).eq("platform", "meta_ads").limit(1).execute()
+    if not conn.data:
+        return {"ad_accounts": [], "selected": None}
+
+    meta = conn.data[0].get("metadata") or {}
+    return {
+        "ad_accounts": meta.get("ad_accounts", []),
+        "selected": meta.get("ad_account_id", conn.data[0].get("platform_user_id")),
+    }
+
+
+@router.post("/meta-ads/select-account")
+async def select_meta_ad_account(
+    body: dict,
+    current_user: dict = Depends(get_current_user),
+):
+    """Switch to a different Meta Ad Account."""
+    ad_account_id = body.get("ad_account_id")
+    if not ad_account_id:
+        raise HTTPException(status_code=400, detail="ad_account_id required")
+
+    supabase = get_supabase()
+    user_settings = supabase.table("user_settings").select("active_account_id").eq("user_id", current_user["user_id"]).single().execute()
+    account_id = user_settings.data["active_account_id"] if user_settings.data else None
+    if not account_id:
+        raise HTTPException(status_code=400, detail="No active account")
+
+    conn = supabase.table("account_connections").select("*").eq("account_id", account_id).eq("platform", "meta_ads").limit(1).execute()
+    if not conn.data:
+        raise HTTPException(status_code=404, detail="No Meta Ads connection")
+
+    row = conn.data[0]
+    meta = row.get("metadata") or {}
+    all_accounts = meta.get("ad_accounts", [])
+    selected = next((a for a in all_accounts if a.get("id") == ad_account_id), None)
+    if not selected:
+        raise HTTPException(status_code=400, detail="Ad account not found in your accounts list")
+
+    meta["ad_account_id"] = ad_account_id
+    supabase.table("account_connections").update({
+        "platform_user_id": ad_account_id,
+        "platform_username": selected.get("name", ""),
+        "metadata": meta,
+    }).eq("id", row["id"]).execute()
+
+    # Clear sync cache to force re-sync with new account
+    try:
+        supabase.table("ad_sync_log").delete().eq("account_id", account_id).eq("platform", "meta").execute()
+    except Exception:
+        pass
+
+    logger.info(f"✅ Meta Ads: switched to ad_account={ad_account_id} ({selected.get('name', '')})")
+    return {"success": True, "ad_account_id": ad_account_id, "name": selected.get("name", "")}
 
 
 @router.get("/health")
