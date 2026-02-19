@@ -397,3 +397,45 @@ async def get_account_stats(account_id: str, user = Depends(get_current_user)):
     except Exception as e:
         logger.error(f"❌ Error fetching account stats: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/delete-user")
+async def delete_user_account(user=Depends(get_current_user)):
+    """Permanently delete user: accounts, connections, posts, credits, then auth user."""
+    user_id = user["user_id"]
+    logger.info(f"🗑️ Deleting user {user_id} ({user.get('email', '?')})")
+    supabase = get_supabase()
+
+    try:
+        # Get all owned accounts
+        accs = supabase.table("accounts").select("id").eq("user_id", user_id).execute()
+        acc_ids = [a["id"] for a in (accs.data or [])]
+
+        # Delete related data for each account
+        for aid in acc_ids:
+            supabase.table("account_connections").delete().eq("account_id", aid).execute()
+            supabase.table("scheduled_posts").delete().eq("account_id", aid).execute()
+            supabase.table("saved_posts").delete().eq("account_id", aid).execute()
+            supabase.table("team_members").delete().eq("account_id", aid).execute()
+
+        # Delete user-level data
+        supabase.table("credits_usage").delete().eq("user_id", user_id).execute()
+        supabase.table("user_credits").delete().eq("user_id", user_id).execute()
+        supabase.table("user_settings").delete().eq("user_id", user_id).execute()
+        supabase.table("accounts").delete().eq("user_id", user_id).execute()
+
+        # Delete auth user via admin API
+        try:
+            supabase.auth.admin.delete_user(user_id)
+            logger.info(f"✅ Auth user {user_id} deleted")
+        except Exception as e:
+            logger.error(f"⚠️ Could not delete auth user (data already cleaned): {e}")
+
+        logger.info(f"✅ User {user_id} fully deleted")
+        return {"success": True, "message": "Account deleted permanently"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error deleting user {user_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to delete account: {str(e)}")

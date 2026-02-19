@@ -405,7 +405,78 @@ function ProfileTab() {
             </div>
           </div>
         </div>
+
+        <DeleteAccountSection />
       </div>
+    </div>
+  )
+}
+
+function DeleteAccountSection() {
+  const { session, signOut } = useAuth()
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [confirmText, setConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDelete = async () => {
+    if (confirmText !== 'DELETE' || !session) return
+    setDeleting(true)
+    try {
+      const res = await fetch(`${getApiUrl()}/api/accounts/delete-user`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${session.access_token}` },
+      })
+      if (!res.ok) throw new Error('Failed to delete account')
+      await signOut()
+    } catch (err) {
+      console.error('Delete account error:', err)
+      alert('Failed to delete account. Please try again.')
+    } finally { setDeleting(false) }
+  }
+
+  return (
+    <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+      <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2">Danger Zone</h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        Once you delete your account, all your data will be permanently removed. This action cannot be undone.
+      </p>
+      {!showConfirm ? (
+        <button onClick={() => setShowConfirm(true)}
+          className="px-5 py-2.5 rounded-xl text-sm font-semibold text-red-600 border-2 border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+          Delete My Account
+        </button>
+      ) : (
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-5 space-y-4">
+          <p className="text-sm font-semibold text-red-700 dark:text-red-300">
+            Are you absolutely sure? This will permanently delete:
+          </p>
+          <ul className="text-sm text-red-600 dark:text-red-400 list-disc list-inside space-y-1">
+            <li>Your user account and profile</li>
+            <li>All business accounts you own</li>
+            <li>All generated content and saved posts</li>
+            <li>All social media connections</li>
+            <li>All credits and usage history</li>
+          </ul>
+          <div>
+            <label className="block text-xs font-semibold text-red-700 dark:text-red-300 mb-1">
+              Type DELETE to confirm
+            </label>
+            <input value={confirmText} onChange={e => setConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="w-full max-w-xs px-4 py-2 border-2 border-red-300 dark:border-red-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-lg text-sm outline-none focus:border-red-500" />
+          </div>
+          <div className="flex gap-3">
+            <button onClick={handleDelete} disabled={confirmText !== 'DELETE' || deleting}
+              className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
+              {deleting ? 'Deleting...' : 'Permanently Delete Account'}
+            </button>
+            <button onClick={() => { setShowConfirm(false); setConfirmText('') }}
+              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
