@@ -14,12 +14,18 @@ STALE_MINUTES = 30  # re-sync if older than this
 
 def _is_stale(account_id: str, platform: str) -> bool:
     """Check if cached data is older than STALE_MINUTES."""
-    sb = get_supabase()
-    row = sb.table("ad_sync_log").select("completed_at").eq("account_id", account_id).eq("platform", platform).maybe_single().execute()
-    if not row.data or not row.data.get("completed_at"):
+    try:
+        sb = get_supabase()
+        rows = sb.table("ad_sync_log").select("completed_at").eq("account_id", account_id).eq("platform", platform).limit(1).execute()
+        if not rows.data:
+            return True
+        completed = rows.data[0].get("completed_at")
+        if not completed:
+            return True
+        last = datetime.fromisoformat(completed.replace("Z", "+00:00"))
+        return (datetime.now(timezone.utc) - last).total_seconds() > STALE_MINUTES * 60
+    except Exception:
         return True
-    last = datetime.fromisoformat(row.data["completed_at"].replace("Z", "+00:00"))
-    return (datetime.now(timezone.utc) - last).total_seconds() > STALE_MINUTES * 60
 
 
 async def sync_google_ads(account_id: str, user_id: str, date_from: date, date_to: date) -> dict:
@@ -27,8 +33,12 @@ async def sync_google_ads(account_id: str, user_id: str, date_from: date, date_t
     sb = get_supabase()
 
     # Get Google Ads connection
-    conn = sb.table("google_ads_connections").select("*").eq("user_id", user_id).eq("status", "active").maybe_single().execute()
-    if not conn.data:
+    try:
+        rows = sb.table("google_ads_connections").select("*").eq("user_id", user_id).eq("status", "active").limit(1).execute()
+        conn_data = rows.data[0] if rows.data else None
+    except Exception:
+        conn_data = None
+    if not conn_data:
         return {"status": "no_connection", "message": "No Google Ads account connected"}
 
     if not _is_stale(account_id, "google_ads"):
@@ -43,7 +53,7 @@ async def sync_google_ads(account_id: str, user_id: str, date_from: date, date_t
 
     try:
         from services.google_ads_analytics import GoogleAdsAnalytics
-        ga = GoogleAdsAnalytics(conn.data["refresh_token"], conn.data["customer_id"])
+        ga = GoogleAdsAnalytics(conn_data["refresh_token"], conn_data["customer_id"])
 
         # Fetch all data
         campaigns = ga.get_campaigns_full(date_from, date_to)
@@ -117,13 +127,17 @@ async def sync_meta_ads(account_id: str, user_id: str, date_from: date, date_to:
     """Sync Meta Ads data for an account."""
     sb = get_supabase()
 
-    # Get Meta connection (Facebook with ads_read scope)
-    conn = sb.table("account_connections").select("*").eq("account_id", account_id).eq("platform", "facebook").eq("is_connected", True).maybe_single().execute()
-    if not conn.data:
-        return {"status": "no_connection", "message": "No Meta/Facebook account connected"}
+    # Get Meta Ads connection (saved as platform='meta_ads')
+    try:
+        rows = sb.table("account_connections").select("*").eq("account_id", account_id).eq("platform", "meta_ads").eq("is_connected", True).limit(1).execute()
+        conn_data = rows.data[0] if rows.data else None
+    except Exception:
+        conn_data = None
+    if not conn_data:
+        return {"status": "no_connection", "message": "No Meta Ads account connected"}
 
     # Meta needs an ad_account_id — stored in connection metadata or platform_user_id
-    ad_account_id = conn.data.get("metadata", {}).get("ad_account_id") if conn.data.get("metadata") else None
+    ad_account_id = conn_data.get("metadata", {}).get("ad_account_id") if conn_data.get("metadata") else None
     if not ad_account_id:
         return {"status": "no_ad_account", "message": "No Meta Ad Account ID configured. Connect your ad account in Integrations."}
 
@@ -138,7 +152,7 @@ async def sync_meta_ads(account_id: str, user_id: str, date_from: date, date_to:
 
     try:
         from services.meta_ads_analytics import MetaAdsAnalytics
-        meta = MetaAdsAnalytics(conn.data["access_token"], ad_account_id)
+        meta = MetaAdsAnalytics(conn_data["access_token"], ad_account_id)
 
         campaigns = await meta.get_campaigns(date_from, date_to)
         ad_sets = await meta.get_ad_sets(date_from, date_to)
