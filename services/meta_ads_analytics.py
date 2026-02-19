@@ -57,6 +57,7 @@ class MetaAdsAnalytics:
 
     # ── Campaigns ──────────────────────────────────────────────
     async def get_campaigns(self, date_from: date, date_to: date) -> List[Dict]:
+        logger.info(f"📡 Meta API: fetching campaigns for {self.ad_account_id}, date range {date_from} to {date_to}")
         params = {
             "fields": "id,name,status,objective,daily_budget,lifetime_budget,"
                       "insights.time_range(" + self._time_range(date_from, date_to) + ")"
@@ -65,6 +66,7 @@ class MetaAdsAnalytics:
             "limit": "500",
         }
         raw = await self._get_all(f"{self.ad_account_id}/campaigns", params)
+        logger.info(f"📡 Meta API raw response: {len(raw)} campaigns found. IDs: {[c.get('id','?') for c in raw[:5]]}")
         campaigns = []
         for c in raw:
             ins = (c.get("insights", {}).get("data") or [{}])[0] if "insights" in c else {}
@@ -98,7 +100,16 @@ class MetaAdsAnalytics:
                 "roas": roas,
                 "cost_per_conversion": cpa,
             })
-        logger.info(f"✅ Meta: fetched {len(campaigns)} campaigns")
+        # If no campaigns with insights, try without date filter to see if any exist
+        if not campaigns:
+            try:
+                check_params = {"fields": "id,name,status", "limit": "10"}
+                all_camps = await self._get_all(f"{self.ad_account_id}/campaigns", check_params)
+                logger.info(f"ℹ️ Meta: {len(all_camps)} total campaigns exist (without date filter): {[(c.get('name','?'), c.get('status','?')) for c in all_camps[:5]]}")
+            except Exception as e:
+                logger.warning(f"⚠️ Could not check all campaigns: {e}")
+
+        logger.info(f"✅ Meta: fetched {len(campaigns)} campaigns with data in date range")
         return campaigns
 
     # ── Ad Sets ────────────────────────────────────────────────

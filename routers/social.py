@@ -1133,10 +1133,13 @@ async def meta_ads_callback(
                 params={"access_token": access_token, "fields": "id,name,account_status,currency,business_name"}
             )
             ad_accounts = ad_accounts_resp.json().get("data", []) if ad_accounts_resp.status_code == 200 else []
-            logger.info(f"✅ Meta Ads: discovered {len(ad_accounts)} ad accounts")
+            logger.info(f"✅ Meta Ads: discovered {len(ad_accounts)} ad accounts:")
+            for aa in ad_accounts:
+                logger.info(f"   📊 {aa.get('id')} | {aa.get('name', 'N/A')} | status={aa.get('account_status')} | currency={aa.get('currency')} | business={aa.get('business_name', 'N/A')}")
 
             # Pick first active ad account (account_status == 1 is ACTIVE)
             active_aa = next((a for a in ad_accounts if a.get("account_status") == 1), ad_accounts[0] if ad_accounts else None)
+            logger.info(f"   ➡️ Selected: {active_aa['id'] if active_aa else 'NONE'} ({active_aa.get('name', '') if active_aa else ''})")
 
             supabase = get_supabase()
             supabase.table("account_connections").upsert({
