@@ -62,6 +62,12 @@ class MetaAdsAnalytics:
     def _time_range(self, date_from: date, date_to: date) -> str:
         return f"{{'since':'{date_from}','until':'{date_to}'}}"
 
+    def _extract_action(self, actions: list, action_types: list) -> float:
+        for a in (actions or []):
+            if a.get("action_type") in action_types:
+                return float(a.get("value", 0))
+        return 0
+
     # ── Campaigns ──────────────────────────────────────────────
     async def get_campaigns(self, date_from: date, date_to: date) -> List[Dict]:
         logger.info(f"📡 Meta API: fetching campaigns for {self.ad_account_id}, date range {date_from} to {date_to}")
@@ -69,7 +75,11 @@ class MetaAdsAnalytics:
             "fields": "id,name,status,objective,daily_budget,lifetime_budget,"
                       "insights.time_range(" + self._time_range(date_from, date_to) + ")"
                       "{impressions,clicks,ctr,spend,cpc,reach,frequency,"
-                      "conversions,cost_per_action_type,actions,purchase_roas}",
+                      "conversions,cost_per_action_type,actions,purchase_roas,"
+                      "action_values,"
+                      "website_ctr,"
+                      "social_spend,"
+                      "inline_link_clicks,inline_link_click_ctr}",
             "limit": "500",
         }
         raw = await self._get_all(f"{self.ad_account_id}/campaigns", params)
@@ -77,17 +87,25 @@ class MetaAdsAnalytics:
         campaigns = []
         for c in raw:
             ins = (c.get("insights", {}).get("data") or [{}])[0] if "insights" in c else {}
+            actions = ins.get("actions") or []
+            action_values = ins.get("action_values") or []
             conversions = 0
-            for act in (ins.get("actions") or []):
+            for act in actions:
                 if act.get("action_type") in ("offsite_conversion.fb_pixel_purchase", "lead", "complete_registration", "purchase"):
                     conversions += float(act.get("value", 0))
             roas_list = ins.get("purchase_roas") or []
             roas = float(roas_list[0].get("value", 0)) if roas_list else 0
+            purchase_value = self._extract_action(action_values, ["offsite_conversion.fb_pixel_purchase", "purchase"])
             cpa = 0
             for cpa_item in (ins.get("cost_per_action_type") or []):
                 if cpa_item.get("action_type") in ("offsite_conversion.fb_pixel_purchase", "lead"):
                     cpa = float(cpa_item.get("value", 0))
                     break
+
+            landing_page_views = self._extract_action(actions, ["landing_page_view"])
+            add_to_cart = self._extract_action(actions, ["offsite_conversion.fb_pixel_add_to_cart", "add_to_cart"])
+            initiate_checkout = self._extract_action(actions, ["offsite_conversion.fb_pixel_initiate_checkout", "initiate_checkout"])
+            purchases = self._extract_action(actions, ["offsite_conversion.fb_pixel_purchase", "purchase"])
 
             campaigns.append({
                 "platform_campaign_id": c["id"],
@@ -106,6 +124,12 @@ class MetaAdsAnalytics:
                 "conversions": conversions,
                 "roas": roas,
                 "cost_per_conversion": cpa,
+                "purchase_value": purchase_value,
+                "landing_page_views": int(landing_page_views),
+                "add_to_cart": int(add_to_cart),
+                "initiate_checkout": int(initiate_checkout),
+                "purchases": int(purchases),
+                "link_clicks": int(ins.get("inline_link_clicks", 0)),
             })
         # If no campaigns with insights, try without date filter to see if any exist
         if not campaigns:
@@ -149,6 +173,66 @@ class MetaAdsAnalytics:
             })
         logger.info(f"✅ Meta: fetched {len(ad_sets)} ad sets")
         return ad_sets
+
+    # ── Ad Creatives ──────────────────────────────────────────
+    async def get_ad_creatives(self, date_from: date, date_to: date) -> List[Dict]:
+        params = {
+            "fields": "id,name,status,campaign_id,adset_id,"
+                      "creative{id,title,body,call_to_action_type,object_type,thumbnail_url},"
+                      "insights.time_range(" + self._time_range(date_from, date_to) + ")"
+                      "{impressions,clicks,spend}",
+            "limit": "500",
+        }
+        raw = await self._get_all(f"{self.ad_account_id}/ads", params)
+        ads = []
+        for a in raw:
+            cr = a.get("creative", {})
+            ins = (a.get("insights", {}).get("data") or [{}])[0] if "insights" in a else {}
+            ads.append({
+                "ad_id": a["id"],
+                "ad_name": a.get("name", ""),
+                "status": a.get("status", ""),
+                "campaign_id": a.get("campaign_id", ""),
+                "adset_id": a.get("adset_id", ""),
+                "creative_id": cr.get("id", ""),
+                "format": cr.get("object_type", ""),
+                "headline": cr.get("title", ""),
+                "cta": cr.get("call_to_action_type", ""),
+                "body": cr.get("body", ""),
+                "impressions": int(ins.get("impressions", 0)),
+                "clicks": int(ins.get("clicks", 0)),
+                "spend": float(ins.get("spend", 0)),
+            })
+        logger.info(f"✅ Meta: fetched {len(ads)} ad creatives")
+        return ads
+
+    # ── Engagement & Video metrics ──────────────────────────────
+    async def get_engagement_stats(self, date_from: date, date_to: date) -> List[Dict]:
+        params = {
+            "fields": "campaign_id,impressions,actions,video_thruplay_watched_actions,"
+                      "video_p25_watched_actions,video_p50_watched_actions,"
+                      "video_p75_watched_actions,video_p100_watched_actions",
+            "time_range": f"{{'since':'{date_from}','until':'{date_to}'}}",
+            "level": "campaign",
+            "limit": "500",
+        }
+        raw = await self._get_all(f"{self.ad_account_id}/insights", params)
+        results = []
+        for r in raw:
+            actions = r.get("actions") or []
+            results.append({
+                "platform_campaign_id": r.get("campaign_id", ""),
+                "reactions": int(self._extract_action(actions, ["post_reaction"])),
+                "comments": int(self._extract_action(actions, ["comment"])),
+                "shares": int(self._extract_action(actions, ["post"])),
+                "video_thruplay": int((r.get("video_thruplay_watched_actions") or [{}])[0].get("value", 0)),
+                "video_p25": int((r.get("video_p25_watched_actions") or [{}])[0].get("value", 0)),
+                "video_p50": int((r.get("video_p50_watched_actions") or [{}])[0].get("value", 0)),
+                "video_p75": int((r.get("video_p75_watched_actions") or [{}])[0].get("value", 0)),
+                "video_p100": int((r.get("video_p100_watched_actions") or [{}])[0].get("value", 0)),
+            })
+        logger.info(f"✅ Meta: fetched {len(results)} engagement records")
+        return results
 
     # ── Placement Breakdown ────────────────────────────────────
     async def get_placement_stats(self, date_from: date, date_to: date) -> List[Dict]:

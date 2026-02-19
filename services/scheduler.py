@@ -258,9 +258,47 @@ def start_scheduler():
         name="Check and publish scheduled posts",
         replace_existing=True
     )
-    
+
+    # Daily ad analytics sync (every 6 hours)
+    scheduler.add_job(
+        _daily_ad_sync,
+        trigger=IntervalTrigger(hours=6),
+        id="ad_sync",
+        name="Sync ad analytics data",
+        replace_existing=True
+    )
+
     scheduler.start()
     logger.info("✅ Scheduler started successfully")
+
+
+async def _daily_ad_sync():
+    """Sync ad analytics for all active accounts."""
+    try:
+        from services.ad_sync import sync_google_ads, sync_meta_ads
+        from datetime import timedelta
+
+        sb = get_supabase()
+        rows = sb.table("user_settings").select("user_id,active_account_id").execute()
+        if not rows.data:
+            return
+
+        today = datetime.now(timezone.utc).date()
+        date_from = today - timedelta(days=30)
+
+        for row in rows.data:
+            uid = row.get("user_id")
+            aid = row.get("active_account_id")
+            if not uid or not aid:
+                continue
+            try:
+                await sync_google_ads(aid, uid, date_from, today)
+                await sync_meta_ads(aid, uid, date_from, today)
+            except Exception as e:
+                logger.error(f"❌ Scheduled ad sync error for {aid}: {e}")
+        logger.info(f"✅ Scheduled ad sync complete for {len(rows.data)} accounts")
+    except Exception as e:
+        logger.error(f"❌ Daily ad sync job error: {e}")
 
 def stop_scheduler():
     """

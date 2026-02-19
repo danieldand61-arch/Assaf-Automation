@@ -1,6 +1,7 @@
 """
 Ad Analytics Sync — fetches data from Google Ads & Meta, normalizes, caches to Supabase
 """
+import asyncio
 import logging
 from datetime import date, timedelta, datetime, timezone
 from typing import Optional
@@ -10,6 +11,19 @@ from database.supabase_client import get_supabase
 logger = logging.getLogger(__name__)
 
 STALE_MINUTES = 30
+MAX_RETRIES = 3
+RETRY_DELAY = 2
+
+
+async def _with_retry(coro_fn, *args, retries=MAX_RETRIES):
+    for attempt in range(1, retries + 1):
+        try:
+            return await coro_fn(*args)
+        except Exception as e:
+            if attempt == retries:
+                raise
+            logger.warning(f"⚠️ Retry {attempt}/{retries} after error: {e}")
+            await asyncio.sleep(RETRY_DELAY * attempt)
 
 
 def _is_stale(account_id: str, platform: str) -> bool:
@@ -136,11 +150,11 @@ async def sync_meta_ads(account_id: str, user_id: str, date_from: date, date_to:
         meta = MetaAdsAnalytics(conn_data["access_token"], ad_account_id)
 
         logger.info("📡 Fetching Meta campaigns...")
-        campaigns = await meta.get_campaigns(date_from, date_to)
+        campaigns = await _with_retry(meta.get_campaigns, date_from, date_to)
         logger.info(f"📡 Fetching Meta ad sets... (got {len(campaigns)} campaigns)")
-        ad_sets = await meta.get_ad_sets(date_from, date_to)
+        ad_sets = await _with_retry(meta.get_ad_sets, date_from, date_to)
         logger.info(f"📡 Fetching Meta placements... (got {len(ad_sets)} ad sets)")
-        placements = await meta.get_placement_stats(date_from, date_to)
+        placements = await _with_retry(meta.get_placement_stats, date_from, date_to)
         logger.info(f"📡 Got {len(placements)} placement records")
 
         sb.table("ad_campaigns").delete().eq("account_id", account_id).eq("platform", "meta").execute()

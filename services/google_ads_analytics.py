@@ -55,6 +55,7 @@ class GoogleAdsAnalytics:
                 metrics.cost_micros, metrics.average_cpc,
                 metrics.conversions, metrics.conversions_from_interactions_rate,
                 metrics.cost_per_conversion,
+                metrics.conversions_value,
                 metrics.search_impression_share,
                 metrics.search_budget_lost_impression_share,
                 metrics.search_rank_lost_impression_share
@@ -63,24 +64,54 @@ class GoogleAdsAnalytics:
               AND {self._date_clause(date_from, date_to)}
         """
         rows = self._query(q)
+        results = []
+        for r in rows:
+            spend = r.metrics.cost_micros / 1e6 if r.metrics.cost_micros else 0
+            conv_value = r.metrics.conversions_value or 0
+            results.append({
+                "platform_campaign_id": str(r.campaign.id),
+                "campaign_name": r.campaign.name,
+                "status": r.campaign.status.name,
+                "campaign_type": r.campaign.advertising_channel_type.name,
+                "daily_budget": (r.campaign_budget.amount_micros / 1e6) if r.campaign_budget.amount_micros else 0,
+                "impressions": r.metrics.impressions,
+                "clicks": r.metrics.clicks,
+                "ctr": round(r.metrics.ctr * 100, 2),
+                "spend": round(spend, 4),
+                "avg_cpc": round(r.metrics.average_cpc / 1e6, 4) if r.metrics.average_cpc else 0,
+                "conversions": round(r.metrics.conversions, 2),
+                "conversion_rate": round(r.metrics.conversions_from_interactions_rate * 100, 2),
+                "cost_per_conversion": round(r.metrics.cost_per_conversion / 1e6, 4) if r.metrics.cost_per_conversion else 0,
+                "roas": round(conv_value / spend, 2) if spend > 0 else 0,
+                "conversions_value": round(conv_value, 2),
+                "search_impression_share": round((r.metrics.search_impression_share or 0) * 100, 2),
+                "lost_impression_share_budget": round((r.metrics.search_budget_lost_impression_share or 0) * 100, 2),
+                "lost_impression_share_rank": round((r.metrics.search_rank_lost_impression_share or 0) * 100, 2),
+            })
+        return results
+
+    # ── Conversion Actions ──────────────────────────────────────
+    def get_conversion_actions(self, date_from: date, date_to: date) -> List[Dict]:
+        q = f"""
+            SELECT
+                campaign.id,
+                segments.conversion_action_name,
+                segments.conversion_action_category,
+                metrics.conversions, metrics.conversions_value,
+                metrics.cost_per_conversion
+            FROM campaign
+            WHERE campaign.status != 'REMOVED'
+              AND {self._date_clause(date_from, date_to)}
+              AND metrics.conversions > 0
+        """
         return [{
             "platform_campaign_id": str(r.campaign.id),
-            "campaign_name": r.campaign.name,
-            "status": r.campaign.status.name,
-            "campaign_type": r.campaign.advertising_channel_type.name,
-            "daily_budget": (r.campaign_budget.amount_micros / 1e6) if r.campaign_budget.amount_micros else 0,
-            "impressions": r.metrics.impressions,
-            "clicks": r.metrics.clicks,
-            "ctr": round(r.metrics.ctr * 100, 2),
-            "spend": round(r.metrics.cost_micros / 1e6, 4),
-            "avg_cpc": round(r.metrics.average_cpc / 1e6, 4) if r.metrics.average_cpc else 0,
+            "action_name": r.segments.conversion_action_name,
+            "category": r.segments.conversion_action_category.name,
             "conversions": round(r.metrics.conversions, 2),
-            "conversion_rate": round(r.metrics.conversions_from_interactions_rate * 100, 2),
+            "value": round(r.metrics.conversions_value or 0, 2),
             "cost_per_conversion": round(r.metrics.cost_per_conversion / 1e6, 4) if r.metrics.cost_per_conversion else 0,
-            "search_impression_share": round((r.metrics.search_impression_share or 0) * 100, 2),
-            "lost_impression_share_budget": round((r.metrics.search_budget_lost_impression_share or 0) * 100, 2),
-            "lost_impression_share_rank": round((r.metrics.search_rank_lost_impression_share or 0) * 100, 2),
-        } for r in rows]
+        } for r in self._query(q)]
 
     # ── Ad Groups ──────────────────────────────────────────────
     def get_ad_groups_full(self, date_from: date, date_to: date) -> List[Dict]:
