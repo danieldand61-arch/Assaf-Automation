@@ -26,6 +26,7 @@ def _get_active_account_id(user_id: str) -> str:
 @router.post("/sync")
 async def sync_all(
     days: int = Query(30, ge=1, le=365),
+    force: bool = Query(False),
     user=Depends(get_current_user),
 ):
     """Trigger sync for both Google Ads and Meta. Called on page open."""
@@ -33,6 +34,12 @@ async def sync_all(
     account_id = _get_active_account_id(user_id)
     date_to = date.today()
     date_from = date_to - timedelta(days=days)
+
+    # Force sync: clear sync log so stale check passes
+    if force:
+        sb = get_supabase()
+        sb.table("ad_sync_log").delete().eq("account_id", account_id).execute()
+        logger.info(f"🔄 Force sync: cleared sync log for {account_id}")
 
     from services.ad_sync import sync_google_ads, sync_meta_ads
     import asyncio

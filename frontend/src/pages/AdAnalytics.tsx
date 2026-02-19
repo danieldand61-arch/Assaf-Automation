@@ -34,7 +34,7 @@ export default function AdAnalytics() {
   const doSync = async () => {
     setSyncing(true)
     try {
-      await fetch(`${api}/api/analytics/sync?days=30`, { method: 'POST', headers })
+      await fetch(`${api}/api/analytics/sync?days=30&force=true`, { method: 'POST', headers })
       await loadData()
     } catch (e) { console.error('Sync error:', e) }
     finally { setSyncing(false) }
