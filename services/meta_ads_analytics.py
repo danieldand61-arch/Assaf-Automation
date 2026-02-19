@@ -34,8 +34,15 @@ class MetaAdsAnalytics:
         async with httpx.AsyncClient(timeout=30) as c:
             resp = await c.get(url, params=self._params(params))
             if resp.status_code != 200:
-                logger.error(f"Meta API error {resp.status_code}: {resp.text[:300]}")
-                raise Exception(f"Meta API error: {resp.status_code}")
+                body = resp.text[:500]
+                logger.error(f"Meta API error {resp.status_code}: {body}")
+                err_msg = "Unknown error"
+                try:
+                    err_data = resp.json()
+                    err_msg = err_data.get("error", {}).get("message", body)
+                except Exception:
+                    err_msg = body
+                raise Exception(f"Meta API {resp.status_code}: {err_msg}")
             return resp.json()
 
     async def _get_all(self, path: str, params: dict = None) -> List[dict]:

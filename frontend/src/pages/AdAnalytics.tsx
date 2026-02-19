@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { RefreshCw, DollarSign, MousePointerClick, Eye, Target, Loader2 } from 'lucide-react'
+import { RefreshCw, DollarSign, MousePointerClick, Eye, Target, Loader2, AlertTriangle } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
@@ -27,9 +27,36 @@ export default function AdAnalytics() {
   const [syncing, setSyncing] = useState(false)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'overview' | 'campaigns' | 'keywords'>('overview')
+  const [metaAdAccounts, setMetaAdAccounts] = useState<any[]>([])
+  const [metaSelected, setMetaSelected] = useState('')
+  const [switchingAccount, setSwitchingAccount] = useState(false)
 
   const api = getApiUrl()
   const headers = { 'Authorization': `Bearer ${session?.access_token}` }
+
+  const loadMetaAccounts = async () => {
+    try {
+      const res = await fetch(`${api}/api/social/meta-ads/ad-accounts`, { headers })
+      if (res.ok) {
+        const d = await res.json()
+        setMetaAdAccounts(d.ad_accounts || [])
+        setMetaSelected(d.selected || '')
+      }
+    } catch { /* ignore */ }
+  }
+
+  const switchMetaAccount = async (id: string) => {
+    setSwitchingAccount(true)
+    setMetaSelected(id)
+    try {
+      await fetch(`${api}/api/social/meta-ads/select-account`, {
+        method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ad_account_id: id }),
+      })
+      await doSync()
+    } catch (e) { console.error('Switch error:', e) }
+    finally { setSwitchingAccount(false) }
+  }
 
   const doSync = async () => {
     setSyncing(true)
@@ -53,7 +80,7 @@ export default function AdAnalytics() {
   }
 
   useEffect(() => {
-    if (session) { doSync() }
+    if (session) { doSync(); loadMetaAccounts() }
   }, [session])
 
   const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toFixed(0)
@@ -89,11 +116,49 @@ export default function AdAnalytics() {
       {/* Sync status */}
       {overview?.sync_status?.map((s, i) => (
         <div key={i} className="mb-2 text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-2 mr-2"
-          style={{ background: s.status === 'completed' ? `${t.success}15` : `${t.warning}15`, color: s.status === 'completed' ? t.success : t.warning }}>
+          style={{ background: s.status === 'completed' ? `${t.success}15` : s.status === 'error' ? `${t.danger}15` : `${t.warning}15`, color: s.status === 'completed' ? t.success : s.status === 'error' ? t.danger : t.warning }}>
           <span className="font-semibold">{s.platform === 'google_ads' ? 'Google Ads' : 'Meta'}</span>
-          {s.status === 'completed' ? `${s.campaigns_synced} campaigns synced` : (s.error_message || s.status)}
+          {s.status === 'completed' ? `${s.campaigns_synced} campaigns synced` : s.status === 'error' ? `Error: ${s.error_message?.slice(0, 80) || 'Unknown'}` : (s.error_message || s.status)}
         </div>
       ))}
+
+      {/* Error: permission denied — suggest switching account */}
+      {overview?.sync_status?.some(s => s.status === 'error' && s.error_message?.includes('403')) && metaAdAccounts.length > 1 && (
+        <div className="mt-3 p-4 rounded-xl flex items-start gap-3" style={{ background: `${t.warning}12`, border: `1px solid ${t.warning}30` }}>
+          <AlertTriangle size={18} style={{ color: t.warning, flexShrink: 0, marginTop: 2 }} />
+          <div className="flex-1">
+            <p className="text-sm font-semibold mb-2" style={{ color: t.text }}>Permission error — try switching Ad Account:</p>
+            <div className="flex items-center gap-2">
+              <select value={metaSelected} onChange={e => switchMetaAccount(e.target.value)} disabled={switchingAccount}
+                className="px-3 py-1.5 rounded-lg text-sm" style={{ background: t.card, border: `1px solid ${t.border}`, color: t.text }}>
+                {metaAdAccounts.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.name || a.id} {a.currency ? `(${a.currency})` : ''}</option>
+                ))}
+              </select>
+              {switchingAccount && <Loader2 size={14} className="animate-spin" style={{ color: t.accent }} />}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No data at all — suggest switching or connecting */}
+      {!loading && campaigns.length === 0 && overview?.sync_status?.every(s => s.status === 'completed') && metaAdAccounts.length > 1 && (
+        <div className="mt-3 p-4 rounded-xl flex items-start gap-3" style={{ background: `${t.accent}08`, border: `1px solid ${t.accent}20` }}>
+          <Eye size={18} style={{ color: t.accent, flexShrink: 0, marginTop: 2 }} />
+          <div className="flex-1">
+            <p className="text-sm font-semibold mb-2" style={{ color: t.text }}>No campaigns found in this Ad Account. Try another one:</p>
+            <div className="flex items-center gap-2">
+              <select value={metaSelected} onChange={e => switchMetaAccount(e.target.value)} disabled={switchingAccount}
+                className="px-3 py-1.5 rounded-lg text-sm" style={{ background: t.card, border: `1px solid ${t.border}`, color: t.text }}>
+                {metaAdAccounts.map((a: any) => (
+                  <option key={a.id} value={a.id}>{a.name || a.id} {a.currency ? `(${a.currency})` : ''}</option>
+                ))}
+              </select>
+              {switchingAccount && <Loader2 size={14} className="animate-spin" style={{ color: t.accent }} />}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-1 mt-4 mb-6 p-1 rounded-xl" style={{ background: t.border }}>
