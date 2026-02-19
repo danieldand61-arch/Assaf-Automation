@@ -245,7 +245,7 @@ async def instagram_callback(
         
         # Redirect back to frontend settings page with success
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&success=instagram"
+            url=f"{FRONTEND_URL}/?success=instagram"
         )
         
     except Exception as e:
@@ -425,7 +425,7 @@ async def facebook_callback(
         
         # Redirect back to frontend settings page with success
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&success=facebook"
+            url=f"{FRONTEND_URL}/?success=facebook"
         )
         
     except Exception as e:
@@ -607,7 +607,7 @@ async def linkedin_callback(
             logger.info(f"✅ LinkedIn connection saved successfully")
             
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&success=linkedin"
+            url=f"{FRONTEND_URL}/?success=linkedin"
         )
         
     except Exception as e:
@@ -807,7 +807,7 @@ async def twitter_callback(
             logger.info(f"✅ Twitter connection saved successfully")
             
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&success=twitter"
+            url=f"{FRONTEND_URL}/?success=twitter"
         )
         
     except Exception as e:
@@ -986,7 +986,7 @@ async def tiktok_callback(
             logger.info(f"✅ TikTok connection saved successfully")
             
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&success=tiktok"
+            url=f"{FRONTEND_URL}/?success=tiktok"
         )
         
     except Exception as e:
@@ -1155,7 +1155,7 @@ async def meta_ads_callback(
             }, on_conflict="account_id,platform").execute()
 
             logger.info(f"✅ Meta Ads connected for account {account_id}, ad_account={active_aa['id'] if active_aa else 'none'}")
-            return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&success=meta_ads")
+            return RedirectResponse(url=f"{FRONTEND_URL}/?success=meta_ads")
 
     except Exception as e:
         logger.error(f"❌ Meta Ads OAuth error: {e}", exc_info=True)
