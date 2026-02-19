@@ -1070,6 +1070,98 @@ async def disconnect_platform(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/meta-ads/connect")
+async def meta_ads_connect(current_user: dict = Depends(get_current_user)):
+    """Start Meta Marketing API OAuth (ads_read scope)."""
+    if not FACEBOOK_APP_ID:
+        raise HTTPException(status_code=500, detail="Facebook API not configured")
+
+    supabase = get_supabase()
+    user_settings = supabase.table("user_settings").select("active_account_id").eq("user_id", current_user["user_id"]).single().execute()
+    active_account_id = user_settings.data["active_account_id"] if user_settings.data else None
+    if not active_account_id:
+        raise HTTPException(status_code=400, detail="No active business account")
+
+    redirect_uri = f"{BACKEND_URL}/api/social/meta-ads/callback"
+    scope = "ads_read,ads_management,business_management,public_profile"
+    auth_url = (
+        f"{FACEBOOK_OAUTH_URL}"
+        f"?client_id={FACEBOOK_APP_ID}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={scope}"
+        f"&response_type=code"
+        f"&state={active_account_id}"
+    )
+    logger.info(f"🔗 Meta Ads OAuth: Generated authorization URL for account {active_account_id}")
+    return {"auth_url": auth_url}
+
+
+@router.get("/meta-ads/callback")
+async def meta_ads_callback(
+    code: Optional[str] = Query(None),
+    state: Optional[str] = Query(None),
+    error: Optional[str] = Query(None),
+    error_description: Optional[str] = Query(None),
+):
+    """Handle Meta Ads OAuth callback — save token & discover ad accounts."""
+    if error:
+        logger.error(f"❌ Meta Ads OAuth error: {error} - {error_description}")
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error={error_description or error}")
+
+    if not code or not state:
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error=Missing authorization code")
+
+    account_id = state
+    redirect_uri = f"{BACKEND_URL}/api/social/meta-ads/callback"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            token_url = f"{FACEBOOK_TOKEN_URL}?client_id={FACEBOOK_APP_ID}&redirect_uri={redirect_uri}&client_secret={FACEBOOK_APP_SECRET}&code={code}"
+            resp = await client.get(token_url)
+            if resp.status_code != 200:
+                logger.error(f"❌ Meta Ads token exchange failed: {resp.text}")
+                return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error=Token exchange failed")
+
+            token_data = resp.json()
+            access_token = token_data.get("access_token")
+            if not access_token:
+                return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error=No access token")
+
+            # Discover ad accounts
+            ad_accounts_resp = await client.get(
+                f"{FACEBOOK_GRAPH_URL}/me/adaccounts",
+                params={"access_token": access_token, "fields": "id,name,account_status,currency,business_name"}
+            )
+            ad_accounts = ad_accounts_resp.json().get("data", []) if ad_accounts_resp.status_code == 200 else []
+            logger.info(f"✅ Meta Ads: discovered {len(ad_accounts)} ad accounts")
+
+            # Pick first active ad account (account_status == 1 is ACTIVE)
+            active_aa = next((a for a in ad_accounts if a.get("account_status") == 1), ad_accounts[0] if ad_accounts else None)
+
+            supabase = get_supabase()
+            supabase.table("account_connections").upsert({
+                "account_id": account_id,
+                "platform": "meta_ads",
+                "access_token": access_token,
+                "platform_user_id": active_aa["id"] if active_aa else "",
+                "platform_username": active_aa.get("name", "") if active_aa else "",
+                "is_connected": True,
+                "last_connected_at": datetime.utcnow().isoformat(),
+                "metadata": {
+                    "ad_account_id": active_aa["id"] if active_aa else "",
+                    "ad_accounts": ad_accounts[:10],
+                    "currency": active_aa.get("currency", "USD") if active_aa else "USD",
+                },
+            }, on_conflict="account_id,platform").execute()
+
+            logger.info(f"✅ Meta Ads connected for account {account_id}, ad_account={active_aa['id'] if active_aa else 'none'}")
+            return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&success=meta_ads")
+
+    except Exception as e:
+        logger.error(f"❌ Meta Ads OAuth error: {e}", exc_info=True)
+        return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error={str(e)[:100]}")
+
+
 @router.get("/health")
 async def health():
     """Health check endpoint"""

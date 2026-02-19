@@ -13,6 +13,7 @@ import Dashboard from '../pages/Dashboard'
 import { Library } from '../pages/Library'
 import { Scheduled } from '../pages/Scheduled'
 import { Settings } from '../pages/Settings'
+import AdAnalytics from '../pages/AdAnalytics'
 import { Connections } from '../pages/Connections'
 import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
@@ -202,7 +203,7 @@ export function MainWorkspace() {
           )}
 
           {activeTab === 'ads' && <GoogleAdsGeneration />}
-          {activeTab === 'chat' && <PlaceholderPage title="AI Advisor & Analyst" description="Your marketing AI assistant — ask questions, get insights, and receive data-driven recommendations." />}
+          {activeTab === 'chat' && <AdAnalytics />}
           {activeTab === 'media' && <PlaceholderPage title="Media Studio" description="Create, edit, and manage your visual content — templates, batch resize, background removal, and more." />}
           {activeTab === 'video' && <VideoTranslation />}
           {activeTab === 'videogen' && <VideoGeneration />}

@@ -19,7 +19,7 @@ const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: bo
   { id: 'dashboard',    labelKey: 'navDashboard',       icon: LayoutDashboard },
   { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone },
   { id: 'social',       labelKey: 'navPostGenerator',   icon: Send },
-  { id: 'chat',         labelKey: 'navAIAdvisor',       icon: MessageSquare, disabled: true, badgeKey: 'comingSoon' },
+  { id: 'chat',         labelKey: 'navAIAdvisor',       icon: MessageSquare },
   { id: 'media',        labelKey: 'navMediaStudio',     icon: Image, disabled: true, badgeKey: 'comingSoon' },
   { id: 'videogen',     labelKey: 'navVideoStudio',     icon: Film, disabled: true, badgeKey: 'comingSoon' },
   { id: 'library',      labelKey: 'navContentLibrary',  icon: FileText },

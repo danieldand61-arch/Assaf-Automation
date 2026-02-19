@@ -93,6 +93,18 @@ const ADVERTISING_PLATFORMS: Platform[] = [
     ),
     enabled: true,
     isAds: true
+  },
+  {
+    id: 'meta_ads',
+    name: 'Meta Ads (Facebook & Instagram)',
+    description: 'Track campaign performance across Facebook and Instagram ads',
+    icon: (
+      <svg className="w-10 h-10 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+      </svg>
+    ),
+    enabled: true,
+    isAds: true
   }
 ]
 
@@ -114,6 +126,9 @@ export function Connections() {
   const [googleAdsRefreshToken, setGoogleAdsRefreshToken] = useState('')
   const [googleAdsCustomerIdInput, setGoogleAdsCustomerIdInput] = useState('')
   const [isConnectingGoogleAds, setIsConnectingGoogleAds] = useState(false)
+
+  // Meta Ads state
+  const [metaAdsConnected, setMetaAdsConnected] = useState(false)
 
   useEffect(() => {
     // Check for OAuth callback messages
@@ -158,6 +173,7 @@ export function Connections() {
     if (session) {
       fetchConnections()
       fetchGoogleAdsStatus()
+      fetchMetaAdsStatus()
     }
   }, [user, activeAccount, session?.access_token, navigate])
 
@@ -179,6 +195,48 @@ export function Connections() {
       }
     } catch (err) {
       console.error('Failed to check Google Ads status:', err)
+    }
+  }
+
+  const fetchMetaAdsStatus = async () => {
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/social/connections`, {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      })
+      if (response.ok) {
+        const data = await response.json()
+        const metaConn = (data.connections || []).find((c: Connection) => c.platform === 'meta_ads')
+        setMetaAdsConnected(!!metaConn?.is_connected)
+      }
+    } catch (err) { console.error('Failed to check Meta Ads status:', err) }
+  }
+
+  const startMetaAdsOAuth = async () => {
+    try {
+      const apiUrl = getApiUrl()
+      const response = await fetch(`${apiUrl}/api/social/meta-ads/connect`, {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      })
+      if (!response.ok) throw new Error('Failed to start Meta Ads OAuth')
+      const data = await response.json()
+      window.location.href = data.auth_url
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start Meta Ads OAuth')
+    }
+  }
+
+  const handleDisconnectMetaAds = async () => {
+    if (!confirm('Are you sure you want to disconnect Meta Ads?')) return
+    try {
+      const apiUrl = getApiUrl()
+      await fetch(`${apiUrl}/api/social/connections/meta_ads`, {
+        method: 'DELETE', headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      })
+      setMetaAdsConnected(false)
+      setSuccessMessage('Meta Ads disconnected successfully')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to disconnect Meta Ads')
     }
   }
 
@@ -509,75 +567,61 @@ export function Connections() {
           <div>
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Advertising Platforms</h2>
             <div className="space-y-4">
-              {ADVERTISING_PLATFORMS.map((platform) => (
-                <div
-                  key={platform.id}
-                  className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 transition-all hover:shadow-md"
-                >
-                  <div className="flex items-center justify-between">
-                    {/* Left: Icon + Info */}
-                    <div className="flex items-start gap-4 flex-1">
-                      <div className="flex-shrink-0">
-                        {platform.icon}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                          {platform.name}
-                        </h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          {platform.description}
-                        </p>
-                        <a 
-                          href="https://developers.google.com/google-ads/api/docs/oauth/overview" 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-sm text-blue-600 dark:text-blue-400 hover:underline inline-flex items-center gap-1"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                          </svg>
-                          How to get credentials
-                        </a>
-                      </div>
-                    </div>
+              {ADVERTISING_PLATFORMS.map((platform) => {
+                const isGoogle = platform.id === 'google_ads'
+                const isMeta = platform.id === 'meta_ads'
+                const isConn = isGoogle ? googleAdsConnected : isMeta ? metaAdsConnected : false
 
-                    {/* Right: Status + Actions */}
-                    <div className="flex items-center gap-4 ml-4">
-                      {googleAdsConnected ? (
-                        <>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-gray-900 dark:text-white">
-                              {googleAdsCustomerId}
-                            </p>
-                          </div>
-                          <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm font-medium">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                            </svg>
-                            Connected
-                          </span>
+                return (
+                  <div key={platform.id}
+                    className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 transition-all hover:shadow-md">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-start gap-4 flex-1">
+                        <div className="flex-shrink-0">{platform.icon}</div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{platform.name}</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400">{platform.description}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 ml-4">
+                        {isConn ? (
+                          <>
+                            {isGoogle && googleAdsCustomerId && (
+                              <p className="text-sm font-medium text-gray-900 dark:text-white">{googleAdsCustomerId}</p>
+                            )}
+                            <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm font-medium">
+                              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                              </svg>
+                              Connected
+                            </span>
+                            <button
+                              onClick={isGoogle ? handleDisconnectGoogleAds : handleDisconnectMetaAds}
+                              className="px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg font-semibold transition-all">
+                              Disconnect
+                            </button>
+                          </>
+                        ) : (
                           <button
-                            onClick={handleDisconnectGoogleAds}
-                            className="px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg font-semibold transition-all"
-                          >
-                            Disconnect
+                            onClick={isGoogle ? startGoogleAdsOAuth : startMetaAdsOAuth}
+                            className="px-6 py-2.5 rounded-lg font-semibold transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md flex items-center gap-2">
+                            {isGoogle ? (
+                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                              </svg>
+                            )}
+                            {isGoogle ? 'Sign in with Google' : 'Connect Meta Ads'}
                           </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={startGoogleAdsOAuth}
-                          className="px-6 py-2.5 rounded-lg font-semibold transition-all bg-blue-600 hover:bg-blue-700 text-white shadow-sm hover:shadow-md flex items-center gap-2"
-                        >
-                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z"/>
-                          </svg>
-                          Sign in with Google
-                        </button>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </>

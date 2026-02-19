@@ -237,6 +237,14 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Chat features will NOT be available!")
 
+try:
+    from routers import analytics
+    app.include_router(analytics.router)
+    logger.info("✅ Analytics router registered")
+except Exception as e:
+    logger.error(f"❌ Analytics router failed to load: {str(e)}")
+    logger.warning("⚠️ Ad analytics features will NOT be available!")
+
 logger.info("ℹ️ All routers loaded successfully!")
 
 # Log all requests middleware (after CORS)
