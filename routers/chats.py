@@ -52,20 +52,25 @@ async def create_chat(
     try:
         supabase = get_supabase()
         
-        # Get active account
-        user_settings = supabase.table("user_settings")\
-            .select("active_account_id")\
-            .eq("user_id", current_user["user_id"])\
-            .single()\
-            .execute()
-        
-        active_account_id = user_settings.data.get("active_account_id") if user_settings.data else None
+        # Get active account (safe — no .single() to avoid 406 on missing row)
+        active_account_id = None
+        try:
+            user_settings = supabase.table("user_settings")\
+                .select("active_account_id")\
+                .eq("user_id", current_user["user_id"])\
+                .limit(1)\
+                .execute()
+            if user_settings.data:
+                active_account_id = user_settings.data[0].get("active_account_id")
+        except Exception:
+            pass
         
         # Create new chat
         result = supabase.table("chats").insert({
             "user_id": current_user["user_id"],
             "account_id": active_account_id,
-            "title": request.title
+            "title": request.title,
+            "last_message_at": datetime.now().isoformat(),
         }).execute()
         
         chat = result.data[0]
@@ -190,17 +195,20 @@ async def send_message(
         
         # Verify chat belongs to user
         logger.info(f"🔍 Verifying chat ownership for user {current_user['user_id']}")
-        chat = supabase.table("chats")\
+        chat_rows = supabase.table("chats")\
             .select("*")\
             .eq("id", chat_id)\
             .eq("user_id", current_user["user_id"])\
-            .single()\
+            .limit(1)\
             .execute()
         
-        if not chat.data:
+        if not chat_rows.data:
             logger.error(f"❌ Chat {chat_id} not found for user {current_user['user_id']}")
             raise HTTPException(status_code=404, detail="Chat not found")
         
+        class _ChatWrap:
+            data = chat_rows.data[0]
+        chat = _ChatWrap()
         logger.info(f"✅ Chat verified: {chat.data['title']}")
         
         # Save user message
@@ -262,8 +270,7 @@ async def send_message(
             genai.configure(api_key=api_key)
             logger.info(f"🔑 Gemini configured")
             
-            # Use Gemini 2.5 Flash
-            model_name = 'gemini-3-flash-preview'
+            model_name = 'gemini-2.0-flash'
             logger.info(f"🤖 Using model: {model_name}")
             
             # Get current date
@@ -455,7 +462,7 @@ IMPORTANT:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     total_tokens=total_tokens,  # Pass Gemini's total directly
-                    model_name="gemini-3-flash-preview",
+                    model_name=model_name,
                     metadata={
                         "chat_id": chat_id,
                         "message_length": len(request.content),

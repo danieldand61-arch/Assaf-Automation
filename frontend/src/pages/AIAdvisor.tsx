@@ -42,24 +42,39 @@ export default function AIAdvisor() {
     try {
       let cid = chatId
       if (!cid) {
-        const res = await fetch(`${api}/api/chats/create`, {
+        const createRes = await fetch(`${api}/api/chats/create`, {
           method: 'POST', headers,
           body: JSON.stringify({ title: text.slice(0, 50) }),
         })
-        const data = await res.json()
-        cid = data.chat?.id || data.chat_id || data.id
+        if (!createRes.ok) {
+          const err = await createRes.text()
+          console.error('Chat create failed:', createRes.status, err)
+          throw new Error(`Create chat failed: ${createRes.status}`)
+        }
+        const createData = await createRes.json()
+        cid = createData.chat?.id || createData.chat_id || createData.id
+        if (!cid) {
+          console.error('No chat ID returned:', createData)
+          throw new Error('No chat ID returned')
+        }
         setChatId(cid)
       }
 
-      const res = await fetch(`${api}/api/chats/${cid}/message`, {
+      const msgRes = await fetch(`${api}/api/chats/${cid}/message`, {
         method: 'POST', headers,
         body: JSON.stringify({ content: text.trim() }),
       })
-      const data = await res.json()
-      const reply = data.assistant_message?.content || data.response || data.message || 'Sorry, I could not generate a response.'
+      if (!msgRes.ok) {
+        const err = await msgRes.text()
+        console.error('Chat message failed:', msgRes.status, err)
+        throw new Error(`Message failed: ${msgRes.status}`)
+      }
+      const msgData = await msgRes.json()
+      const reply = msgData.assistant_message?.content || msgData.response || msgData.message || 'No response received.'
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
-    } catch {
-      setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error. Please try again.' }])
+    } catch (e: any) {
+      console.error('AI Advisor error:', e)
+      setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${e.message || 'Connection failed. Please try again.'}` }])
     } finally {
       setLoading(false)
     }
