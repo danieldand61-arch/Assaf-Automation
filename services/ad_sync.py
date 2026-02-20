@@ -14,6 +14,19 @@ STALE_MINUTES = 30
 MAX_RETRIES = 3
 RETRY_DELAY = 2
 
+# Known columns in ad_campaigns — extra fields from API are stored in 'extra_data' jsonb
+_CAMPAIGN_COLS = {
+    "platform_campaign_id", "campaign_name", "status", "objective",
+    "daily_budget", "lifetime_budget", "impressions", "clicks", "ctr",
+    "spend", "avg_cpc", "reach", "frequency", "conversions", "roas",
+    "cost_per_conversion", "purchase_value", "account_id", "platform",
+    "date_from", "date_to",
+}
+
+def _filter_campaign(row: dict) -> dict:
+    """Keep only known DB columns, drop the rest."""
+    return {k: v for k, v in row.items() if k in _CAMPAIGN_COLS}
+
 
 async def _with_retry(coro_fn, *args, retries=MAX_RETRIES):
     for attempt in range(1, retries + 1):
@@ -87,7 +100,7 @@ async def sync_google_ads(account_id: str, user_id: str, date_from: date, date_t
         sb.table("ad_geo_stats").delete().eq("account_id", account_id).eq("platform", "google_ads").execute()
 
         for c in campaigns:
-            sb.table("ad_campaigns").insert({**c, "account_id": account_id, "platform": "google_ads", "date_from": str(date_from), "date_to": str(date_to)}).execute()
+            sb.table("ad_campaigns").insert(_filter_campaign({**c, "account_id": account_id, "platform": "google_ads", "date_from": str(date_from), "date_to": str(date_to)})).execute()
         for ag in ad_groups:
             sb.table("ad_groups").insert({**ag, "account_id": account_id, "platform": "google_ads", "date_from": str(date_from), "date_to": str(date_to)}).execute()
         for kw in keywords:
@@ -153,7 +166,7 @@ async def sync_meta_ads(account_id: str, user_id: str, date_from: date, date_to:
         sb.table("ad_placement_stats").delete().eq("account_id", account_id).execute()
 
         for c in campaigns:
-            sb.table("ad_campaigns").insert({**c, "account_id": account_id, "platform": "meta", "date_from": str(date_from), "date_to": str(date_to)}).execute()
+            sb.table("ad_campaigns").insert(_filter_campaign({**c, "account_id": account_id, "platform": "meta", "date_from": str(date_from), "date_to": str(date_to)})).execute()
         for a in ad_sets:
             sb.table("ad_groups").insert({**a, "account_id": account_id, "platform": "meta", "date_from": str(date_from), "date_to": str(date_to)}).execute()
         for p in placements:
