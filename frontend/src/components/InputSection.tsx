@@ -289,17 +289,17 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
         {/* ── 3. Post text ─────────────────────────────────────── */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            {mediaPreview ? 'Post Text' : "What's on your mind?"}
+            {mediaPreview ? 'What is the post about?' : "What's on your mind?"}
           </label>
           <textarea
             value={form.keywords}
             onChange={e => set('keywords', e.target.value)}
-            placeholder={mediaPreview ? 'Write your caption or describe the post...' : "Tell us what you'd like to post about..."}
+            placeholder={mediaPreview ? 'Describe the topic or idea — AI will write the caption' : "Tell us what you'd like to post about..."}
             rows={3}
             className={`${fieldCls} resize-none`}
           />
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-            {mediaPreview ? 'AI will generate a caption based on this text' : 'Keyword, description, promotion, anything...'}
+            {mediaPreview ? 'Just give the topic — AI writes the full caption for you' : 'Keyword, description, promotion, anything...'}
           </p>
         </div>
 
