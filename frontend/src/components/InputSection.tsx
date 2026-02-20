@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Sparkles, Globe, Upload, X, Image as ImageIcon, Check, AlertCircle, Film } from 'lucide-react'
+import { Sparkles, Globe, Upload, X, Check, AlertCircle, Film } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 
 /* ── Platform SVG icons ────────────────────────────────────────── */
@@ -54,9 +54,10 @@ const PLATFORMS = [
 ] as const
 
 const IMAGE_SIZES = [
-  { value: '1080x1080', label: '1:1 Square (1080×1080)' },
+  { value: '1080x1080', label: '1:1 Post (1080×1080)' },
   { value: '1080x1350', label: '4:5 Portrait (1080×1350)' },
-  { value: '1080x1920', label: '9:16 Story / Reel (1080×1920)' },
+  { value: '1080x1920', label: '9:16 Reel (1080×1920)' },
+  { value: '1080x1920_story', label: '9:16 Story (1080×1920)' },
   { value: '1200x628',  label: '16:9 Landscape (1200×628)' },
 ]
 
@@ -125,7 +126,6 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(form.uploaded_image || null)
   const [mediaPreview, setMediaPreview] = useState<string | null>(form.media_file || null)
   const [mediaIsVideo, setMediaIsVideo] = useState(false)
-  const [dragOver, setDragOver] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const mediaRef = useRef<HTMLInputElement>(null)
 
@@ -300,84 +300,77 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
           </p>
         </div>
 
-        {/* ── 4. Add Image (AI reference) ──────────────────── */}
+        {/* ── 4. Media ─────────────────────────────────────── */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Add Image <span className="text-xs font-normal text-gray-400">(optional)</span>
+          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            Media <span className="text-xs font-normal text-gray-400">(optional)</span>
           </label>
 
-          {imagePreview ? (
-            <div className="relative inline-block">
-              <img src={imagePreview} alt="upload" className="w-32 h-32 object-cover rounded-xl border dark:border-gray-600" />
-              <button type="button" onClick={removeImage}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition">
-                <X size={14} />
-              </button>
-            </div>
-          ) : (
-            <div
-              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleFile(f) }}
-              onClick={() => fileRef.current?.click()}
-              className={`flex flex-col items-center gap-2 py-6 border-2 border-dashed rounded-xl cursor-pointer transition ${
-                dragOver ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-              }`}>
-              <Upload size={24} className="text-gray-400" />
-              <span className="text-sm text-gray-500 dark:text-gray-400">Click or drag an image here</span>
-              <span className="text-xs text-gray-400 dark:text-gray-500">JPG, PNG, WebP · Max 10 MB</span>
-            </div>
-          )}
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
-          {!imagePreview && (
-            <p className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 mt-1">
-              <ImageIcon size={12} /> Or let AI generate one for you
-            </p>
-          )}
-        </div>
+          <div className="grid grid-cols-2 gap-3">
+            {/* Option A: AI generates image */}
+            <div className="rounded-xl border dark:border-gray-600 p-3 space-y-2" style={{ background: imagePreview ? '#4A7CFF08' : undefined, borderColor: imagePreview ? '#4A7CFF' : undefined }}>
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles size={14} className="text-purple-500" />
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">AI Generated Image</span>
+              </div>
+              <p className="text-[11px] text-gray-400 leading-tight">Upload a reference — AI will generate a new image inspired by it</p>
 
-        {/* ── 5. Use my own media (photo/video as-is) ─────── */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            Use My Own Media <span className="text-xs font-normal text-gray-400">(optional — skip AI image, use your photo/video)</span>
-          </label>
-
-          {mediaPreview ? (
-            <div className="relative inline-block">
-              {mediaIsVideo ? (
-                <video src={mediaPreview} className="w-40 h-32 object-cover rounded-xl border dark:border-gray-600" muted />
+              {imagePreview ? (
+                <div className="relative inline-block">
+                  <img src={imagePreview} alt="ref" className="w-24 h-24 object-cover rounded-lg border dark:border-gray-600" />
+                  <button type="button" onClick={removeImage}
+                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]">
+                    <X size={12} />
+                  </button>
+                </div>
               ) : (
-                <img src={mediaPreview} alt="media" className="w-32 h-32 object-cover rounded-xl border dark:border-gray-600" />
+                <div onClick={() => fileRef.current?.click()}
+                  className="flex flex-col items-center gap-1 py-4 border border-dashed rounded-lg cursor-pointer transition border-gray-300 dark:border-gray-600 hover:border-gray-400">
+                  <Upload size={18} className="text-gray-400" />
+                  <span className="text-[11px] text-gray-400">Upload reference</span>
+                </div>
               )}
-              <button type="button" onClick={removeMedia}
-                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition">
-                <X size={14} />
-              </button>
-              <span className="absolute bottom-1 left-1 text-[10px] font-bold text-white bg-black/50 px-1.5 py-0.5 rounded">
-                {mediaIsVideo ? 'VIDEO' : 'IMAGE'}
-              </span>
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f) }} />
             </div>
-          ) : (
-            <div
-              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleMediaFile(f) }}
-              onClick={() => mediaRef.current?.click()}
-              className={`flex flex-col items-center gap-2 py-6 border-2 border-dashed rounded-xl cursor-pointer transition ${
-                dragOver ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-              }`}>
-              <Film size={24} className="text-gray-400" />
-              <span className="text-sm text-gray-500 dark:text-gray-400">Upload your photo or video</span>
-              <span className="text-xs text-gray-400">JPG, PNG, GIF, MP4, MOV, WebM · Max 50 MB</span>
+
+            {/* Option B: Use own media as-is */}
+            <div className="rounded-xl border dark:border-gray-600 p-3 space-y-2" style={{ background: mediaPreview ? '#10B98108' : undefined, borderColor: mediaPreview ? '#10B981' : undefined }}>
+              <div className="flex items-center gap-2 mb-1">
+                <Film size={14} className="text-green-500" />
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-300">Use My Media</span>
+              </div>
+              <p className="text-[11px] text-gray-400 leading-tight">Upload your photo/video — it goes directly into the post, AI writes only the caption</p>
+
+              {mediaPreview ? (
+                <div className="relative inline-block">
+                  {mediaIsVideo ? (
+                    <video src={mediaPreview} className="w-24 h-24 object-cover rounded-lg border dark:border-gray-600" muted />
+                  ) : (
+                    <img src={mediaPreview} alt="media" className="w-24 h-24 object-cover rounded-lg border dark:border-gray-600" />
+                  )}
+                  <button type="button" onClick={removeMedia}
+                    className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-[10px]">
+                    <X size={12} />
+                  </button>
+                  <span className="absolute bottom-0.5 left-0.5 text-[9px] font-bold text-white bg-black/60 px-1 py-0.5 rounded">
+                    {mediaIsVideo ? 'VIDEO' : 'IMAGE'}
+                  </span>
+                </div>
+              ) : (
+                <div onClick={() => mediaRef.current?.click()}
+                  className="flex flex-col items-center gap-1 py-4 border border-dashed rounded-lg cursor-pointer transition border-gray-300 dark:border-gray-600 hover:border-gray-400">
+                  <Upload size={18} className="text-gray-400" />
+                  <span className="text-[11px] text-gray-400">Upload photo/video</span>
+                </div>
+              )}
+              <input ref={mediaRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm" className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; if (f) handleMediaFile(f) }} />
             </div>
-          )}
-          <input ref={mediaRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm" className="hidden"
-            onChange={e => { const f = e.target.files?.[0]; if (f) handleMediaFile(f) }} />
-          {!mediaPreview && (
-            <p className="flex items-center gap-1 text-xs text-gray-400 mt-1">
-              <Film size={12} /> Your media will be used as-is — AI generates only the caption
-            </p>
+          </div>
+
+          {!imagePreview && !mediaPreview && (
+            <p className="text-[11px] text-gray-400 mt-2 text-center">No media? AI will generate an image automatically</p>
           )}
         </div>
 
