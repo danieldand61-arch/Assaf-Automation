@@ -62,7 +62,7 @@ export default function AIAdvisor() {
 
       const msgRes = await fetch(`${api}/api/chats/${cid}/message`, {
         method: 'POST', headers,
-        body: JSON.stringify({ content: text.trim() }),
+        body: JSON.stringify({ content: text.trim(), mode: 'advisor' }),
       })
       if (!msgRes.ok) {
         const err = await msgRes.text()

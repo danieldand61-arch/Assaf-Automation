@@ -21,6 +21,7 @@ class SendMessageRequest(BaseModel):
     content: str
     action_type: Optional[str] = None  # 'post_generation', 'video_dubbing', etc.
     action_data: Optional[dict] = None
+    mode: Optional[str] = None  # 'advisor' = no function calling, just answer from context
 
 
 class ChatMessage(BaseModel):
@@ -354,8 +355,31 @@ CONTEXT RULES:
             except Exception as e:
                 logger.warning(f"Could not load company context: {e}")
             
-            # Enhanced system instruction with tools
-            system_instruction = f"""You are Joyo Marketing AI assistant. Today's date is {current_date}.
+            is_advisor = request.mode == 'advisor'
+            
+            if is_advisor:
+                system_instruction = f"""You are Joyo AI Advisor — an expert marketing strategist and campaign analyst. Today is {current_date}.
+
+{company_context}
+
+YOUR ROLE:
+- Analyze the user's real campaign data provided above
+- Give specific, data-driven, actionable recommendations
+- Reference campaign names, exact numbers, and trends
+- Suggest budget reallocation, audience changes, creative improvements
+- Compare campaigns against each other
+- Flag underperforming campaigns and explain why
+- Celebrate wins with specific metrics
+
+NEVER output JSON actions. ALWAYS respond with plain text analysis and advice.
+
+LANGUAGE RULES:
+- ALWAYS respond in the SAME LANGUAGE the user writes in
+- Russian → Russian, English → English, Hebrew → Hebrew
+
+FORMAT: Use headers, bullet points, and bold for readability. Keep answers concise but insightful."""
+            else:
+                system_instruction = f"""You are Joyo Marketing AI assistant. Today's date is {current_date}.
 
 {company_context}
 
@@ -477,114 +501,94 @@ IMPORTANT:
             import re
             import json
             
-            logger.info("🔍 Searching for JSON action in response...")
-            
-            # Look for JSON action pattern (improved regex for nested objects)
-            json_match = None
-            
-            # Try to find JSON in code block first
-            code_block_match = re.search(r'```json\s*(\{.+?\})\s*```', ai_content, re.DOTALL)
-            if code_block_match:
-                json_match = code_block_match
-                logger.info("📋 Found JSON in code block")
-                logger.info(f"   Match: {code_block_match.group(1)[:200]}")
-            
-            # Try to find inline JSON with "action" key
-            if not json_match:
-                # Look for {"action": ... } pattern - match balanced braces
-                inline_match = re.search(r'\{[^{}]*"action"[^{}]*"params"[^{}]*\{[^{}]*\}[^{}]*\}', ai_content, re.DOTALL)
-                if inline_match:
-                    json_match = inline_match
-                    logger.info("📋 Found inline JSON")
-                    logger.info(f"   Match: {inline_match.group(0)[:200]}")
-            
-            if json_match:
-                try:
-                    # Extract JSON string
-                    if code_block_match:
-                        json_str = json_match.group(1)
-                    else:
-                        json_str = json_match.group(0)
-                    
-                    logger.info(f"📄 Extracted JSON: {json_str[:200]}")
-                    
-                    action_json = json.loads(json_str)
-                    action_type = action_json.get('action')
-                    action_params = action_json.get('params', {})
-                    
-                    logger.info(f"🎯 Detected action: {action_type}")
-                    logger.info(f"   Parameters: {action_params}")
-                    
-                    # Map action to function
-                    action_map = {
-                        'generate_google_ads': 'generate_google_ads_content',
-                        'get_campaigns': 'get_google_ads_campaigns',
-                        'generate_social_posts': 'generate_social_media_posts'
-                    }
-                    
-                    function_name = action_map.get(action_type)
-                    if function_name:
-                        logger.info(f"🚀 Executing function: {function_name}")
+            if not is_advisor:
+                logger.info("🔍 Searching for JSON action in response...")
+                
+                json_match = None
+                code_block_match = re.search(r'```json\s*(\{.+?\})\s*```', ai_content, re.DOTALL)
+                if code_block_match:
+                    json_match = code_block_match
+                    logger.info("📋 Found JSON in code block")
+                
+                if not json_match:
+                    inline_match = re.search(r'\{[^{}]*"action"[^{}]*"params"[^{}]*\{[^{}]*\}[^{}]*\}', ai_content, re.DOTALL)
+                    if inline_match:
+                        json_match = inline_match
+                        logger.info("📋 Found inline JSON")
+                
+                if json_match:
+                    try:
+                        json_str = json_match.group(1) if code_block_match else json_match.group(0)
+                        logger.info(f"📄 Extracted JSON: {json_str[:200]}")
                         
-                        # Execute function
-                        result = None
-                        if function_name == 'generate_google_ads_content':
-                            result = await executor._generate_google_ads_content(action_params)
-                        elif function_name == 'get_google_ads_campaigns':
-                            result = await executor._get_google_ads_campaigns(action_params)
-                        elif function_name == 'generate_social_media_posts':
-                            result = await executor._generate_social_media_posts(action_params)
+                        action_json = json.loads(json_str)
+                        action_type = action_json.get('action')
+                        action_params = action_json.get('params', {})
                         
-                        if result:
-                            logger.info(f"✅ Action executed: success={result.get('success')}")
-                            logger.info(f"   Result keys: {list(result.keys())}")
+                        logger.info(f"🎯 Detected action: {action_type}")
+                        
+                        action_map = {
+                            'generate_google_ads': 'generate_google_ads_content',
+                            'get_campaigns': 'get_google_ads_campaigns',
+                            'generate_social_posts': 'generate_social_media_posts'
+                        }
+                        
+                        function_name = action_map.get(action_type)
+                        if function_name:
+                            logger.info(f"🚀 Executing function: {function_name}")
                             
-                            # Save action to history with correct role and action_type
-                            tool_message = None
-                            try:
-                                # Map function names to frontend action_type
-                                action_type_map = {
-                                    'generate_google_ads_content': 'google_ads',
-                                    'generate_social_media_posts': 'post_generation',
-                                    'get_google_ads_campaigns': 'campaigns_data'
-                                }
-                                frontend_action_type = action_type_map.get(function_name, function_name)
-                                
-                                action_msg = supabase.table("chat_messages").insert({
-                                    "chat_id": chat_id,
-                                    "role": "tool",  # Changed from "function" to "tool"
-                                    "content": f"Executed: {function_name}",
-                                    "action_type": frontend_action_type,  # Use frontend-compatible action_type
-                                    "action_data": {"status": "expanded", "generatedContent": result}
-                                }).execute()
-                                logger.info(f"💾 Saved action to database with action_type={frontend_action_type}")
-                                
-                                # Store tool message to return to frontend
-                                if action_msg.data:
-                                    tool_message = action_msg.data[0] if isinstance(action_msg.data, list) else action_msg.data
-                                    logger.info(f"✅ Tool message created: {tool_message.get('id')}")
-                            except Exception as db_err:
-                                logger.error(f"Failed to save action to DB: {db_err}")
+                            result = None
+                            if function_name == 'generate_google_ads_content':
+                                result = await executor._generate_google_ads_content(action_params)
+                            elif function_name == 'get_google_ads_campaigns':
+                                result = await executor._get_google_ads_campaigns(action_params)
+                            elif function_name == 'generate_social_media_posts':
+                                result = await executor._generate_social_media_posts(action_params)
                             
-                            # Replace JSON in response with result summary
-                            if result.get('success') and result.get('headlines'):
-                                result_text = f"\n\n✅ Сгенерировано:\n- {len(result['headlines'])} заголовков\n- {len(result.get('descriptions', []))} описаний\n\nРезультаты сохранены в истории чата."
-                                # Remove JSON block from response
-                                ai_content = re.sub(r'```json.+?```', result_text, ai_content, flags=re.DOTALL)
-                                ai_content = re.sub(r'\{[^{}]*"action"[^{}]*"params"[^{}]*\{[^{}]*\}[^{}]*\}', result_text, ai_content)
+                            if result:
+                                logger.info(f"✅ Action executed: success={result.get('success')}")
+                                
+                                tool_message = None
+                                try:
+                                    action_type_map = {
+                                        'generate_google_ads_content': 'google_ads',
+                                        'generate_social_media_posts': 'post_generation',
+                                        'get_google_ads_campaigns': 'campaigns_data'
+                                    }
+                                    frontend_action_type = action_type_map.get(function_name, function_name)
+                                    
+                                    action_msg = supabase.table("chat_messages").insert({
+                                        "chat_id": chat_id,
+                                        "role": "tool",
+                                        "content": f"Executed: {function_name}",
+                                        "action_type": frontend_action_type,
+                                        "action_data": {"status": "expanded", "generatedContent": result}
+                                    }).execute()
+                                    logger.info(f"💾 Saved action to database with action_type={frontend_action_type}")
+                                    
+                                    if action_msg.data:
+                                        tool_message = action_msg.data[0] if isinstance(action_msg.data, list) else action_msg.data
+                                except Exception as db_err:
+                                    logger.error(f"Failed to save action to DB: {db_err}")
+                                
+                                if result.get('success') and result.get('headlines'):
+                                    result_text = f"\n\n✅ Сгенерировано:\n- {len(result['headlines'])} заголовков\n- {len(result.get('descriptions', []))} описаний\n\nРезультаты сохранены в истории чата."
+                                    ai_content = re.sub(r'```json.+?```', result_text, ai_content, flags=re.DOTALL)
+                                    ai_content = re.sub(r'\{[^{}]*"action"[^{}]*"params"[^{}]*\{[^{}]*\}[^{}]*\}', result_text, ai_content)
+                            else:
+                                logger.warning(f"⚠️ Function returned None")
                         else:
-                            logger.warning(f"⚠️ Function returned None")
-                    else:
-                        logger.warning(f"⚠️ Unknown action type: {action_type}")
-                        
-                except json.JSONDecodeError as e:
-                    logger.warning(f"⚠️ Failed to parse action JSON: {e}")
-                    logger.warning(f"   JSON string was: {json_str if 'json_str' in locals() else 'N/A'}")
-                except Exception as e:
-                    logger.error(f"❌ Error executing action: {e}")
-                    logger.exception("Full error:")
+                            logger.warning(f"⚠️ Unknown action type: {action_type}")
+                            
+                    except json.JSONDecodeError as e:
+                        logger.warning(f"⚠️ Failed to parse action JSON: {e}")
+                    except Exception as e:
+                        logger.error(f"❌ Error executing action: {e}")
+                        logger.exception("Full error:")
+                else:
+                    logger.info("ℹ️ No JSON action detected in response")
             else:
-                logger.info("ℹ️ No JSON action detected in response")
+                logger.info("ℹ️ Advisor mode — action detection skipped")
             
         except Exception as e:
             logger.error(f"⚠️ Gemini API error: {str(e)}")
