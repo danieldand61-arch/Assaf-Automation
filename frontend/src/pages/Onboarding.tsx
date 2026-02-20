@@ -84,7 +84,19 @@ export function Onboarding() {
     )
   }
 
-  const nextStep = () => { if (currentStep < TOTAL_STEPS) setCurrentStep(currentStep + 1) }
+  const validateStep = (step: number): string | null => {
+    if (step === 1 && !companyName.trim()) return 'Company name is required'
+    if (step === 2 && !products.trim()) return 'Please describe your products or services'
+    if (step === 3 && marketingGoals.length === 0) return 'Select at least one marketing goal'
+    return null
+  }
+
+  const nextStep = () => {
+    const err = validateStep(currentStep)
+    if (err) { setError(err); return }
+    setError('')
+    if (currentStep < TOTAL_STEPS) setCurrentStep(currentStep + 1)
+  }
   const prevStep = () => { if (currentStep > 1) setCurrentStep(currentStep - 1) }
 
   const toggleGoal = (id: string) => setMarketingGoals(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id])
@@ -144,10 +156,7 @@ export function Onboarding() {
     } finally { setLoading(false) }
   }
 
-  const handleSubmit = () => {
-    if (!companyName) { setError('Company name is required'); return }
-    saveAccount(true)
-  }
+  const handleSubmit = () => saveAccount(true)
 
   const inputCls = "w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
 

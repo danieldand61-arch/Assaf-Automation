@@ -278,7 +278,7 @@ async def send_message(
             tools = None
             logger.warning("⚠️ Function calling temporarily disabled due to SDK compatibility")
             
-            # Get company context
+            # Get company context + campaign data
             company_context = ""
             try:
                 account_id = chat.data.get("account_id")
@@ -294,7 +294,7 @@ async def send_message(
                         metadata = acc.get('metadata', {})
                         
                         company_context = f"""
-DEFAULT COMPANY CONTEXT (can be overridden by user):
+DEFAULT COMPANY CONTEXT:
 - Company: {acc.get('name', 'Not specified')}
 - Industry: {acc.get('industry', 'Not specified')}
 - Description: {acc.get('description', 'Not specified')}
@@ -304,16 +304,45 @@ DEFAULT COMPANY CONTEXT (can be overridden by user):
 - Marketing Goal: {metadata.get('marketing_goal', 'Not specified')}
 - Geographic Focus: {metadata.get('geographic_focus', 'Not specified')}
 - Budget Range: {metadata.get('budget_range', 'Not specified')}
+"""
 
-IMPORTANT CONTEXT RULES:
-1. Use company context as DEFAULT if user doesn't specify otherwise
-2. If user mentions different topic/industry → FOLLOW USER'S REQUEST
-3. If user says "ignore company data" → IGNORE IT COMPLETELY
+                    # Load campaign data from ad_campaigns table
+                    campaigns_ctx = ""
+                    try:
+                        campaigns = supabase.table("ad_campaigns")\
+                            .select("*")\
+                            .eq("account_id", account_id)\
+                            .order("spend", desc=True)\
+                            .limit(20)\
+                            .execute()
+                        
+                        if campaigns.data:
+                            campaigns_ctx = "\nAD CAMPAIGNS DATA (real user data from Google Ads / Meta Ads):\n"
+                            for c in campaigns.data:
+                                campaigns_ctx += (
+                                    f"- [{c.get('platform','?').upper()}] \"{c.get('campaign_name','?')}\" "
+                                    f"status={c.get('status','?')} | "
+                                    f"spend=${c.get('spend',0):.2f} | "
+                                    f"impressions={c.get('impressions',0)} | "
+                                    f"clicks={c.get('clicks',0)} | "
+                                    f"ctr={c.get('ctr',0):.2%} | "
+                                    f"conversions={c.get('conversions',0)} | "
+                                    f"cpa=${c.get('cost_per_conversion',0):.2f} | "
+                                    f"roas={c.get('roas',0)}\n"
+                                )
+                            campaigns_ctx += "\nUse this data to give specific, data-driven recommendations. Reference campaign names and numbers.\n"
+                    except Exception as camp_err:
+                        logger.warning(f"Could not load campaign data: {camp_err}")
+                    
+                    company_context += campaigns_ctx
+                    
+                    company_context += """
+CONTEXT RULES:
+1. Use company + campaign data as DEFAULT context
+2. If user asks about campaigns, use the REAL data above
+3. Reference specific campaign names and metrics in your answers
 4. User's prompt has PRIORITY over company context
-5. Be flexible and context-aware
-6. Use website URL for scraping when generating ads (if provided)
-7. Use geographic focus for targeting recommendations
-8. Consider budget range when suggesting campaign strategies
+5. Be an expert marketing advisor — give actionable, specific advice
 """
             except Exception as e:
                 logger.warning(f"Could not load company context: {e}")

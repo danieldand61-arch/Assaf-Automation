@@ -44,25 +44,20 @@ export default function AIAdvisor() {
       if (!cid) {
         const res = await fetch(`${api}/api/chats/create`, {
           method: 'POST', headers,
-          body: JSON.stringify({ title: text.slice(0, 50), context: 'ad_advisor' }),
+          body: JSON.stringify({ title: text.slice(0, 50) }),
         })
         const data = await res.json()
-        cid = data.chat_id || data.id
+        cid = data.chat?.id || data.chat_id || data.id
         setChatId(cid)
       }
 
       const res = await fetch(`${api}/api/chats/${cid}/message`, {
         method: 'POST', headers,
-        body: JSON.stringify({
-          message: text.trim(),
-          system_context: 'You are Joyo AI Advisor — an expert marketing strategist. '
-            + 'You have access to the user\'s ad campaign data from Google Ads and Meta Ads. '
-            + 'Give specific, actionable advice based on their data. Be concise and use numbers when possible. '
-            + 'Format responses with clear sections and bullet points.',
-        }),
+        body: JSON.stringify({ content: text.trim() }),
       })
       const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response || data.message || 'Sorry, I could not generate a response.' }])
+      const reply = data.assistant_message?.content || data.response || data.message || 'Sorry, I could not generate a response.'
+      setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Connection error. Please try again.' }])
     } finally {
