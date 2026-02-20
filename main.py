@@ -367,18 +367,22 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
         )
         logger.info(f"✅ Generated {len(variations)} post variations")
         
-        # 3. Generate images (with tracking)
-        logger.info("🖼️  Step 3: Generating images...")
-        from services.image_generator import generate_images
-        images = await generate_images(
-            website_data=website_data,
-            variations=variations,
-            platforms=request.platforms,
-            image_size=request.image_size,
-            include_logo=request.include_logo,
-            user_id=current_user.get("user_id")  # Pass user_id for tracking
-        )
-        logger.info(f"✅ Generated {len(images)} images")
+        # 3. Generate images (skip when user provided their own media)
+        if request.skip_image_generation:
+            logger.info("🖼️  Step 3: Skipped — user provided their own media")
+            images = []
+        else:
+            logger.info("🖼️  Step 3: Generating images...")
+            from services.image_generator import generate_images
+            images = await generate_images(
+                website_data=website_data,
+                variations=variations,
+                platforms=request.platforms,
+                image_size=request.image_size,
+                include_logo=request.include_logo,
+                user_id=current_user.get("user_id")
+            )
+            logger.info(f"✅ Generated {len(images)} images")
         
         logger.info("🎉 Content generation completed successfully!")
         

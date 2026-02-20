@@ -102,6 +102,8 @@ export function MainWorkspace() {
           target_audience: data.target_audience,
           include_emojis: data.include_emojis,
           include_logo: data.include_logo,
+          skip_image_generation: !!data.media_file,
+          user_media_url: data.media_file || undefined,
         })
       })
 
@@ -119,8 +121,8 @@ export function MainWorkspace() {
       setPlatformStatus({ ...statuses })
       setProgress(100)
 
-      // Store result with form params
-      setGeneratedContent({ ...result, request_params: data })
+      // Store result with form params + user media if provided
+      setGeneratedContent({ ...result, request_params: data, user_media: data.media_file || null })
 
       // Auto-transition to results after short delay
       setTimeout(() => setSocialScreen('results'), 600)

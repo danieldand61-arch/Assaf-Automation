@@ -28,7 +28,7 @@ class GeneratedContent(BaseModel):
 
 
 class GenerateRequest(BaseModel):
-    url: str = ""  # Accepts any format, frontend normalizes
+    url: str = ""
     keywords: str = ""
     platforms: List[str] = ["facebook", "instagram"]
     image_size: str = "1080x1080"
@@ -38,3 +38,5 @@ class GenerateRequest(BaseModel):
     include_emojis: bool = True
     include_logo: bool = False
     account_id: Optional[str] = None
+    skip_image_generation: bool = False
+    user_media_url: Optional[str] = None

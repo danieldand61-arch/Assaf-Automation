@@ -21,6 +21,7 @@ interface GeneratedContent {
   brand_voice: string
   website_data?: any
   request_params?: any
+  user_media?: string | null
 }
 
 interface ContentStore {

@@ -38,12 +38,15 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
   const [savingIdx, setSavingIdx] = useState<number | null>(null)
   const [publishedStatus, setPublishedStatus] = useState<Record<number, string>>({})
 
-  if (!generatedContent?.variations?.length || !generatedContent?.images?.length) {
+  const userMedia: string | null = generatedContent?.user_media || null
+  const hasImages = !!(generatedContent?.images?.length)
+
+  if (!generatedContent?.variations?.length || (!hasImages && !userMedia)) {
     return <div className="text-center text-gray-500 py-20">No content generated yet</div>
   }
 
   const variations = generatedContent.variations
-  const images = generatedContent.images
+  const images = generatedContent.images || []
   const platforms: string[] = generatedContent.request_params?.platforms || ['facebook', 'instagram']
 
   /* ── Helpers ─────────────────────────────────────────────────── */
@@ -147,7 +150,7 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
       {/* ── Post Cards Grid ────────────────────────────────────── */}
       <div className={`grid ${cols} gap-5`}>
         {variations.map((v: any, idx: number) => {
-          const img = images[idx] || images[0]
+          const img = images[idx] || images[0] || (userMedia ? { url: userMedia, size: '', dimensions: '' } : null)
           const platform = v.platform || platforms[idx % platforms.length]
           const meta = PLATFORM_META[platform] || PLATFORM_META.facebook
           const fullText = getFullText(v)
@@ -174,15 +177,21 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
                 </span>
               </div>
 
-              {/* Image */}
+              {/* Image / Video */}
               {img?.url && (
                 <div className="relative">
-                  <img src={img.url} alt="" className="w-full aspect-square object-cover" />
-                  <button onClick={() => setEditingImageIdx(idx)}
-                    className="absolute top-3 right-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 transition flex items-center gap-1"
-                  >
-                    <Edit3 size={12} /> Edit Image
-                  </button>
+                  {img.url.startsWith('data:video') ? (
+                    <video src={img.url} className="w-full aspect-square object-cover" controls muted />
+                  ) : (
+                    <img src={img.url} alt="" className="w-full aspect-square object-cover" />
+                  )}
+                  {!userMedia && (
+                    <button onClick={() => setEditingImageIdx(idx)}
+                      className="absolute top-3 right-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 transition flex items-center gap-1"
+                    >
+                      <Edit3 size={12} /> Edit Image
+                    </button>
+                  )}
                 </div>
               )}
 
