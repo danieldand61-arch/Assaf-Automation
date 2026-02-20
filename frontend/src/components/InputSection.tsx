@@ -213,11 +213,12 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.platforms.length) { alert('Select at least one platform'); return }
-    if (!form.url.trim() && !form.keywords.trim()) { alert('Enter a URL or describe your post'); return }
+    if (!form.media_file && !form.url.trim() && !form.keywords.trim()) { alert('Enter a URL or describe your post'); return }
+    if (form.media_file && !form.keywords.trim()) { alert('Write a caption or describe the post'); return }
     onGenerate(form)
   }
 
-  const canGenerate = form.platforms.length > 0 && (form.url.trim() || form.keywords.trim())
+  const canGenerate = form.platforms.length > 0 && (form.url.trim() || form.keywords.trim() || !!form.media_file)
 
   /* ── select / input class ────────────────────────────────────── */
   const fieldCls = 'w-full px-4 py-3 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 outline-none transition text-sm'
@@ -269,34 +270,36 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
           )}
         </div>
 
-        {/* ── 2. URL ───────────────────────────────────────────── */}
-        <div>
-          <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            <Globe className="inline w-4 h-4 mr-1" /> Website / Social URL
-          </label>
-          <input
-            type="text"
-            value={form.url}
-            onChange={e => set('url', e.target.value)}
-            placeholder="yourbusiness.com or instagram.com/yourpage"
-            className={fieldCls}
-          />
-        </div>
+        {/* ── 2. URL (hidden when using own media) ──────────── */}
+        {!mediaPreview && (
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+              <Globe className="inline w-4 h-4 mr-1" /> Website / Social URL
+            </label>
+            <input
+              type="text"
+              value={form.url}
+              onChange={e => set('url', e.target.value)}
+              placeholder="yourbusiness.com or instagram.com/yourpage"
+              className={fieldCls}
+            />
+          </div>
+        )}
 
-        {/* ── 3. What's on your mind? ──────────────────────────── */}
+        {/* ── 3. Post text ─────────────────────────────────────── */}
         <div>
           <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-            What's on your mind?
+            {mediaPreview ? 'Post Text' : "What's on your mind?"}
           </label>
           <textarea
             value={form.keywords}
             onChange={e => set('keywords', e.target.value)}
-            placeholder="Tell us what you'd like to post about..."
+            placeholder={mediaPreview ? 'Write your caption or describe the post...' : "Tell us what you'd like to post about..."}
             rows={3}
             className={`${fieldCls} resize-none`}
           />
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-            Keyword, description, promotion, anything...
+            {mediaPreview ? 'AI will generate a caption based on this text' : 'Keyword, description, promotion, anything...'}
           </p>
         </div>
 
