@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Loader2, Sparkles, TrendingUp, Target, DollarSign, Users, Zap } from 'lucide-react'
+import { Send, Loader2, Sparkles, TrendingUp, Target, DollarSign, Users, Zap, AlertTriangle, Trash2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
@@ -16,20 +16,74 @@ const QUICK_PROMPTS = [
   { icon: Sparkles, text: 'Write me a strategy for next month' },
 ]
 
+const ADVISOR_CHAT_KEY = 'joyo_advisor_chat'
+
+function renderMarkdown(text: string): string {
+  let html = text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  html = html.replace(/^### (.+)$/gm, '<div style="font-size:15px;font-weight:700;margin:12px 0 4px">$1</div>')
+  html = html.replace(/^## (.+)$/gm, '<div style="font-size:16px;font-weight:700;margin:14px 0 6px">$1</div>')
+  html = html.replace(/^# (.+)$/gm, '<div style="font-size:17px;font-weight:700;margin:16px 0 6px">$1</div>')
+  html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
+  html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:4px;font-size:12px">$1</code>')
+  html = html.replace(/^[-•]\s+(.+)$/gm, '<div style="padding-left:14px">• $1</div>')
+  html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<div style="padding-left:14px">$1. $2</div>')
+  return html
+}
+
 export default function AIAdvisor() {
   const { session } = useAuth()
   const { theme } = useTheme()
   const t = getJoyoTheme(theme)
 
-  const [messages, setMessages] = useState<Message[]>([])
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try { const s = localStorage.getItem(ADVISOR_CHAT_KEY); return s ? JSON.parse(s) : [] } catch { return [] }
+  })
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [chatId, setChatId] = useState<string | null>(null)
+  const [chatId, setChatId] = useState<string | null>(() => {
+    try { return localStorage.getItem(ADVISOR_CHAT_KEY + '_id') } catch { return null }
+  })
+  const [hasAds, setHasAds] = useState<boolean | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const api = getApiUrl()
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  useEffect(() => {
+    try { localStorage.setItem(ADVISOR_CHAT_KEY, JSON.stringify(messages)) } catch {}
+  }, [messages])
+  useEffect(() => {
+    if (chatId) localStorage.setItem(ADVISOR_CHAT_KEY + '_id', chatId)
+  }, [chatId])
+
+  useEffect(() => {
+    if (!session) return
+    const check = async () => {
+      try {
+        const res = await fetch(`${api}/api/analytics/sync-status`, {
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+        })
+        if (res.ok) {
+          const data = await res.json()
+          setHasAds(data.syncs?.length > 0)
+        } else {
+          setHasAds(false)
+        }
+      } catch { setHasAds(false) }
+    }
+    check()
+  }, [session, api])
+
+  const clearChat = () => {
+    setMessages([])
+    setChatId(null)
+    localStorage.removeItem(ADVISOR_CHAT_KEY)
+    localStorage.removeItem(ADVISOR_CHAT_KEY + '_id')
+  }
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading || !session) return
@@ -46,17 +100,10 @@ export default function AIAdvisor() {
           method: 'POST', headers,
           body: JSON.stringify({ title: text.slice(0, 50) }),
         })
-        if (!createRes.ok) {
-          const err = await createRes.text()
-          console.error('Chat create failed:', createRes.status, err)
-          throw new Error(`Create chat failed: ${createRes.status}`)
-        }
+        if (!createRes.ok) throw new Error(`Create chat failed: ${createRes.status}`)
         const createData = await createRes.json()
         cid = createData.chat?.id || createData.chat_id || createData.id
-        if (!cid) {
-          console.error('No chat ID returned:', createData)
-          throw new Error('No chat ID returned')
-        }
+        if (!cid) throw new Error('No chat ID returned')
         setChatId(cid)
       }
 
@@ -64,17 +111,13 @@ export default function AIAdvisor() {
         method: 'POST', headers,
         body: JSON.stringify({ content: text.trim(), mode: 'advisor' }),
       })
-      if (!msgRes.ok) {
-        const err = await msgRes.text()
-        console.error('Chat message failed:', msgRes.status, err)
-        throw new Error(`Message failed: ${msgRes.status}`)
-      }
+      if (!msgRes.ok) throw new Error(`Message failed: ${msgRes.status}`)
       const msgData = await msgRes.json()
       const reply = msgData.assistant_message?.content || msgData.response || msgData.message || 'No response received.'
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch (e: any) {
       console.error('AI Advisor error:', e)
-      setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${e.message || 'Connection failed. Please try again.'}` }])
+      setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${e.message || 'Connection failed.'}` }])
     } finally {
       setLoading(false)
     }
@@ -82,12 +125,28 @@ export default function AIAdvisor() {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto', height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold" style={{ color: t.text }}>AI Advisor</h1>
-        <p className="text-sm" style={{ color: t.textSecondary }}>Ask me anything about your campaigns, strategy, and performance</p>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: t.text }}>AI Advisor</h1>
+          <p className="text-sm" style={{ color: t.textSecondary }}>Ask me anything about your campaigns, strategy, and performance</p>
+        </div>
+        {messages.length > 0 && (
+          <button onClick={clearChat} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition hover:opacity-80"
+            style={{ color: t.textMuted, border: `1px solid ${t.border}` }}>
+            <Trash2 size={13} /> New chat
+          </button>
+        )}
       </div>
 
-      {/* Messages */}
+      {hasAds === false && (
+        <div className="mb-3 flex items-center gap-3 px-4 py-3 rounded-xl" style={{ background: `${t.warning}15`, border: `1px solid ${t.warning}30` }}>
+          <AlertTriangle size={16} style={{ color: t.warning, flexShrink: 0 }} />
+          <p className="text-sm" style={{ color: t.text }}>
+            No ad platforms connected yet. Connect Google Ads or Meta Ads in <strong>Integrations</strong> so I can analyze your real campaign data.
+          </p>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto rounded-2xl p-4 space-y-4" style={{ background: t.surfaceSecondary, border: `1px solid ${t.border}` }}>
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-6">
@@ -113,14 +172,16 @@ export default function AIAdvisor() {
 
         {messages.map((msg, i) => (
           <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className="max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap"
-              style={{
-                background: msg.role === 'user' ? t.accent : t.card,
-                color: msg.role === 'user' ? '#fff' : t.text,
-                border: msg.role === 'assistant' ? `1px solid ${t.border}` : 'none',
-              }}>
-              {msg.content}
-            </div>
+            {msg.role === 'user' ? (
+              <div className="max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                style={{ background: t.accent, color: '#fff' }}>
+                {msg.content}
+              </div>
+            ) : (
+              <div className="max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed"
+                style={{ background: t.card, color: t.text, border: `1px solid ${t.border}` }}
+                dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+            )}
           </div>
         ))}
 
@@ -134,7 +195,6 @@ export default function AIAdvisor() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input */}
       <div className="mt-3 flex gap-2">
         <input
           value={input}
