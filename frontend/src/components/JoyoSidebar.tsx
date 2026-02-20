@@ -1,7 +1,7 @@
 import { 
   LayoutDashboard, Send, Megaphone, MessageSquare, Image, Film, 
   FileText, Calendar, Link2, Settings, Menu,
-  Sparkles
+  Sparkles, BarChart3
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useApp } from '../contexts/AppContext'
@@ -19,7 +19,8 @@ const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: bo
   { id: 'dashboard',    labelKey: 'navDashboard',       icon: LayoutDashboard },
   { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone },
   { id: 'social',       labelKey: 'navPostGenerator',   icon: Send },
-  { id: 'chat',         labelKey: 'navAIAdvisor',       icon: MessageSquare },
+  { id: 'analyst',      labelKey: 'navAnalyst',          icon: BarChart3 },
+  { id: 'advisor',      labelKey: 'navAIAdvisor',       icon: MessageSquare },
   { id: 'media',        labelKey: 'navMediaStudio',     icon: Image, disabled: true, badgeKey: 'comingSoon' },
   { id: 'videogen',     labelKey: 'navVideoStudio',     icon: Film, disabled: true, badgeKey: 'comingSoon' },
   { id: 'library',      labelKey: 'navContentLibrary',  icon: FileText },

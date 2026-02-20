@@ -14,6 +14,7 @@ import { Library } from '../pages/Library'
 import { Scheduled } from '../pages/Scheduled'
 import { Settings } from '../pages/Settings'
 import AdAnalytics from '../pages/AdAnalytics'
+import AIAdvisor from '../pages/AIAdvisor'
 import { Connections } from '../pages/Connections'
 import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
@@ -22,7 +23,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme, animations } from '../styles/joyo-theme'
 import { getApiUrl } from '../lib/api'
 
-type TabType = 'dashboard' | 'social' | 'ads' | 'chat' | 'media' | 'video' | 'videogen' | 'library' | 'calendar' | 'integrations' | 'settings'
+type TabType = 'dashboard' | 'social' | 'ads' | 'chat' | 'analyst' | 'advisor' | 'media' | 'video' | 'videogen' | 'library' | 'calendar' | 'integrations' | 'settings'
 type SocialScreen = 'form' | 'generating' | 'results'
 
 /* ── Platform display info for loading screen ─────────────────── */
@@ -151,7 +152,7 @@ export function MainWorkspace() {
 
   const pageTitles: Record<TabType, string> = {
     dashboard: 'Dashboard', social: 'Post Generator', ads: 'Google Ads',
-    chat: 'AI Advisor & Analyst', media: 'Media Studio',
+    chat: 'AI Advisor & Analyst', analyst: 'Analyst', advisor: 'AI Advisor', media: 'Media Studio',
     video: 'Video Dubbing', videogen: 'Video Studio',
     library: 'Content Library', calendar: 'Calendar',
     integrations: 'Integrations', settings: 'Settings',
@@ -203,7 +204,8 @@ export function MainWorkspace() {
           )}
 
           {activeTab === 'ads' && <GoogleAdsGeneration />}
-          {activeTab === 'chat' && <AdAnalytics />}
+          {activeTab === 'analyst' && <AdAnalytics />}
+          {activeTab === 'advisor' && <AIAdvisor />}
           {activeTab === 'media' && <PlaceholderPage title="Media Studio" description="Create, edit, and manage your visual content — templates, batch resize, background removal, and more." />}
           {activeTab === 'video' && <VideoTranslation />}
           {activeTab === 'videogen' && <VideoGeneration />}

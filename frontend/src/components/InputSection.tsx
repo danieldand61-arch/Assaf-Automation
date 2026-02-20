@@ -33,9 +33,9 @@ const PLATFORMS = [
   { id: 'facebook',        label: 'Facebook',        color: '#1877F2' },
   { id: 'instagram',       label: 'Instagram',       color: '#E4405F' },
   { id: 'linkedin',        label: 'LinkedIn',        color: '#0A66C2' },
-  { id: 'tiktok',          label: 'TikTok',          color: '#010101' },
-  { id: 'x',               label: 'X (Twitter)',     color: '#1DA1F2' },
-  { id: 'google_business', label: 'Google Business', color: '#4285F4' },
+  { id: 'tiktok',          label: 'TikTok',          color: '#000000' },
+  { id: 'x',               label: 'X',               color: '#000000' },
+  { id: 'google_business', label: 'Google',          color: '#4285F4' },
 ] as const
 
 const IMAGE_SIZES = [
@@ -203,7 +203,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                     <Check size={12} className="absolute top-1 right-1" style={{ color: p.color }} />
                   )}
                   <span className="w-8 h-8 rounded-full flex items-center justify-center text-white"
-                    style={{ background: active ? p.color : '#9CA3AF' }}
+                    style={{ background: p.color, opacity: active ? 1 : 0.5 }}
                   >
                     <PlatformIcon id={p.id} size={16} />
                   </span>
