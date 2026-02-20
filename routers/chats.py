@@ -270,7 +270,7 @@ async def send_message(
             genai.configure(api_key=api_key)
             logger.info(f"🔑 Gemini configured")
             
-            model_name = 'gemini-2.0-flash'
+            model_name = 'gemini-3-flash-preview'
             logger.info(f"🤖 Using model: {model_name}")
             
             # Get current date

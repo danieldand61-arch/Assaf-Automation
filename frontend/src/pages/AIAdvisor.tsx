@@ -28,12 +28,12 @@ export default function AIAdvisor() {
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const api = getApiUrl()
-  const headers = { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' }
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   const sendMessage = async (text: string) => {
-    if (!text.trim() || loading) return
+    if (!text.trim() || loading || !session) return
+    const headers = { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' }
     const userMsg: Message = { role: 'user', content: text.trim() }
     setMessages(prev => [...prev, userMsg])
     setInput('')
