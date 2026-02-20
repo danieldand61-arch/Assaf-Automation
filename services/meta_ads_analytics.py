@@ -72,7 +72,7 @@ class MetaAdsAnalytics:
     async def get_campaigns(self, date_from: date, date_to: date) -> List[Dict]:
         logger.info(f"📡 Meta API: fetching campaigns for {self.ad_account_id}, date range {date_from} to {date_to}")
         params = {
-            "fields": "id,name,status,objective,daily_budget,lifetime_budget,"
+            "fields": "id,name,status,objective,daily_budget,lifetime_budget,attribution_spec,"
                       "insights.time_range(" + self._time_range(date_from, date_to) + ")"
                       "{impressions,clicks,ctr,spend,cpc,reach,frequency,"
                       "conversions,cost_per_action_type,actions,purchase_roas,"
@@ -130,6 +130,7 @@ class MetaAdsAnalytics:
                 "initiate_checkout": int(initiate_checkout),
                 "purchases": int(purchases),
                 "link_clicks": int(ins.get("inline_link_clicks", 0)),
+                "attribution_setting": str(c.get("attribution_spec", "")),
             })
         # If no campaigns with insights, try without date filter to see if any exist
         if not campaigns:
