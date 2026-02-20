@@ -375,19 +375,23 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
         </div>
 
         {/* ── 5-8. Dropdowns row ───────────────────────────────── */}
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Image Size</label>
-            <select value={form.image_size} onChange={e => set('image_size', e.target.value)} className={fieldCls}>
-              {IMAGE_SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Style</label>
-            <select value={form.style} onChange={e => set('style', e.target.value)} className={fieldCls}>
-              {STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-          </div>
+        <div className={`grid gap-4 ${mediaPreview ? 'grid-cols-2' : 'grid-cols-2'}`}>
+          {!mediaPreview && (
+            <>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Image Size</label>
+                <select value={form.image_size} onChange={e => set('image_size', e.target.value)} className={fieldCls}>
+                  {IMAGE_SIZES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Style</label>
+                <select value={form.style} onChange={e => set('style', e.target.value)} className={fieldCls}>
+                  {STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+            </>
+          )}
           <div>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Language</label>
             <select value={form.language} onChange={e => set('language', e.target.value)} className={fieldCls}>

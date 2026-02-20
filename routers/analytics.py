@@ -14,12 +14,18 @@ logger = logging.getLogger(__name__)
 
 def _get_active_account_id(user_id: str) -> str:
     sb = get_supabase()
-    settings = sb.table("user_settings").select("active_account_id").eq("user_id", user_id).maybe_single().execute()
-    if settings.data and settings.data.get("active_account_id"):
-        return settings.data["active_account_id"]
-    acc = sb.table("accounts").select("id").eq("user_id", user_id).eq("is_active", True).limit(1).execute()
-    if acc.data:
-        return acc.data[0]["id"]
+    try:
+        settings = sb.table("user_settings").select("active_account_id").eq("user_id", user_id).limit(1).execute()
+        if settings.data and settings.data[0].get("active_account_id"):
+            return settings.data[0]["active_account_id"]
+    except Exception:
+        pass
+    try:
+        acc = sb.table("accounts").select("id").eq("user_id", user_id).eq("is_active", True).limit(1).execute()
+        if acc.data:
+            return acc.data[0]["id"]
+    except Exception:
+        pass
     raise HTTPException(status_code=400, detail="No active account")
 
 

@@ -26,6 +26,13 @@ async def _with_retry(coro_fn, *args, retries=MAX_RETRIES):
             await asyncio.sleep(RETRY_DELAY * attempt)
 
 
+def _safe_log(sb, data: dict):
+    """Write to ad_sync_log, silently fail if table doesn't exist."""
+    try:
+        sb.table("ad_sync_log").upsert(data, on_conflict="account_id,platform").execute()
+    except Exception as e:
+        logger.warning(f"⚠️ ad_sync_log write failed (table may not exist): {e}")
+
 def _is_stale(account_id: str, platform: str) -> bool:
     try:
         sb = get_supabase()
@@ -61,11 +68,7 @@ async def sync_google_ads(account_id: str, user_id: str, date_from: date, date_t
         return {"status": "cached", "message": "Data is fresh"}
 
     logger.info(f"🔄 Google Ads sync starting for account {account_id}")
-    sb.table("ad_sync_log").upsert({
-        "account_id": account_id, "platform": "google_ads",
-        "status": "syncing", "started_at": datetime.now(timezone.utc).isoformat(),
-        "error_message": None,
-    }, on_conflict="account_id,platform").execute()
+    _safe_log(sb, {"account_id": account_id, "platform": "google_ads", "status": "syncing", "started_at": datetime.now(timezone.utc).isoformat(), "error_message": None})
 
     try:
         from services.google_ads_analytics import GoogleAdsAnalytics
@@ -94,22 +97,14 @@ async def sync_google_ads(account_id: str, user_id: str, date_from: date, date_t
         for gs in geo_stats:
             sb.table("ad_geo_stats").insert({**gs, "account_id": account_id, "platform": "google_ads", "date_from": str(date_from), "date_to": str(date_to)}).execute()
 
-        sb.table("ad_sync_log").upsert({
-            "account_id": account_id, "platform": "google_ads",
-            "status": "completed", "campaigns_synced": len(campaigns),
-            "completed_at": datetime.now(timezone.utc).isoformat(), "error_message": None,
-        }, on_conflict="account_id,platform").execute()
+        _safe_log(sb, {"account_id": account_id, "platform": "google_ads", "status": "completed", "campaigns_synced": len(campaigns), "completed_at": datetime.now(timezone.utc).isoformat(), "error_message": None})
 
         logger.info(f"✅ Google Ads sync: {len(campaigns)} campaigns, {len(keywords)} keywords")
         return {"status": "synced", "campaigns": len(campaigns), "ad_groups": len(ad_groups), "keywords": len(keywords)}
 
     except Exception as e:
         logger.error(f"❌ Google Ads sync error: {e}", exc_info=True)
-        sb.table("ad_sync_log").upsert({
-            "account_id": account_id, "platform": "google_ads",
-            "status": "error", "error_message": str(e)[:500],
-            "completed_at": datetime.now(timezone.utc).isoformat(),
-        }, on_conflict="account_id,platform").execute()
+        _safe_log(sb, {"account_id": account_id, "platform": "google_ads", "status": "error", "error_message": str(e)[:500], "completed_at": datetime.now(timezone.utc).isoformat()})
         return {"status": "error", "message": str(e)}
 
 
@@ -139,11 +134,7 @@ async def sync_meta_ads(account_id: str, user_id: str, date_from: date, date_to:
         return {"status": "cached", "message": "Data is fresh"}
 
     logger.info(f"🔄 Meta Ads sync starting for account {account_id}, ad_account={ad_account_id}")
-    sb.table("ad_sync_log").upsert({
-        "account_id": account_id, "platform": "meta",
-        "status": "syncing", "started_at": datetime.now(timezone.utc).isoformat(),
-        "error_message": None,
-    }, on_conflict="account_id,platform").execute()
+    _safe_log(sb, {"account_id": account_id, "platform": "meta", "status": "syncing", "started_at": datetime.now(timezone.utc).isoformat(), "error_message": None})
 
     try:
         from services.meta_ads_analytics import MetaAdsAnalytics
@@ -168,20 +159,12 @@ async def sync_meta_ads(account_id: str, user_id: str, date_from: date, date_to:
         for p in placements:
             sb.table("ad_placement_stats").insert({**p, "account_id": account_id, "date_from": str(date_from), "date_to": str(date_to)}).execute()
 
-        sb.table("ad_sync_log").upsert({
-            "account_id": account_id, "platform": "meta",
-            "status": "completed", "campaigns_synced": len(campaigns),
-            "completed_at": datetime.now(timezone.utc).isoformat(), "error_message": None,
-        }, on_conflict="account_id,platform").execute()
+        _safe_log(sb, {"account_id": account_id, "platform": "meta", "status": "completed", "campaigns_synced": len(campaigns), "completed_at": datetime.now(timezone.utc).isoformat(), "error_message": None})
 
         logger.info(f"✅ Meta Ads sync complete: {len(campaigns)} campaigns, {len(ad_sets)} ad sets, {len(placements)} placements")
         return {"status": "synced", "campaigns": len(campaigns), "ad_sets": len(ad_sets), "placements": len(placements)}
 
     except Exception as e:
         logger.error(f"❌ Meta Ads sync error: {e}", exc_info=True)
-        sb.table("ad_sync_log").upsert({
-            "account_id": account_id, "platform": "meta",
-            "status": "error", "error_message": str(e)[:500],
-            "completed_at": datetime.now(timezone.utc).isoformat(),
-        }, on_conflict="account_id,platform").execute()
+        _safe_log(sb, {"account_id": account_id, "platform": "meta", "status": "error", "error_message": str(e)[:500], "completed_at": datetime.now(timezone.utc).isoformat()})
         return {"status": "error", "message": str(e)}
