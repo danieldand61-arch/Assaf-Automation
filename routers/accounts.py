@@ -36,7 +36,7 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
         industry = _guess_industry(data.get("content", "") + " " + data.get("description", ""))
 
         brand_kit = {
-            "business_name": data.get("title", "").split("|")[0].split("–")[0].split("-")[0].strip(),
+            "business_name": _extract_business_name(data.get("title", ""), url),
             "description": data.get("description", ""),
             "industry": industry,
             "brand_voice": data.get("brand_voice", "professional"),
@@ -53,6 +53,17 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
         logger.error(f"❌ Failed to analyze URL {url}: {e}", exc_info=True)
         raise HTTPException(status_code=422, detail=f"Could not analyze website: {str(e)}")
 
+
+def _extract_business_name(title: str, url: str) -> str:
+    """Extract business name from title, fallback to domain if title is generic."""
+    generic = {"home", "homepage", "welcome", "main", "index", "start", ""}
+    name = title.split("|")[0].split("–")[0].split("-")[0].strip()
+    if name.lower() in generic:
+        from urllib.parse import urlparse
+        domain = urlparse(url).hostname or ""
+        domain = domain.replace("www.", "")
+        name = domain.split(".")[0].capitalize() if domain else name
+    return name
 
 def _guess_industry(text: str) -> str:
     """Simple keyword-based industry detection."""

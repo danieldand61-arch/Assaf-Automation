@@ -96,6 +96,7 @@ export interface GenerateFormData {
   include_logo: boolean
   uploaded_image?: string | null
   media_file?: string | null
+  use_custom_url?: boolean
 }
 
 interface InputSectionProps {
@@ -219,7 +220,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
     const effectiveUrl = showCustomUrl ? form.url.trim() : onboardingUrl
     if (!form.media_file && !effectiveUrl && !form.keywords.trim()) { alert('Describe your post or add a URL'); return }
     if (form.media_file && !form.keywords.trim()) { alert('Write a caption or describe the post'); return }
-    onGenerate({ ...form, url: effectiveUrl })
+    onGenerate({ ...form, url: effectiveUrl, use_custom_url: showCustomUrl })
   }
 
   const canGenerate = form.platforms.length > 0 && ((showCustomUrl ? form.url.trim() : onboardingUrl) || form.keywords.trim() || !!form.media_file)
@@ -278,39 +279,42 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
         {!mediaPreview && (
           <div>
             {!showCustomUrl ? (
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {onboardingUrl ? (
-                    <>Using your website: <span className="font-semibold text-gray-700 dark:text-gray-300">{onboardingUrl}</span></>
-                  ) : (
-                    <>No website linked — AI will generate based on your prompt</>
-                  )}
-                </p>
-                <button type="button" onClick={() => setShowCustomUrl(true)}
-                  className="text-xs font-semibold text-blue-500 hover:text-blue-600 whitespace-nowrap ml-3">
-                  <Globe className="inline w-3.5 h-3.5 mr-0.5" /> Use different URL
-                </button>
+              <div className="rounded-xl border border-gray-200 dark:border-gray-600 p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                    <Globe size={16} className="text-gray-400" />
+                    {onboardingUrl ? (
+                      <span>Using: <span className="font-semibold text-gray-700 dark:text-gray-300">{onboardingUrl}</span></span>
+                    ) : (
+                      <span>No website linked</span>
+                    )}
+                  </div>
+                  <button type="button" onClick={() => setShowCustomUrl(true)}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 transition">
+                    <Globe size={16} /> Use different URL
+                  </button>
+                </div>
               </div>
             ) : (
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
-                    <Globe className="inline w-4 h-4 mr-1" /> Custom URL
+              <div className="rounded-xl border-2 border-blue-200 dark:border-blue-700 p-4 space-y-3" style={{ background: '#4A7CFF08' }}>
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-semibold text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
+                    <Globe size={16} className="text-blue-500" /> Custom URL
                   </label>
                   <button type="button" onClick={() => { setShowCustomUrl(false); set('url', '') }}
-                    className="text-xs font-semibold text-gray-400 hover:text-gray-600">
-                    ✕ Use my default site
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-500 hover:text-gray-700 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition">
+                    ✕ Back to my site
                   </button>
                 </div>
                 <input
                   type="text"
                   value={form.url}
                   onChange={e => set('url', e.target.value)}
-                  placeholder="Paste a URL or leave empty to generate from prompt only"
+                  placeholder="Paste a URL or leave empty for prompt-only generation"
                   className={fieldCls}
                 />
-                <p className="text-xs text-gray-400 mt-1">
-                  {form.url.trim() ? 'Post will be based on this URL' : 'Empty = post based on your prompt only, no website context'}
+                <p className="text-xs text-gray-400">
+                  {form.url.trim() ? 'Post will be based on this URL instead of your default site' : 'Empty = post based purely on your prompt, no website context'}
                 </p>
               </div>
             )}

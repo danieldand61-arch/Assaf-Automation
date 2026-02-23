@@ -104,6 +104,7 @@ export function MainWorkspace() {
           include_logo: data.include_logo,
           skip_image_generation: !!data.media_file,
           user_media_url: data.media_file || undefined,
+          use_custom_url: !!data.use_custom_url,
         })
       })
 

@@ -40,3 +40,4 @@ class GenerateRequest(BaseModel):
     account_id: Optional[str] = None
     skip_image_generation: bool = False
     user_media_url: Optional[str] = None
+    use_custom_url: bool = False

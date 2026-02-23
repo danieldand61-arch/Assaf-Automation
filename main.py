@@ -326,31 +326,35 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
             }
             logger.info("ℹ️ No URL provided, using keywords as context")
 
-        # 1b. Enrich website_data with Brand Kit from account (if available)
-        try:
-            from database.supabase_client import get_supabase
-            supabase = get_supabase()
-            uid = current_user.get("user_id")
-            acct = supabase.table("accounts").select("brand_voice, logo_url, brand_colors, metadata, industry, description").eq("user_id", uid).eq("is_active", True).limit(1).execute()
-            if acct.data:
-                a = acct.data[0]
-                bk = (a.get("metadata") or {}).get("brand_kit") or {}
-                # Fill missing fields from Brand Kit
-                if not website_data.get("brand_voice") or website_data["brand_voice"] == "professional":
-                    website_data["brand_voice"] = bk.get("brand_voice") or a.get("brand_voice") or website_data.get("brand_voice", "professional")
-                if not website_data.get("logo_url"):
-                    website_data["logo_url"] = bk.get("logo_url") or a.get("logo_url") or ""
-                if not website_data.get("colors"):
-                    website_data["colors"] = bk.get("brand_colors") or a.get("brand_colors") or []
-                if not website_data.get("products"):
-                    website_data["products"] = bk.get("products") or []
-                if not website_data.get("key_features"):
-                    website_data["key_features"] = bk.get("key_features") or []
-                if not website_data.get("description"):
-                    website_data["description"] = bk.get("description") or a.get("description") or ""
-                logger.info("✅ Brand Kit merged into website_data")
-        except Exception as bk_err:
-            logger.warning(f"⚠️ Could not load Brand Kit: {bk_err}")
+        # 1b. Enrich website_data with Brand Kit (only when using default onboarding site)
+        if not request.use_custom_url:
+            try:
+                from database.supabase_client import get_supabase
+                supabase = get_supabase()
+                uid = current_user.get("user_id")
+                acct = supabase.table("accounts").select("brand_voice, logo_url, brand_colors, metadata, industry, description, name").eq("user_id", uid).eq("is_active", True).limit(1).execute()
+                if acct.data:
+                    a = acct.data[0]
+                    bk = (a.get("metadata") or {}).get("brand_kit") or {}
+                    if not website_data.get("title") or website_data["title"] == "Brand":
+                        website_data["title"] = bk.get("business_name") or a.get("name") or website_data.get("title", "")
+                    if not website_data.get("brand_voice") or website_data["brand_voice"] == "professional":
+                        website_data["brand_voice"] = bk.get("brand_voice") or a.get("brand_voice") or "professional"
+                    if not website_data.get("logo_url"):
+                        website_data["logo_url"] = bk.get("logo_url") or a.get("logo_url") or ""
+                    if not website_data.get("colors"):
+                        website_data["colors"] = bk.get("brand_colors") or a.get("brand_colors") or []
+                    if not website_data.get("products"):
+                        website_data["products"] = bk.get("products") or []
+                    if not website_data.get("key_features"):
+                        website_data["key_features"] = bk.get("key_features") or []
+                    if not website_data.get("description"):
+                        website_data["description"] = bk.get("description") or a.get("description") or ""
+                    logger.info("✅ Brand Kit merged into website_data")
+            except Exception as bk_err:
+                logger.warning(f"⚠️ Could not load Brand Kit: {bk_err}")
+        else:
+            logger.info("ℹ️ Custom URL mode — skipping Brand Kit enrichment")
 
         # 2. Generate post texts (with tracking)
         logger.info("✍️  Step 2: Generating post texts...")

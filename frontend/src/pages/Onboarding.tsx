@@ -26,14 +26,14 @@ const VOICE_OPTIONS = [
 const TOTAL_STEPS = 5
 
 const PLATFORMS_LIST = [
-  { id: 'facebook', label: 'Facebook', color: '#1877F2', icon: '📘' },
-  { id: 'instagram', label: 'Instagram', color: '#E4405F', icon: '📸' },
-  { id: 'linkedin', label: 'LinkedIn', color: '#0A66C2', icon: '💼' },
-  { id: 'tiktok', label: 'TikTok', color: '#010101', icon: '🎵' },
-  { id: 'x', label: 'X (Twitter)', color: '#1DA1F2', icon: '🐦' },
-  { id: 'google_business', label: 'Google Business', color: '#4285F4', icon: '📍' },
-  { id: 'meta_ads', label: 'Meta Ads', color: '#0668E1', icon: '📊' },
-  { id: 'google_ads', label: 'Google Ads', color: '#34A853', icon: '📈' },
+  { id: 'facebook', label: 'Facebook', icon: '📘' },
+  { id: 'instagram', label: 'Instagram', icon: '📸' },
+  { id: 'linkedin', label: 'LinkedIn', icon: '💼' },
+  { id: 'tiktok', label: 'TikTok', icon: '🎵' },
+  { id: 'x', label: 'X (Twitter)', icon: '🐦' },
+  { id: 'google_business', label: 'Google Business', icon: '📍' },
+  { id: 'meta_ads', label: 'Meta Ads', icon: '📊' },
+  { id: 'google_ads', label: 'Google Ads', icon: '📈' },
 ]
 
 export function Onboarding() {
@@ -47,16 +47,12 @@ export function Onboarding() {
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [industry, setIndustry] = useState('')
-
   const [products, setProducts] = useState('')
-
   const [marketingGoals, setMarketingGoals] = useState<string[]>([])
   const [brandVoices, setBrandVoices] = useState<string[]>(['professional'])
-
   const [email, setEmail] = useState('')
 
   const [analyzing, setAnalyzing] = useState(false)
-  const [analyzed, setAnalyzed] = useState(false)
   const [brandKit, setBrandKit] = useState<any>(null)
 
   const incompleteAccount = useMemo(
@@ -79,6 +75,7 @@ export function Onboarding() {
         Array.isArray(incompleteAccount.metadata.marketing_goal) ? incompleteAccount.metadata.marketing_goal : [incompleteAccount.metadata.marketing_goal]
       )
       if (incompleteAccount.metadata?.website_url) setWebsiteUrl(incompleteAccount.metadata.website_url)
+      if (incompleteAccount.metadata?.brand_kit) setBrandKit(incompleteAccount.metadata.brand_kit)
     }
     if (user?.email) setEmail(user.email)
   }, [incompleteAccount, user])
@@ -91,44 +88,50 @@ export function Onboarding() {
     )
   }
 
+  const analyzeAndNext = async () => {
+    setError('')
+    if (websiteUrl.trim() && session && !brandKit) {
+      setAnalyzing(true)
+      try {
+        let url = websiteUrl.trim()
+        if (!/^https?:\/\//i.test(url)) url = `https://${url}`
+        const res = await fetch(`${getApiUrl()}/api/accounts/analyze-url`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ url }),
+        })
+        if (!res.ok) throw new Error((await res.json()).detail || 'Analysis failed')
+        const { brand_kit } = await res.json()
+        setBrandKit(brand_kit)
+        if (brand_kit.business_name) setCompanyName(brand_kit.business_name)
+        if (brand_kit.industry) setIndustry(brand_kit.industry)
+        if (brand_kit.products?.length) setProducts(brand_kit.products.slice(0, 5).join(', '))
+        if (brand_kit.description && !products) setProducts(brand_kit.description.slice(0, 300))
+        if (brand_kit.brand_voice) setBrandVoices([brand_kit.brand_voice])
+      } catch (e: any) {
+        setError(e.message || 'Could not analyze website — you can fill details manually')
+      } finally { setAnalyzing(false) }
+    }
+    setCurrentStep(2)
+  }
+
   const validateStep = (step: number): string | null => {
-    if (step === 1 && !companyName.trim()) return 'Company name is required'
-    if (step === 2 && !products.trim()) return 'Please describe your products or services'
+    if (step === 2 && !companyName.trim()) return 'Company name is required'
     if (step === 3 && marketingGoals.length === 0) return 'Select at least one marketing goal'
     return null
   }
 
   const nextStep = () => {
+    if (currentStep === 1) { analyzeAndNext(); return }
     const err = validateStep(currentStep)
     if (err) { setError(err); return }
     setError('')
     if (currentStep < TOTAL_STEPS) setCurrentStep(currentStep + 1)
   }
-  const prevStep = () => { if (currentStep > 1) setCurrentStep(currentStep - 1) }
+  const prevStep = () => { setError(''); if (currentStep > 1) setCurrentStep(currentStep - 1) }
 
   const toggleGoal = (id: string) => setMarketingGoals(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id])
   const toggleVoice = (id: string) => setBrandVoices(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id])
-
-  const handleAnalyzeUrl = async () => {
-    if (!websiteUrl.trim() || !session) return
-    setAnalyzing(true); setError('')
-    try {
-      const res = await fetch(`${getApiUrl()}/api/accounts/analyze-url`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ url: websiteUrl }),
-      })
-      if (!res.ok) throw new Error((await res.json()).detail || 'Analysis failed')
-      const { brand_kit } = await res.json()
-      setBrandKit(brand_kit); setAnalyzed(true)
-      if (brand_kit.business_name && !companyName) setCompanyName(brand_kit.business_name)
-      if (brand_kit.industry && !industry) setIndustry(brand_kit.industry)
-      if (brand_kit.products?.length && !products) setProducts(brand_kit.products.slice(0, 5).join(', '))
-      if (brand_kit.brand_voice) setBrandVoices([brand_kit.brand_voice])
-    } catch (e: any) {
-      setError(e.message || 'Could not analyze website')
-    } finally { setAnalyzing(false) }
-  }
 
   const buildAccountData = (onboardingComplete: boolean) => ({
     name: companyName || user?.email?.split('@')[0] || 'My Business',
@@ -144,7 +147,7 @@ export function Onboarding() {
       contact_email: email || undefined,
       onboarding_complete: onboardingComplete,
       brand_kit: brandKit || undefined,
-      scraped_description: brandKit?.description || undefined,
+      scraped_description: brandKit?.description || brandKit?.content_preview || undefined,
     }
   })
 
@@ -207,28 +210,43 @@ export function Onboarding() {
               </div>
             </div>
 
-            {/* Step 1: Business Info */}
+            {/* Step 1: Website URL only */}
             {currentStep === 1 && (
               <div className="space-y-5">
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>Your Business</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>Your Website</h2>
+                <p style={{ fontSize: 14, color: '#5C6478' }}>Paste your website URL — AI will automatically extract your business info</p>
 
                 <div>
                   <label className="block text-sm font-medium mb-2" style={{ color: '#5C6478' }}>
                     <Globe className="inline w-4 h-4 mr-1" style={{ verticalAlign: '-2px' }} /> Website URL
                   </label>
-                  <div className="flex gap-2">
-                    <input type="text" value={websiteUrl} onChange={e => { setWebsiteUrl(e.target.value); setAnalyzed(false) }} className={inputCls} style={{ flex: 1 }} placeholder="yourbusiness.com" />
-                    <button type="button" onClick={handleAnalyzeUrl} disabled={!websiteUrl.trim() || analyzing}
-                      style={{ padding: '0 20px', borderRadius: 12, border: 'none', background: analyzed ? '#10B981' : 'linear-gradient(135deg, #4A7CFF, #8B5CF6)', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer', opacity: (!websiteUrl.trim() || analyzing) ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' as const }}>
-                      {analyzing ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing...</> : analyzed ? <><Check className="w-4 h-4" /> Analyzed</> : 'Analyze'}
-                    </button>
-                  </div>
-                  <p style={{ fontSize: 11, color: '#959DAF', marginTop: 4 }}>Paste your URL and click Analyze — AI will extract your brand data automatically</p>
+                  <input type="text" value={websiteUrl} onChange={e => { setWebsiteUrl(e.target.value); setBrandKit(null) }} className={inputCls} placeholder="yourbusiness.com" />
+                  <p style={{ fontSize: 11, color: '#959DAF', marginTop: 6 }}>Don't have a website? No problem — click Next and fill in your info manually</p>
                 </div>
+
+                {analyzing && (
+                  <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: '#F0F4FF' }}>
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
+                    <span style={{ fontSize: 14, color: '#4A7CFF', fontWeight: 600 }}>Analyzing your website...</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 2: Business Details (pre-filled from analysis) */}
+            {currentStep === 2 && (
+              <div className="space-y-5">
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>Your Business</h2>
+                {brandKit && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: '#ECFDF5', border: '1px solid #A7F3D0' }}>
+                    <Check size={16} className="text-green-600" />
+                    <span style={{ fontSize: 13, color: '#059669', fontWeight: 600 }}>Website analyzed — we pre-filled what we found</span>
+                  </div>
+                )}
 
                 {brandKit?.brand_colors?.length > 0 && (
                   <div className="flex items-center gap-2">
-                    <span style={{ fontSize: 12, color: '#5C6478', fontWeight: 600 }}>Detected colors:</span>
+                    <span style={{ fontSize: 12, color: '#5C6478', fontWeight: 600 }}>Brand colors:</span>
                     {brandKit.brand_colors.slice(0, 6).map((c: string, i: number) => (
                       <div key={i} style={{ width: 22, height: 22, borderRadius: 6, background: c, border: '1px solid #E5E9F0' }} />
                     ))}
@@ -243,28 +261,20 @@ export function Onboarding() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">Industry / Niche</label>
                   <input type="text" value={industry} onChange={e => setIndustry(e.target.value)} className={inputCls} placeholder="E-commerce, SaaS, Healthcare, etc." />
                 </div>
-              </div>
-            )}
-
-            {/* Step 2: Products */}
-            {currentStep === 2 && (
-              <div className="space-y-5">
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>What do you offer?</h2>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Products / Services *</label>
-                  <textarea value={products} onChange={e => setProducts(e.target.value)} rows={4} className={inputCls} placeholder="Describe what you offer — your products, services, and what makes them special..." />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Products / Services</label>
+                  <textarea value={products} onChange={e => setProducts(e.target.value)} rows={3} className={inputCls} placeholder="Describe what you offer..." />
                 </div>
               </div>
             )}
 
-            {/* Step 3: Goals & Voice — multi-select buttons */}
+            {/* Step 3: Goals & Voice */}
             {currentStep === 3 && (
               <div className="space-y-6">
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>Your Industry & Goals</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>Goals & Voice</h2>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Primary Marketing Goals <span style={{ fontSize: 11, color: '#959DAF' }}>(select multiple)</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Marketing Goals <span style={{ fontSize: 11, color: '#959DAF' }}>(select multiple)</span></label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {GOAL_OPTIONS.map(g => {
                       const active = marketingGoals.includes(g.id)
@@ -281,7 +291,7 @@ export function Onboarding() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Brand Voice / Tone <span style={{ fontSize: 11, color: '#959DAF' }}>(select multiple)</span></label>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">Brand Voice <span style={{ fontSize: 11, color: '#959DAF' }}>(select multiple)</span></label>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {VOICE_OPTIONS.map(v => {
                       const active = brandVoices.includes(v.id)
@@ -303,7 +313,6 @@ export function Onboarding() {
             {currentStep === 4 && (
               <div className="space-y-6">
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>Almost there!</h2>
-                <p style={{ fontSize: 14, color: '#5C6478' }}>Confirm your email to get started</p>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -313,7 +322,7 @@ export function Onboarding() {
                 </div>
 
                 <div style={{ background: '#F0F4FF', borderRadius: 14, padding: '16px 20px' }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#4A7CFF', marginBottom: 8 }}>Your setup summary:</p>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: '#4A7CFF', marginBottom: 8 }}>Summary:</p>
                   <div className="space-y-1 text-sm" style={{ color: '#5C6478' }}>
                     {companyName && <p>🏢 {companyName} {industry ? `· ${industry}` : ''}</p>}
                     {marketingGoals.length > 0 && <p>🎯 {marketingGoals.map(g => GOAL_OPTIONS.find(o => o.id === g)?.label).join(', ')}</p>}
@@ -331,24 +340,18 @@ export function Onboarding() {
                   <Link2 className="inline w-5 h-5 mr-2" style={{ verticalAlign: '-3px' }} />
                   Connect Your Platforms
                 </h2>
-                <p style={{ fontSize: 14, color: '#5C6478' }}>Connect the platforms you use — you can always do this later in Settings</p>
+                <p style={{ fontSize: 14, color: '#5C6478' }}>You can always connect later in Settings</p>
 
                 <div className="grid grid-cols-2 gap-3">
                   {PLATFORMS_LIST.map(p => (
-                    <button key={p.id} type="button"
-                      onClick={handleNavigateToIntegrations}
+                    <button key={p.id} type="button" onClick={handleNavigateToIntegrations}
                       className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition border-2 hover:shadow-md"
-                      style={{ borderColor: '#E5E9F0', background: '#FAFBFC', color: '#5C6478' }}
-                    >
+                      style={{ borderColor: '#E5E9F0', background: '#FAFBFC', color: '#5C6478' }}>
                       <span style={{ fontSize: 20 }}>{p.icon}</span>
                       <span>{p.label}</span>
                     </button>
                   ))}
                 </div>
-
-                <p style={{ fontSize: 12, color: '#959DAF', textAlign: 'center' }}>
-                  Clicking a platform will save your progress and take you to Integrations
-                </p>
               </div>
             )}
 
@@ -360,15 +363,15 @@ export function Onboarding() {
             {/* Navigation */}
             <div className="flex gap-4 mt-8">
               {currentStep > 1 && (
-                <button onClick={prevStep} disabled={loading}
+                <button onClick={prevStep} disabled={loading || analyzing}
                   style={{ flex: 1, padding: '12px 24px', borderRadius: 12, border: '1px solid #E5E9F0', background: '#FFFFFF', color: '#5C6478', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
                   Back
                 </button>
               )}
               {currentStep < TOTAL_STEPS ? (
-                <button onClick={nextStep}
-                  style={{ flex: 1, padding: '12px 24px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #4A7CFF, #8B5CF6)', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(74,124,255,0.3)' }}>
-                  Next Step
+                <button onClick={nextStep} disabled={analyzing}
+                  style={{ flex: 1, padding: '12px 24px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #4A7CFF, #8B5CF6)', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(74,124,255,0.3)', opacity: analyzing ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  {analyzing ? <><Loader2 className="w-4 h-4 animate-spin" /> Analyzing...</> : 'Next Step'}
                 </button>
               ) : (
                 <button onClick={handleSubmit} disabled={loading}
@@ -378,7 +381,7 @@ export function Onboarding() {
               )}
             </div>
 
-            <button onClick={() => saveAccount(true)} disabled={loading}
+            <button onClick={() => saveAccount(true)} disabled={loading || analyzing}
               style={{ width: '100%', marginTop: 12, padding: '8px 0', background: 'none', border: 'none', color: '#959DAF', fontSize: 13, cursor: 'pointer' }}>
               Skip for now
             </button>
