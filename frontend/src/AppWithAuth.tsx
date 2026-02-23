@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AccountProvider, useAccount } from './contexts/AccountContext'
 import { Login } from './pages/Login'
@@ -69,30 +69,16 @@ function ProtectedRoute({ children, skipOnboardingCheck = false }: { children: R
 
 function OAuthRedirectHandler() {
   const [searchParams] = useSearchParams()
-  const navigate = useNavigate()
   useEffect(() => {
     const success = searchParams.get('success')
     const error = searchParams.get('error')
     if (!success && !error) return
 
-    // Case 1: We're inside a popup → notify parent and close
-    if (window.opener) {
-      try {
-        localStorage.setItem('oauth_done', JSON.stringify({
-          platform: success || '', error: error || '', ts: Date.now()
-        }))
-      } catch { /* ignore */ }
-      window.close()
-      return
-    }
-
-    // Case 2: Normal redirect (from integrations page, not popup)
-    // If user came from onboarding, redirect back there
     const fromOnboarding = localStorage.getItem('onboarding_connected')
     if (fromOnboarding !== null && success) {
-      navigate(`/onboarding?connected=${success}`, { replace: true })
+      window.location.replace(`/onboarding?connected=${success}`)
     }
-  }, [searchParams, navigate])
+  }, [searchParams])
   return null
 }
 
