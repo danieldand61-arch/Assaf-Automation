@@ -56,7 +56,7 @@ function ProtectedRoute({ children, skipOnboardingCheck = false }: { children: R
     }
 
     const needsOnboarding = accounts.length === 0 ||
-      accounts.some(a => a.metadata?.onboarding_complete === false)
+      accounts.some(a => !a.metadata?.onboarding_complete)
 
     if (needsOnboarding) {
       return <Navigate to="/onboarding" replace />

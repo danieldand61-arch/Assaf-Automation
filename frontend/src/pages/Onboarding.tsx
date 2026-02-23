@@ -57,7 +57,7 @@ export function Onboarding() {
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
 
   const incompleteAccount = useMemo(
-    () => accounts.find(a => a.metadata?.onboarding_complete === false),
+    () => accounts.find(a => !a.metadata?.onboarding_complete),
     [accounts]
   )
 
@@ -162,14 +162,20 @@ export function Onboarding() {
     }
   }
 
+  const existingAccount = incompleteAccount || accounts[0]
+
+  const saveOrUpdate = async (onboardingComplete: boolean) => {
+    if (existingAccount) {
+      await updateAccount(existingAccount.id, buildAccountData(onboardingComplete))
+    } else {
+      await createAccount({ ...buildAccountData(onboardingComplete) })
+    }
+  }
+
   const saveAccount = async (onboardingComplete: boolean) => {
     setLoading(true); setError('')
     try {
-      if (incompleteAccount) {
-        await updateAccount(incompleteAccount.id, buildAccountData(onboardingComplete))
-      } else {
-        await createAccount({ ...buildAccountData(onboardingComplete) })
-      }
+      await saveOrUpdate(onboardingComplete)
       localStorage.removeItem('onboarding_connected')
       navigate('/app', { replace: true })
     } catch (err: any) {
@@ -182,11 +188,7 @@ export function Onboarding() {
   const handleGoToIntegrations = async () => {
     setLoading(true); setError('')
     try {
-      if (incompleteAccount) {
-        await updateAccount(incompleteAccount.id, buildAccountData(true))
-      } else {
-        await createAccount({ ...buildAccountData(true) })
-      }
+      await saveOrUpdate(true)
       navigate('/app?tab=integrations', { replace: true })
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Failed to save.')
