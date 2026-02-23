@@ -17,16 +17,16 @@ interface JoyoSidebarProps {
 
 const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: boolean; badgeKey?: TranslationKey }[] = [
   { id: 'dashboard',    labelKey: 'navDashboard',       icon: LayoutDashboard },
-  { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone, disabled: true, badgeKey: 'comingSoon' },
   { id: 'social',       labelKey: 'navPostGenerator',   icon: Send },
   { id: 'analyst',      labelKey: 'navAnalyst',          icon: BarChart3 },
   { id: 'advisor',      labelKey: 'navAIAdvisor',       icon: MessageSquare },
-  { id: 'media',        labelKey: 'navMediaStudio',     icon: Image, disabled: true, badgeKey: 'comingSoon' },
-  { id: 'videogen',     labelKey: 'navVideoStudio',     icon: Film, disabled: true, badgeKey: 'comingSoon' },
   { id: 'library',      labelKey: 'navContentLibrary',  icon: FileText },
   { id: 'calendar',     labelKey: 'navCalendar',        icon: Calendar },
   { id: 'integrations', labelKey: 'navIntegrations',    icon: Link2 },
   { id: 'settings',     labelKey: 'navSettings',        icon: Settings },
+  { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone, disabled: true, badgeKey: 'comingSoon' },
+  { id: 'media',        labelKey: 'navMediaStudio',     icon: Image, disabled: true, badgeKey: 'comingSoon' },
+  { id: 'videogen',     labelKey: 'navVideoStudio',     icon: Film, disabled: true, badgeKey: 'comingSoon' },
 ]
 
 export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollapse }: JoyoSidebarProps) {
