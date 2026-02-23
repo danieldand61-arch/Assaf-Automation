@@ -196,6 +196,10 @@ export function Onboarding() {
 
   const handleConnectPlatform = async (platformId: string) => {
     if (connectingPlatform) return
+
+    // Open popup SYNCHRONOUSLY (before any await) to avoid browser popup blocker
+    const popup = window.open('about:blank', '_blank', 'width=600,height=700,left=200,top=100')
+
     setConnectingPlatform(platformId)
     setError('')
     try {
@@ -217,18 +221,17 @@ export function Onboarding() {
       if (!res.ok) throw new Error('Failed to start OAuth')
       const data = await res.json()
       localStorage.removeItem('oauth_result')
-      const popup = window.open(data.auth_url, '_blank', 'width=600,height=700,left=200,top=100')
-      if (!popup) {
+
+      if (popup && !popup.closed) {
+        popup.location.href = data.auth_url
+        const timer = setInterval(() => {
+          if (popup.closed) { clearInterval(timer); setConnectingPlatform(null) }
+        }, 500)
+      } else {
         window.location.href = data.auth_url
-        return
       }
-      const timer = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(timer)
-          setConnectingPlatform(null)
-        }
-      }, 500)
     } catch (err: any) {
+      if (popup && !popup.closed) popup.close()
       setError(err.message || 'Connection failed')
       setConnectingPlatform(null)
     }
