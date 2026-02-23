@@ -81,9 +81,9 @@ async def get_users_stats(user=Depends(get_current_user)):
                         pass
 
             credit_record = credits_map.get(uid)
-            credits_remaining = float(credit_record["credits_remaining"]) if credit_record else 0.0
-            total_credits = float(credit_record["total_credits"]) if credit_record else 0.0
-            credits_used = float(credit_record["credits_used"]) if credit_record else 0.0
+            credits_remaining = float(credit_record.get("credits_remaining", 0)) if credit_record else 0.0
+            total_credits = float(credit_record.get("total_credits_purchased", 0)) if credit_record else 0.0
+            credits_used = float(credit_record.get("credits_used", 0)) if credit_record else 0.0
 
             usage_by_service = {}
             total_requests = 0
@@ -147,13 +147,13 @@ async def add_credits_to_user(user_id: str, body: AddCreditsRequest, admin_user=
         if existing.data:
             old = existing.data[0]
             supabase.table("user_credits").update({
-                "total_credits": float(old["total_credits"]) + body.amount,
-                "credits_remaining": float(old["credits_remaining"]) + body.amount,
+                "total_credits_purchased": float(old.get("total_credits_purchased", 0)) + body.amount,
+                "credits_remaining": float(old.get("credits_remaining", 0)) + body.amount,
             }).eq("user_id", user_id).execute()
         else:
             supabase.table("user_credits").insert({
                 "user_id": user_id,
-                "total_credits": body.amount,
+                "total_credits_purchased": body.amount,
                 "credits_used": 0.0,
                 "credits_remaining": body.amount,
             }).execute()

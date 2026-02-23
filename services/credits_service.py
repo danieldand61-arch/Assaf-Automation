@@ -218,7 +218,7 @@ async def ensure_user_credits_exist(user_id: str, initial_credits: float = 0.0):
             # Create new record
             supabase.table("user_credits").insert({
                 "user_id": user_id,
-                "total_credits": initial_credits,
+                "total_credits_purchased": initial_credits,
                 "credits_used": 0.0,
                 "credits_remaining": initial_credits
             }).execute()
