@@ -72,10 +72,24 @@ function OAuthRedirectHandler() {
   const navigate = useNavigate()
   useEffect(() => {
     const success = searchParams.get('success')
-    if (!success) return
+    const error = searchParams.get('error')
+    if (!success && !error) return
 
+    // Case 1: We're inside a popup → notify parent and close
+    if (window.opener) {
+      try {
+        localStorage.setItem('oauth_done', JSON.stringify({
+          platform: success || '', error: error || '', ts: Date.now()
+        }))
+      } catch { /* ignore */ }
+      window.close()
+      return
+    }
+
+    // Case 2: Normal redirect (from integrations page, not popup)
+    // If user came from onboarding, redirect back there
     const fromOnboarding = localStorage.getItem('onboarding_connected')
-    if (fromOnboarding !== null) {
+    if (fromOnboarding !== null && success) {
       navigate(`/onboarding?connected=${success}`, { replace: true })
     }
   }, [searchParams, navigate])

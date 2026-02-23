@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Sparkles, Loader2, Globe, Check, Mail, Link2 } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
@@ -58,7 +58,9 @@ export function Onboarding() {
     try { return JSON.parse(localStorage.getItem('onboarding_connected') || '[]') } catch { return [] }
   })
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null)
+  const popupRef = useRef<Window | null>(null)
 
+  // Fallback: if we returned from OAuth via full redirect (popup failed)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const justConnected = params.get('connected')
@@ -72,6 +74,40 @@ export function Onboarding() {
       window.history.replaceState({}, '', '/onboarding')
     }
   }, [])
+
+  // Listen for popup OAuth completion via localStorage
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== 'oauth_done' || !e.newValue) return
+      try {
+        const { platform, error: oauthErr } = JSON.parse(e.newValue)
+        if (oauthErr) setError(`Connection failed: ${oauthErr}`)
+        else if (platform) {
+          setConnectedPlatforms(prev => {
+            const next = prev.includes(platform) ? prev : [...prev, platform]
+            localStorage.setItem('onboarding_connected', JSON.stringify(next))
+            return next
+          })
+        }
+      } catch { /* ignore */ }
+      setConnectingPlatform(null)
+      localStorage.removeItem('oauth_done')
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
+
+  // Poll popup closed (user may close without completing OAuth)
+  useEffect(() => {
+    if (!connectingPlatform) return
+    const timer = setInterval(() => {
+      if (popupRef.current && popupRef.current.closed) {
+        popupRef.current = null
+        setConnectingPlatform(null)
+      }
+    }, 500)
+    return () => clearInterval(timer)
+  }, [connectingPlatform])
 
   const incompleteAccount = useMemo(
     () => accounts.find(a => a.metadata?.onboarding_complete === false),
@@ -198,6 +234,13 @@ export function Onboarding() {
 
   const handleConnectPlatform = async (platformId: string) => {
     if (connectingPlatform) return
+
+    // MUST open popup synchronously in click handler — before any await!
+    // Otherwise browser blocks it as "not user-initiated"
+    const left = (window.screen.width - 600) / 2
+    const top = (window.screen.height - 700) / 2
+    const popup = window.open('about:blank', 'oauth_popup', `width=600,height=700,left=${left},top=${top},toolbar=no,menubar=no`)
+
     setConnectingPlatform(platformId)
     setError('')
     try {
@@ -208,6 +251,7 @@ export function Onboarding() {
       }
 
       localStorage.setItem('onboarding_connected', JSON.stringify(connectedPlatforms))
+      localStorage.removeItem('oauth_done')
 
       const apiUrl = getApiUrl()
       const endpoint = platformId === 'meta_ads'
@@ -220,8 +264,16 @@ export function Onboarding() {
       })
       if (!res.ok) throw new Error('Failed to start OAuth')
       const data = await res.json()
-      window.location.href = data.auth_url
+
+      if (popup && !popup.closed) {
+        popup.location.href = data.auth_url
+        popupRef.current = popup
+      } else {
+        // Popup was blocked — fallback to full redirect
+        window.location.href = data.auth_url
+      }
     } catch (err: any) {
+      if (popup && !popup.closed) popup.close()
       setError(err.message || 'Connection failed')
       setConnectingPlatform(null)
     }
