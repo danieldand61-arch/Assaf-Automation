@@ -26,14 +26,14 @@ const VOICE_OPTIONS = [
 const TOTAL_STEPS = 5
 
 const PLATFORMS_LIST = [
-  { id: 'facebook', label: 'Facebook', icon: '📘', oauth: true },
-  { id: 'instagram', label: 'Instagram', icon: '📸', oauth: true },
-  { id: 'linkedin', label: 'LinkedIn', icon: '💼', oauth: true },
-  { id: 'tiktok', label: 'TikTok', icon: '🎵', oauth: true },
-  { id: 'x', label: 'X (Twitter)', icon: '🐦', oauth: true },
-  { id: 'google_business', label: 'Google Business', icon: '📍', oauth: false },
-  { id: 'meta_ads', label: 'Meta Ads', icon: '📊', oauth: true },
-  { id: 'google_ads', label: 'Google Ads', icon: '📈', oauth: false },
+  { id: 'facebook', label: 'Facebook', icon: '📘' },
+  { id: 'instagram', label: 'Instagram', icon: '📸' },
+  { id: 'linkedin', label: 'LinkedIn', icon: '💼' },
+  { id: 'tiktok', label: 'TikTok', icon: '🎵' },
+  { id: 'x', label: 'X (Twitter)', icon: '🐦' },
+  { id: 'google_business', label: 'Google Business', icon: '📍' },
+  { id: 'meta_ads', label: 'Meta Ads', icon: '📊' },
+  { id: 'google_ads', label: 'Google Ads', icon: '📈' },
 ]
 
 export function Onboarding() {
@@ -54,25 +54,7 @@ export function Onboarding() {
 
   const [analyzing, setAnalyzing] = useState(false)
   const [brandKit, setBrandKit] = useState<any>(null)
-  const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('onboarding_connected') || '[]') } catch { return [] }
-  })
-  const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null)
-
-  // On return from OAuth redirect — detect ?connected= param
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const justConnected = params.get('connected')
-    if (justConnected) {
-      setConnectedPlatforms(prev => {
-        const next = prev.includes(justConnected) ? prev : [...prev, justConnected]
-        localStorage.setItem('onboarding_connected', JSON.stringify(next))
-        return next
-      })
-      setCurrentStep(5)
-      window.history.replaceState({}, '', '/onboarding')
-    }
-  }, [])
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
 
   const incompleteAccount = useMemo(
     () => accounts.find(a => a.metadata?.onboarding_complete === false),
@@ -197,37 +179,18 @@ export function Onboarding() {
 
   const handleSubmit = () => saveAccount(true)
 
-  const handleConnectPlatform = async (platformId: string) => {
-    if (connectingPlatform) return
-    setConnectingPlatform(platformId)
-    setError('')
+  const handleGoToIntegrations = async () => {
+    setLoading(true); setError('')
     try {
       if (incompleteAccount) {
         await updateAccount(incompleteAccount.id, buildAccountData(true))
-      } else if (!accounts.some(a => a.metadata?.onboarding_complete)) {
+      } else {
         await createAccount({ ...buildAccountData(true) })
       }
-
-      // Save current connected list so we restore on return
-      localStorage.setItem('onboarding_connected', JSON.stringify(connectedPlatforms))
-
-      const apiUrl = getApiUrl()
-      const endpoint = platformId === 'meta_ads'
-        ? `${apiUrl}/api/social/meta-ads/connect`
-        : platformId === 'google_ads'
-          ? `${apiUrl}/api/google-ads/oauth/init`
-          : `${apiUrl}/api/social/${platformId}/connect`
-      const res = await fetch(endpoint, {
-        headers: { 'Authorization': `Bearer ${session?.access_token}` },
-      })
-      if (!res.ok) throw new Error('Failed to start OAuth')
-      const data = await res.json()
-      // Leave page — OAuthRedirectHandler will bring us back to /onboarding?connected=xxx
-      window.location.href = data.auth_url
+      navigate('/app?tab=integrations', { replace: true })
     } catch (err: any) {
-      setError(err.message || 'Connection failed')
-      setConnectingPlatform(null)
-    }
+      setError(err.response?.data?.detail || err.message || 'Failed to save.')
+    } finally { setLoading(false) }
   }
 
   const inputCls = "w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
@@ -382,41 +345,44 @@ export function Onboarding() {
               </div>
             )}
 
-            {/* Step 5: Connect Platforms — click to OAuth */}
+            {/* Step 5: Select Platforms → go to Integrations to connect */}
             {currentStep === 5 && (
               <div className="space-y-6">
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>
                   <Link2 className="inline w-5 h-5 mr-2" style={{ verticalAlign: '-3px' }} />
                   Connect Your Platforms
                 </h2>
-                <p style={{ fontSize: 14, color: '#5C6478' }}>Click a platform to connect it. You can connect more later in Settings.</p>
+                <p style={{ fontSize: 14, color: '#5C6478' }}>Select the platforms you use, then connect them on the next page</p>
 
                 <div className="grid grid-cols-2 gap-3">
                   {PLATFORMS_LIST.map(p => {
-                    const connected = connectedPlatforms.includes(p.id)
-                    const connecting = connectingPlatform === p.id
-                    const disabled = connecting || connected || !p.oauth
+                    const selected = selectedPlatforms.includes(p.id)
                     return (
-                      <button key={p.id} type="button" disabled={disabled}
-                        onClick={() => p.oauth && handleConnectPlatform(p.id)}
+                      <button key={p.id} type="button"
+                        onClick={() => setSelectedPlatforms(prev => selected ? prev.filter(x => x !== p.id) : [...prev, p.id])}
                         className="relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition border-2"
                         style={{
-                          borderColor: connected ? '#10B981' : connecting ? '#4A7CFF' : '#E5E9F0',
-                          background: connected ? '#ECFDF5' : connecting ? '#4A7CFF10' : '#FAFBFC',
-                          color: connected ? '#059669' : connecting ? '#4A7CFF' : !p.oauth ? '#B0B8C9' : '#5C6478',
-                          opacity: connecting || !p.oauth ? 0.6 : 1,
+                          borderColor: selected ? '#4A7CFF' : '#E5E9F0',
+                          background: selected ? '#4A7CFF10' : '#FAFBFC',
+                          color: selected ? '#4A7CFF' : '#5C6478',
                         }}>
-                        {connected && <Check size={14} className="absolute top-1.5 right-1.5" style={{ color: '#10B981' }} />}
-                        {connecting && <Loader2 size={14} className="absolute top-1.5 right-1.5 animate-spin" style={{ color: '#4A7CFF' }} />}
+                        {selected && <Check size={14} className="absolute top-1.5 right-1.5" style={{ color: '#4A7CFF' }} />}
                         <span style={{ fontSize: 20 }}>{p.icon}</span>
-                        <span>{connected ? `${p.label} ✓` : connecting ? 'Connecting...' : !p.oauth ? `${p.label} (Settings)` : p.label}</span>
+                        <span>{p.label}</span>
                       </button>
                     )
                   })}
                 </div>
 
+                {selectedPlatforms.length > 0 && (
+                  <button type="button" onClick={handleGoToIntegrations} disabled={loading}
+                    style={{ width: '100%', padding: '14px 24px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #4A7CFF, #8B5CF6)', color: 'white', fontSize: 15, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(74,124,255,0.3)', opacity: loading ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    {loading ? <><Loader2 className="w-5 h-5 animate-spin" /> Saving...</> : <><Link2 size={18} /> Connect {selectedPlatforms.length} platform{selectedPlatforms.length > 1 ? 's' : ''}</>}
+                  </button>
+                )}
+
                 <p style={{ fontSize: 12, color: '#959DAF', textAlign: 'center' }}>
-                  You can always connect more platforms later in Integrations
+                  You can always connect platforms later in Integrations
                 </p>
               </div>
             )}
