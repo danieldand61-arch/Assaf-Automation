@@ -17,7 +17,7 @@ interface JoyoSidebarProps {
 
 const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: boolean; badgeKey?: TranslationKey }[] = [
   { id: 'dashboard',    labelKey: 'navDashboard',       icon: LayoutDashboard },
-  { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone },
+  { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone, disabled: true, badgeKey: 'comingSoon' },
   { id: 'social',       labelKey: 'navPostGenerator',   icon: Send },
   { id: 'analyst',      labelKey: 'navAnalyst',          icon: BarChart3 },
   { id: 'advisor',      labelKey: 'navAIAdvisor',       icon: MessageSquare },

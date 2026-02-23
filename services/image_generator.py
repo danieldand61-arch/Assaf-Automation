@@ -321,74 +321,34 @@ def _get_aspect_ratio(dimensions: str) -> str:
 
 
 def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_prompt: str = None) -> str:
-    """Build a concrete, scene-based prompt tightly coupled to the brand."""
+    """Build a focused image prompt driven by the post text."""
 
     if custom_prompt:
         logger.info(f"🎨 Using custom prompt: {custom_prompt[:100]}...")
         return custom_prompt.strip()
 
-    url = website_data.get('url', '')
-    title = website_data.get('title', 'a brand')
-    description = website_data.get('description', '')
-    products = website_data.get('products', [])
-    features = website_data.get('key_features', [])
+    title = website_data.get('title', '').strip() or 'a brand'
     colors = website_data.get('colors', [])
-    content = website_data.get('content', '')
+    color_hint = f'Use these brand colors in the composition: {", ".join(colors[:3])}.' if colors else ''
 
-    # Pick the main product mentioned in this specific post variation
-    post_lower = variation.text.lower()
-    matching_products = [p for p in products if any(w in post_lower for w in p.lower().split() if len(w) > 3)]
-    hero_product = matching_products[0] if matching_products else (products[0] if products else '')
+    post_text = variation.text[:300]
+    mood = _detect_mood(variation.text)
 
-    # Build brand identity block
-    brand_lines = [f'Company: {title}']
-    if url:
-        brand_lines.append(f'Website: {url}')
-    if description:
-        brand_lines.append(f'Description: {description[:250]}')
-    if products:
-        brand_lines.append(f'Their products/services: {", ".join(products[:8])}')
-    if features:
-        brand_lines.append(f'Key selling points: {", ".join(features[:5])}')
-    if content:
-        brand_lines.append(f'Page text: {content[:500]}')
+    prompt = f"""Create a photorealistic social media image for "{title}".
 
-    brand_block = '\n'.join(brand_lines)
-    color_hint = f'Incorporate brand colors: {", ".join(colors[:3])}.' if colors else ''
-    post_excerpt = variation.text[:250]
+POST CAPTION (the image must match this):
+"{post_text}"
 
-    # Determine what to show
-    if hero_product:
-        subject = f'The main subject is "{hero_product}" — show this specific product/service prominently.'
-    else:
-        subject = f'Show the core product or service of this brand as the main subject.'
-
-    prompt = f"""You are creating a social media advertisement photo for this brand:
-
-{brand_block}
-
-The post text that accompanies this image:
-"{post_excerpt}"
-
-YOUR TASK:
-Create a single photorealistic photograph that looks like it belongs on this brand's official social media page.
-
-{subject}
-
-REQUIREMENTS:
-- The image MUST be recognizably about THIS specific brand and what they sell
-- Show the actual product being used, held, consumed, or displayed in real life
-- Professional commercial photography quality: 85mm lens, shallow depth of field, natural lighting
-- Lifestyle context: real people interacting with the product in an aspirational setting
-- Mood: {_detect_mood(variation.text)}
+STYLE:
+- Professional commercial photography, shallow depth of field, natural lighting
+- Mood: {mood}
 - {color_hint}
 
-STRICT RULES:
-- ZERO text, words, letters, numbers, watermarks, or logos anywhere in the image
-- ZERO UI elements, buttons, or overlays
-- ONE single cohesive photograph, no collages or split frames
-- Main subject fills 60%+ of the frame
-- Must look like an ad for THIS brand, not a random stock photo"""
+RULES:
+- NO text, words, letters, numbers, watermarks, or logos in the image
+- NO UI elements, buttons, or overlays
+- ONE single photograph, no collages
+- The image must visually match the topic described in the caption above"""
 
     return prompt.strip()
 

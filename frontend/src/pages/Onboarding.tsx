@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, Loader2, Globe, Check, Mail } from 'lucide-react'
+import { Sparkles, Loader2, Globe, Check, Mail, Link2 } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
@@ -23,7 +23,18 @@ const VOICE_OPTIONS = [
   { id: 'bold', label: 'Bold / Edgy', emoji: '🔥' },
 ]
 
-const TOTAL_STEPS = 4
+const TOTAL_STEPS = 5
+
+const PLATFORMS_LIST = [
+  { id: 'facebook', label: 'Facebook', color: '#1877F2', icon: '📘' },
+  { id: 'instagram', label: 'Instagram', color: '#E4405F', icon: '📸' },
+  { id: 'linkedin', label: 'LinkedIn', color: '#0A66C2', icon: '💼' },
+  { id: 'tiktok', label: 'TikTok', color: '#010101', icon: '🎵' },
+  { id: 'x', label: 'X (Twitter)', color: '#1DA1F2', icon: '🐦' },
+  { id: 'google_business', label: 'Google Business', color: '#4285F4', icon: '📍' },
+  { id: 'meta_ads', label: 'Meta Ads', color: '#0668E1', icon: '📊' },
+  { id: 'google_ads', label: 'Google Ads', color: '#34A853', icon: '📈' },
+]
 
 export function Onboarding() {
   const { user, session } = useAuth()
@@ -38,8 +49,6 @@ export function Onboarding() {
   const [industry, setIndustry] = useState('')
 
   const [products, setProducts] = useState('')
-  const [targetAudience, setTargetAudience] = useState('')
-  const [geographicFocus, setGeographicFocus] = useState('')
 
   const [marketingGoals, setMarketingGoals] = useState<string[]>([])
   const [brandVoices, setBrandVoices] = useState<string[]>(['professional'])
@@ -65,13 +74,11 @@ export function Onboarding() {
       if (incompleteAccount.name && !incompleteAccount.name.endsWith(' Account')) setCompanyName(incompleteAccount.name)
       if (incompleteAccount.industry) setIndustry(incompleteAccount.industry)
       if (incompleteAccount.description) setProducts(incompleteAccount.description)
-      if (incompleteAccount.target_audience) setTargetAudience(incompleteAccount.target_audience)
       if (incompleteAccount.brand_voice) setBrandVoices([incompleteAccount.brand_voice])
       if (incompleteAccount.metadata?.marketing_goal) setMarketingGoals(
         Array.isArray(incompleteAccount.metadata.marketing_goal) ? incompleteAccount.metadata.marketing_goal : [incompleteAccount.metadata.marketing_goal]
       )
       if (incompleteAccount.metadata?.website_url) setWebsiteUrl(incompleteAccount.metadata.website_url)
-      if (incompleteAccount.metadata?.geographic_focus) setGeographicFocus(incompleteAccount.metadata.geographic_focus)
     }
     if (user?.email) setEmail(user.email)
   }, [incompleteAccount, user])
@@ -127,7 +134,6 @@ export function Onboarding() {
     name: companyName || user?.email?.split('@')[0] || 'My Business',
     description: products || undefined,
     industry: industry || undefined,
-    target_audience: targetAudience || undefined,
     brand_voice: brandVoices[0] || 'professional',
     logo_url: brandKit?.logo_url || undefined,
     brand_colors: brandKit?.brand_colors || [],
@@ -135,10 +141,10 @@ export function Onboarding() {
       marketing_goal: marketingGoals.join(','),
       brand_voices: brandVoices.join(','),
       website_url: websiteUrl || undefined,
-      geographic_focus: geographicFocus || undefined,
       contact_email: email || undefined,
       onboarding_complete: onboardingComplete,
       brand_kit: brandKit || undefined,
+      scraped_description: brandKit?.description || undefined,
     }
   })
 
@@ -157,6 +163,20 @@ export function Onboarding() {
   }
 
   const handleSubmit = () => saveAccount(true)
+
+  const handleNavigateToIntegrations = async () => {
+    setLoading(true); setError('')
+    try {
+      if (incompleteAccount) {
+        await updateAccount(incompleteAccount.id, buildAccountData(true))
+      } else {
+        await createAccount({ ...buildAccountData(true) })
+      }
+      navigate('/app?tab=integrations', { replace: true })
+    } catch (err: any) {
+      setError(err.response?.data?.detail || err.message || 'Failed to save.')
+    } finally { setLoading(false) }
+  }
 
   const inputCls = "w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
 
@@ -226,22 +246,14 @@ export function Onboarding() {
               </div>
             )}
 
-            {/* Step 2: Products & Audience */}
+            {/* Step 2: Products */}
             {currentStep === 2 && (
               <div className="space-y-5">
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>Products & Audience</h2>
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>What do you offer?</h2>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Products / Services</label>
-                  <textarea value={products} onChange={e => setProducts(e.target.value)} rows={3} className={inputCls} placeholder="Describe what you offer..." />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Target Audience</label>
-                  <input type="text" value={targetAudience} onChange={e => setTargetAudience(e.target.value)} className={inputCls} placeholder="Small business owners, young professionals, etc." />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Geographic Focus</label>
-                  <input type="text" value={geographicFocus} onChange={e => setGeographicFocus(e.target.value)} className={inputCls} placeholder="United States, Europe, Global, etc." />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Products / Services *</label>
+                  <textarea value={products} onChange={e => setProducts(e.target.value)} rows={4} className={inputCls} placeholder="Describe what you offer — your products, services, and what makes them special..." />
                 </div>
               </div>
             )}
@@ -306,9 +318,37 @@ export function Onboarding() {
                     {companyName && <p>🏢 {companyName} {industry ? `· ${industry}` : ''}</p>}
                     {marketingGoals.length > 0 && <p>🎯 {marketingGoals.map(g => GOAL_OPTIONS.find(o => o.id === g)?.label).join(', ')}</p>}
                     {brandVoices.length > 0 && <p>🗣️ {brandVoices.map(v => VOICE_OPTIONS.find(o => o.id === v)?.label).join(', ')}</p>}
-                    {geographicFocus && <p>🌍 {geographicFocus}</p>}
+                    {websiteUrl && <p>🌐 {websiteUrl}</p>}
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Step 5: Connect Platforms */}
+            {currentStep === 5 && (
+              <div className="space-y-6">
+                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>
+                  <Link2 className="inline w-5 h-5 mr-2" style={{ verticalAlign: '-3px' }} />
+                  Connect Your Platforms
+                </h2>
+                <p style={{ fontSize: 14, color: '#5C6478' }}>Connect the platforms you use — you can always do this later in Settings</p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  {PLATFORMS_LIST.map(p => (
+                    <button key={p.id} type="button"
+                      onClick={handleNavigateToIntegrations}
+                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition border-2 hover:shadow-md"
+                      style={{ borderColor: '#E5E9F0', background: '#FAFBFC', color: '#5C6478' }}
+                    >
+                      <span style={{ fontSize: 20 }}>{p.icon}</span>
+                      <span>{p.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <p style={{ fontSize: 12, color: '#959DAF', textAlign: 'center' }}>
+                  Clicking a platform will save your progress and take you to Integrations
+                </p>
               </div>
             )}
 

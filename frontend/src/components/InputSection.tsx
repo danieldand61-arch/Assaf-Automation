@@ -126,8 +126,11 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(form.uploaded_image || null)
   const [mediaPreview, setMediaPreview] = useState<string | null>(form.media_file || null)
   const [mediaIsVideo, setMediaIsVideo] = useState(false)
+  const [showCustomUrl, setShowCustomUrl] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const mediaRef = useRef<HTMLInputElement>(null)
+
+  const onboardingUrl = activeAccount?.metadata?.website_url || ''
 
   // Auto-save draft
   useEffect(() => {
@@ -213,12 +216,13 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.platforms.length) { alert('Select at least one platform'); return }
-    if (!form.media_file && !form.url.trim() && !form.keywords.trim()) { alert('Enter a URL or describe your post'); return }
+    const effectiveUrl = showCustomUrl ? form.url.trim() : onboardingUrl
+    if (!form.media_file && !effectiveUrl && !form.keywords.trim()) { alert('Describe your post or add a URL'); return }
     if (form.media_file && !form.keywords.trim()) { alert('Write a caption or describe the post'); return }
-    onGenerate(form)
+    onGenerate({ ...form, url: effectiveUrl })
   }
 
-  const canGenerate = form.platforms.length > 0 && (form.url.trim() || form.keywords.trim() || !!form.media_file)
+  const canGenerate = form.platforms.length > 0 && ((showCustomUrl ? form.url.trim() : onboardingUrl) || form.keywords.trim() || !!form.media_file)
 
   /* ── select / input class ────────────────────────────────────── */
   const fieldCls = 'w-full px-4 py-3 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:border-blue-500 dark:focus:border-blue-400 focus:ring-2 focus:ring-blue-500/20 outline-none transition text-sm'
@@ -270,19 +274,46 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
           )}
         </div>
 
-        {/* ── 2. URL (hidden when using own media) ──────────── */}
+        {/* ── 2. URL — hidden by default, uses onboarding site ── */}
         {!mediaPreview && (
           <div>
-            <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-              <Globe className="inline w-4 h-4 mr-1" /> Website / Social URL
-            </label>
-            <input
-              type="text"
-              value={form.url}
-              onChange={e => set('url', e.target.value)}
-              placeholder="yourbusiness.com or instagram.com/yourpage"
-              className={fieldCls}
-            />
+            {!showCustomUrl ? (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  {onboardingUrl ? (
+                    <>Using your website: <span className="font-semibold text-gray-700 dark:text-gray-300">{onboardingUrl}</span></>
+                  ) : (
+                    <>No website linked — AI will generate based on your prompt</>
+                  )}
+                </p>
+                <button type="button" onClick={() => setShowCustomUrl(true)}
+                  className="text-xs font-semibold text-blue-500 hover:text-blue-600 whitespace-nowrap ml-3">
+                  <Globe className="inline w-3.5 h-3.5 mr-0.5" /> Use different URL
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300">
+                    <Globe className="inline w-4 h-4 mr-1" /> Custom URL
+                  </label>
+                  <button type="button" onClick={() => { setShowCustomUrl(false); set('url', '') }}
+                    className="text-xs font-semibold text-gray-400 hover:text-gray-600">
+                    ✕ Use my default site
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={form.url}
+                  onChange={e => set('url', e.target.value)}
+                  placeholder="Paste a URL or leave empty to generate from prompt only"
+                  className={fieldCls}
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  {form.url.trim() ? 'Post will be based on this URL' : 'Empty = post based on your prompt only, no website context'}
+                </p>
+              </div>
+            )}
           </div>
         )}
 
