@@ -183,11 +183,11 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
 
               {/* Image / Video */}
               {img?.url && !isPlaceholder ? (
-                <div className="relative" style={{ maxHeight: 280, overflow: 'hidden' }}>
+                <div className="relative bg-black/5 dark:bg-black/20">
                   {img.url.startsWith('data:video') ? (
-                    <video src={img.url} className="w-full h-full object-cover" style={{ maxHeight: 280 }} controls muted />
+                    <video src={img.url} className="w-full max-h-[360px] object-contain mx-auto" controls muted />
                   ) : (
-                    <img src={img.url} alt="" className="w-full h-full object-cover" style={{ maxHeight: 280 }} />
+                    <img src={img.url} alt="" className="w-full max-h-[360px] object-contain mx-auto" />
                   )}
                   {!userMedia && (
                     <button onClick={() => setEditingImageIdx(idx)}
