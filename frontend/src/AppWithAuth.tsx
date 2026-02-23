@@ -72,7 +72,10 @@ function AppRoutes() {
   // Intercept OAuth callback BEFORE any render — if user came from onboarding, redirect back
   const params = new URLSearchParams(window.location.search)
   const oauthSuccess = params.get('success')
-  if (oauthSuccess && localStorage.getItem('onboarding_connected') !== null) {
+  const onboardingFlag = localStorage.getItem('onboarding_connected')
+  console.log('[OAuthIntercept]', { url: window.location.href, oauthSuccess, onboardingFlag, loading })
+  if (oauthSuccess && onboardingFlag !== null) {
+    console.log('[OAuthIntercept] Redirecting to onboarding with connected=', oauthSuccess)
     window.location.replace(`/onboarding?connected=${oauthSuccess}`)
     return null
   }
