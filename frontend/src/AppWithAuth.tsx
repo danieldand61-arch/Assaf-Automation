@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams, useNavigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AccountProvider, useAccount } from './contexts/AccountContext'
 import { Login } from './pages/Login'
@@ -67,16 +67,18 @@ function ProtectedRoute({ children, skipOnboardingCheck = false }: { children: R
   return <>{children}</>
 }
 
-function OAuthPopupBridge() {
+function OAuthRedirectHandler() {
   const [searchParams] = useSearchParams()
+  const navigate = useNavigate()
   useEffect(() => {
     const success = searchParams.get('success')
-    const error = searchParams.get('error')
-    if ((success || error) && window.opener) {
-      localStorage.setItem('oauth_result', JSON.stringify({ platform: success || '', error: error || '', ts: Date.now() }))
-      window.close()
+    if (!success) return
+
+    const fromOnboarding = localStorage.getItem('onboarding_connected')
+    if (fromOnboarding !== null) {
+      navigate(`/onboarding?connected=${success}`, { replace: true })
     }
-  }, [searchParams])
+  }, [searchParams, navigate])
   return null
 }
 
@@ -86,7 +88,7 @@ function AppRoutes() {
   // Always render popup bridge (even during loading) so OAuth popups close immediately
   return (
     <>
-    <OAuthPopupBridge />
+    <OAuthRedirectHandler />
     {loading ? (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Loader2 className="w-12 h-12 animate-spin text-blue-600" />

@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Loader2, Check, Sparkles } from 'lucide-react'
 import { JoyoSidebar } from './JoyoSidebar'
 import { JoyoTopBar } from './JoyoTopBar'
@@ -33,8 +33,23 @@ const PLATFORM_LABELS: Record<string, string> = {
 }
 
 export function MainWorkspace() {
-  const [activeTab, setActiveTab] = useState<TabType>('dashboard')
+  const [activeTab, setActiveTab] = useState<TabType>(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tab = params.get('tab')
+    if (tab && ['dashboard','social','ads','chat','analyst','advisor','media','video','videogen','library','calendar','integrations','settings'].includes(tab)) {
+      return tab as TabType
+    }
+    return 'dashboard'
+  })
   const [collapsed, setCollapsed] = useState(false)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const tab = params.get('tab')
+    if (tab && tab !== activeTab && ['dashboard','social','ads','chat','analyst','advisor','media','video','videogen','library','calendar','integrations','settings'].includes(tab)) {
+      setActiveTab(tab as TabType)
+    }
+  }, [])
   const [showConnectTools, setShowConnectTools] = useState(
     () => !localStorage.getItem('joyo_tools_connected')
   )

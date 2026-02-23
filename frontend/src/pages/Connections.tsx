@@ -141,12 +141,12 @@ export function Connections() {
     if (success) {
       setSuccessMessage(`${success.charAt(0).toUpperCase() + success.slice(1)} connected successfully!`)
       // Clear URL parameters
-      window.history.replaceState({}, '', '/settings?tab=connections')
+      window.history.replaceState({}, '', '/app?tab=integrations')
     }
     
     if (errorParam) {
       setError(errorParam)
-      window.history.replaceState({}, '', '/settings?tab=connections')
+      window.history.replaceState({}, '', '/app?tab=integrations')
     }
 
     // Check if OAuth completed - open modal for customer ID

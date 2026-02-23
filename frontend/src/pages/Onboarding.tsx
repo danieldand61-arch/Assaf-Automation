@@ -54,22 +54,23 @@ export function Onboarding() {
 
   const [analyzing, setAnalyzing] = useState(false)
   const [brandKit, setBrandKit] = useState<any>(null)
-  const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([])
+  const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('onboarding_connected') || '[]') } catch { return [] }
+  })
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null)
 
   useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== 'oauth_result' || !e.newValue) return
-      try {
-        const { platform, error: oauthErr } = JSON.parse(e.newValue)
-        if (oauthErr) { setError(`Connection failed: ${oauthErr}`) }
-        else if (platform) { setConnectedPlatforms(prev => prev.includes(platform) ? prev : [...prev, platform]) }
-      } catch { /* ignore */ }
-      setConnectingPlatform(null)
-      localStorage.removeItem('oauth_result')
+    const params = new URLSearchParams(window.location.search)
+    const justConnected = params.get('connected')
+    if (justConnected) {
+      setConnectedPlatforms(prev => {
+        const next = prev.includes(justConnected) ? prev : [...prev, justConnected]
+        localStorage.setItem('onboarding_connected', JSON.stringify(next))
+        return next
+      })
+      setCurrentStep(5)
+      window.history.replaceState({}, '', '/onboarding')
     }
-    window.addEventListener('storage', onStorage)
-    return () => window.removeEventListener('storage', onStorage)
   }, [])
 
   const incompleteAccount = useMemo(
@@ -186,6 +187,7 @@ export function Onboarding() {
       } else {
         await createAccount({ ...buildAccountData(onboardingComplete) })
       }
+      localStorage.removeItem('onboarding_connected')
       navigate('/app', { replace: true })
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Failed to save.')
@@ -196,10 +198,6 @@ export function Onboarding() {
 
   const handleConnectPlatform = async (platformId: string) => {
     if (connectingPlatform) return
-
-    // Open popup SYNCHRONOUSLY (before any await) to avoid browser popup blocker
-    const popup = window.open('about:blank', '_blank', 'width=600,height=700,left=200,top=100')
-
     setConnectingPlatform(platformId)
     setError('')
     try {
@@ -208,6 +206,8 @@ export function Onboarding() {
       } else if (!accounts.some(a => a.metadata?.onboarding_complete)) {
         await createAccount({ ...buildAccountData(true) })
       }
+
+      localStorage.setItem('onboarding_connected', JSON.stringify(connectedPlatforms))
 
       const apiUrl = getApiUrl()
       const endpoint = platformId === 'meta_ads'
@@ -220,18 +220,8 @@ export function Onboarding() {
       })
       if (!res.ok) throw new Error('Failed to start OAuth')
       const data = await res.json()
-      localStorage.removeItem('oauth_result')
-
-      if (popup && !popup.closed) {
-        popup.location.href = data.auth_url
-        const timer = setInterval(() => {
-          if (popup.closed) { clearInterval(timer); setConnectingPlatform(null) }
-        }, 500)
-      } else {
-        window.location.href = data.auth_url
-      }
+      window.location.href = data.auth_url
     } catch (err: any) {
-      if (popup && !popup.closed) popup.close()
       setError(err.message || 'Connection failed')
       setConnectingPlatform(null)
     }
