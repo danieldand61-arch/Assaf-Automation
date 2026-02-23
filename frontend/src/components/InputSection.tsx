@@ -131,7 +131,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
   const fileRef = useRef<HTMLInputElement>(null)
   const mediaRef = useRef<HTMLInputElement>(null)
 
-  const onboardingUrl = activeAccount?.metadata?.website_url || ''
+  const onboardingUrl = activeAccount?.metadata?.website_url || activeAccount?.metadata?.brand_kit?.website_url || ''
 
   // Auto-save draft
   useEffect(() => {

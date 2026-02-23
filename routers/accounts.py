@@ -33,25 +33,62 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
         data = await scrape_website(url)
         logger.info(f"✅ Scrape done — title: {data.get('title', '')[:60]}, colors: {data.get('colors', [])}")
 
-        industry = _guess_industry(data.get("content", "") + " " + data.get("description", ""))
+        ai_info = await _ai_extract_business_info(data)
 
         brand_kit = {
-            "business_name": _extract_business_name(data.get("title", ""), url),
-            "description": data.get("description", ""),
-            "industry": industry,
+            "business_name": ai_info.get("business_name") or _extract_business_name(data.get("title", ""), url),
+            "description": ai_info.get("description") or data.get("description", ""),
+            "industry": ai_info.get("industry") or _guess_industry(data.get("content", "") + " " + data.get("description", "")),
             "brand_voice": data.get("brand_voice", "professional"),
             "logo_url": data.get("logo_url", ""),
             "brand_colors": data.get("colors", []),
-            "products": data.get("products", []),
-            "key_features": data.get("key_features", []),
+            "products": ai_info.get("products") or data.get("products", []),
+            "key_features": ai_info.get("key_features") or data.get("key_features", []),
             "website_url": url,
             "content_preview": data.get("content", "")[:500],
         }
-        logger.info(f"✅ Returning brand_kit: name={brand_kit['business_name']}, industry={brand_kit['industry']}, colors={brand_kit['brand_colors']}")
+        logger.info(f"✅ Returning brand_kit: name={brand_kit['business_name']}, industry={brand_kit['industry']}, products={brand_kit['products'][:3]}")
         return {"brand_kit": brand_kit}
     except Exception as e:
         logger.error(f"❌ Failed to analyze URL {url}: {e}", exc_info=True)
         raise HTTPException(status_code=422, detail=f"Could not analyze website: {str(e)}")
+
+
+async def _ai_extract_business_info(data: dict) -> dict:
+    """Use Gemini to extract structured business info from scraped content."""
+    try:
+        import google.generativeai as genai
+        import json as _json
+
+        content = data.get("content", "")[:3000]
+        title = data.get("title", "")
+        desc = data.get("description", "")
+
+        prompt = f"""Analyze this website and return a JSON object with exactly these keys:
+- "business_name": the company/brand name (string)
+- "industry": the industry or niche (string, e.g. "Coffee & Beverages", "SaaS", "Fashion")
+- "description": one-sentence description of what the business does (string)
+- "products": list of up to 8 main products or services they offer (array of short strings)
+- "key_features": list of up to 6 key selling points or features (array of short strings)
+
+Website title: {title}
+Meta description: {desc}
+Page content:
+{content}
+
+Return ONLY valid JSON, no markdown fences."""
+
+        model = genai.GenerativeModel("gemini-2.0-flash")
+        resp = model.generate_content(prompt)
+        text = resp.text.strip()
+        if text.startswith("```"):
+            text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        result = _json.loads(text)
+        logger.info(f"🤖 AI extraction: name={result.get('business_name')}, products={result.get('products', [])[:3]}")
+        return result
+    except Exception as e:
+        logger.warning(f"⚠️ AI extraction failed, using fallback: {e}")
+        return {}
 
 
 def _extract_business_name(title: str, url: str) -> str:

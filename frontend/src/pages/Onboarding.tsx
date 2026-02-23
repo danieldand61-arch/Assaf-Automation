@@ -54,6 +54,7 @@ export function Onboarding() {
 
   const [analyzing, setAnalyzing] = useState(false)
   const [brandKit, setBrandKit] = useState<any>(null)
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
 
   const incompleteAccount = useMemo(
     () => accounts.find(a => a.metadata?.onboarding_complete === false),
@@ -133,23 +134,33 @@ export function Onboarding() {
   const toggleGoal = (id: string) => setMarketingGoals(prev => prev.includes(id) ? prev.filter(g => g !== id) : [...prev, id])
   const toggleVoice = (id: string) => setBrandVoices(prev => prev.includes(id) ? prev.filter(v => v !== id) : [...prev, id])
 
-  const buildAccountData = (onboardingComplete: boolean) => ({
-    name: companyName || user?.email?.split('@')[0] || 'My Business',
-    description: products || undefined,
-    industry: industry || undefined,
-    brand_voice: brandVoices[0] || 'professional',
-    logo_url: brandKit?.logo_url || undefined,
-    brand_colors: brandKit?.brand_colors || [],
-    metadata: {
-      marketing_goal: marketingGoals.join(','),
-      brand_voices: brandVoices.join(','),
-      website_url: websiteUrl || undefined,
-      contact_email: email || undefined,
-      onboarding_complete: onboardingComplete,
-      brand_kit: brandKit || undefined,
-      scraped_description: brandKit?.description || brandKit?.content_preview || undefined,
+  const buildAccountData = (onboardingComplete: boolean) => {
+    const mergedBrandKit = {
+      ...(brandKit || {}),
+      business_name: companyName || brandKit?.business_name,
+      industry: industry || brandKit?.industry,
+      description: products || brandKit?.description,
+      products: products ? products.split(',').map((s: string) => s.trim()).filter(Boolean) : (brandKit?.products || []),
+      website_url: websiteUrl || brandKit?.website_url,
     }
-  })
+    return {
+      name: companyName || user?.email?.split('@')[0] || 'My Business',
+      description: products || undefined,
+      industry: industry || undefined,
+      brand_voice: brandVoices[0] || 'professional',
+      logo_url: brandKit?.logo_url || undefined,
+      brand_colors: brandKit?.brand_colors || [],
+      metadata: {
+        marketing_goal: marketingGoals.join(','),
+        brand_voices: brandVoices.join(','),
+        website_url: websiteUrl || undefined,
+        contact_email: email || undefined,
+        onboarding_complete: onboardingComplete,
+        brand_kit: mergedBrandKit,
+        scraped_description: brandKit?.description || brandKit?.content_preview || undefined,
+      }
+    }
+  }
 
   const saveAccount = async (onboardingComplete: boolean) => {
     setLoading(true); setError('')
@@ -333,25 +344,40 @@ export function Onboarding() {
               </div>
             )}
 
-            {/* Step 5: Connect Platforms */}
+            {/* Step 5: Connect Platforms — multi-select */}
             {currentStep === 5 && (
               <div className="space-y-6">
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>
                   <Link2 className="inline w-5 h-5 mr-2" style={{ verticalAlign: '-3px' }} />
                   Connect Your Platforms
                 </h2>
-                <p style={{ fontSize: 14, color: '#5C6478' }}>You can always connect later in Settings</p>
+                <p style={{ fontSize: 14, color: '#5C6478' }}>Select the platforms you use, then connect them</p>
 
                 <div className="grid grid-cols-2 gap-3">
-                  {PLATFORMS_LIST.map(p => (
-                    <button key={p.id} type="button" onClick={handleNavigateToIntegrations}
-                      className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition border-2 hover:shadow-md"
-                      style={{ borderColor: '#E5E9F0', background: '#FAFBFC', color: '#5C6478' }}>
-                      <span style={{ fontSize: 20 }}>{p.icon}</span>
-                      <span>{p.label}</span>
-                    </button>
-                  ))}
+                  {PLATFORMS_LIST.map(p => {
+                    const active = selectedPlatforms.includes(p.id)
+                    return (
+                      <button key={p.id} type="button"
+                        onClick={() => setSelectedPlatforms(prev => active ? prev.filter(x => x !== p.id) : [...prev, p.id])}
+                        className="relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition border-2"
+                        style={{ borderColor: active ? '#4A7CFF' : '#E5E9F0', background: active ? '#4A7CFF10' : '#FAFBFC', color: active ? '#4A7CFF' : '#5C6478' }}>
+                        {active && <Check size={14} className="absolute top-1.5 right-1.5" style={{ color: '#4A7CFF' }} />}
+                        <span style={{ fontSize: 20 }}>{p.icon}</span>
+                        <span>{p.label}</span>
+                      </button>
+                    )
+                  })}
                 </div>
+
+                {selectedPlatforms.length > 0 && (
+                  <button type="button" onClick={handleNavigateToIntegrations}
+                    style={{ width: '100%', padding: '12px 24px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #4A7CFF, #8B5CF6)', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(74,124,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                    <Link2 size={18} /> Connect {selectedPlatforms.length} platform{selectedPlatforms.length > 1 ? 's' : ''}
+                  </button>
+                )}
+                <p style={{ fontSize: 12, color: '#959DAF', textAlign: 'center' }}>
+                  You can always connect platforms later in Integrations
+                </p>
               </div>
             )}
 

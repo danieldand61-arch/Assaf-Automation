@@ -165,20 +165,32 @@ export function Settings() {
 function BrandKitTab() {
   const { activeAccount, updateAccount } = useAccount()
   const { session } = useAuth()
-  const bk = activeAccount?.metadata?.brand_kit || {}
-
-  const [name, setName] = useState(activeAccount?.name || '')
-  const [industry, setIndustry] = useState(activeAccount?.industry || '')
-  const [description, setDescription] = useState(activeAccount?.description || '')
-  const [voice, setVoice] = useState(activeAccount?.brand_voice || 'professional')
-  const [logoUrl, setLogoUrl] = useState(activeAccount?.logo_url || '')
-  const [colors, setColors] = useState<string[]>(activeAccount?.brand_colors || [])
-  const [websiteUrl, setWebsiteUrl] = useState(bk.website_url || activeAccount?.metadata?.website_url || '')
-  const [products, setProducts] = useState((bk.products || []).join(', '))
-  const [features, setFeatures] = useState((bk.key_features || []).join(', '))
+  const [name, setName] = useState('')
+  const [industry, setIndustry] = useState('')
+  const [description, setDescription] = useState('')
+  const [voice, setVoice] = useState('professional')
+  const [logoUrl, setLogoUrl] = useState('')
+  const [colors, setColors] = useState<string[]>([])
+  const [websiteUrl, setWebsiteUrl] = useState('')
+  const [products, setProducts] = useState('')
+  const [features, setFeatures] = useState('')
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [analyzing, setAnalyzing] = useState(false)
+
+  useEffect(() => {
+    if (!activeAccount) return
+    const bk = activeAccount.metadata?.brand_kit || {}
+    setName(bk.business_name || activeAccount.name || '')
+    setIndustry(bk.industry || activeAccount.industry || '')
+    setDescription(bk.description || activeAccount.description || '')
+    setVoice(activeAccount.brand_voice || 'professional')
+    setLogoUrl(bk.logo_url || activeAccount.logo_url || '')
+    setColors(bk.brand_colors?.length ? bk.brand_colors : activeAccount.brand_colors || [])
+    setWebsiteUrl(bk.website_url || activeAccount.metadata?.website_url || '')
+    setProducts((bk.products || []).join(', '))
+    setFeatures((bk.key_features || []).join(', '))
+  }, [activeAccount?.id])
 
   const handleReAnalyze = async () => {
     if (!websiteUrl.trim() || !session) return
