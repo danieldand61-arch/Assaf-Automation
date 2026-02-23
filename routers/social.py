@@ -406,7 +406,7 @@ async def facebook_callback(
             "token_expires_at": None,
             "platform_user_id": page_id,
             "platform_username": page_name,
-            "platform_profile_url": page_picture_url,
+            "platform_profile_url": f"https://www.facebook.com/{page_id}",
             "is_connected": True,
             "last_connected_at": datetime.utcnow().isoformat(),
             "connection_error": None,
