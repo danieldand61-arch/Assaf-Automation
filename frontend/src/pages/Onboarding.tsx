@@ -54,7 +54,8 @@ export function Onboarding() {
 
   const [analyzing, setAnalyzing] = useState(false)
   const [brandKit, setBrandKit] = useState<any>(null)
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
+  const [connectedPlatforms] = useState<string[]>([])
+  const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null)
 
   const incompleteAccount = useMemo(
     () => accounts.find(a => a.metadata?.onboarding_complete === false),
@@ -178,18 +179,33 @@ export function Onboarding() {
 
   const handleSubmit = () => saveAccount(true)
 
-  const handleNavigateToIntegrations = async () => {
-    setLoading(true); setError('')
+  const handleConnectPlatform = async (platformId: string) => {
+    if (connectingPlatform) return
+    setConnectingPlatform(platformId)
+    setError('')
     try {
       if (incompleteAccount) {
         await updateAccount(incompleteAccount.id, buildAccountData(true))
-      } else {
+      } else if (!accounts.some(a => a.metadata?.onboarding_complete)) {
         await createAccount({ ...buildAccountData(true) })
       }
-      navigate('/app?tab=integrations', { replace: true })
+
+      const apiUrl = getApiUrl()
+      const endpoint = platformId === 'meta_ads'
+        ? `${apiUrl}/api/social/meta-ads/connect`
+        : platformId === 'google_ads'
+          ? `${apiUrl}/api/google-ads/oauth/init`
+          : `${apiUrl}/api/social/${platformId}/connect`
+      const res = await fetch(endpoint, {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` },
+      })
+      if (!res.ok) throw new Error('Failed to start OAuth')
+      const data = await res.json()
+      window.location.href = data.auth_url
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.message || 'Failed to save.')
-    } finally { setLoading(false) }
+      setError(err.message || 'Connection failed')
+      setConnectingPlatform(null)
+    }
   }
 
   const inputCls = "w-full px-4 py-3 border border-gray-200 bg-white text-gray-900 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition text-sm"
@@ -344,39 +360,40 @@ export function Onboarding() {
               </div>
             )}
 
-            {/* Step 5: Connect Platforms — multi-select */}
+            {/* Step 5: Connect Platforms — click to OAuth */}
             {currentStep === 5 && (
               <div className="space-y-6">
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>
                   <Link2 className="inline w-5 h-5 mr-2" style={{ verticalAlign: '-3px' }} />
                   Connect Your Platforms
                 </h2>
-                <p style={{ fontSize: 14, color: '#5C6478' }}>Select the platforms you use, then connect them</p>
+                <p style={{ fontSize: 14, color: '#5C6478' }}>Click a platform to connect it. You can connect more later in Settings.</p>
 
                 <div className="grid grid-cols-2 gap-3">
                   {PLATFORMS_LIST.map(p => {
-                    const active = selectedPlatforms.includes(p.id)
+                    const connected = connectedPlatforms.includes(p.id)
+                    const connecting = connectingPlatform === p.id
                     return (
-                      <button key={p.id} type="button"
-                        onClick={() => setSelectedPlatforms(prev => active ? prev.filter(x => x !== p.id) : [...prev, p.id])}
+                      <button key={p.id} type="button" disabled={connecting || connected}
+                        onClick={() => handleConnectPlatform(p.id)}
                         className="relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition border-2"
-                        style={{ borderColor: active ? '#4A7CFF' : '#E5E9F0', background: active ? '#4A7CFF10' : '#FAFBFC', color: active ? '#4A7CFF' : '#5C6478' }}>
-                        {active && <Check size={14} className="absolute top-1.5 right-1.5" style={{ color: '#4A7CFF' }} />}
+                        style={{
+                          borderColor: connected ? '#10B981' : connecting ? '#4A7CFF' : '#E5E9F0',
+                          background: connected ? '#ECFDF5' : connecting ? '#4A7CFF10' : '#FAFBFC',
+                          color: connected ? '#059669' : connecting ? '#4A7CFF' : '#5C6478',
+                          opacity: connecting ? 0.7 : 1,
+                        }}>
+                        {connected && <Check size={14} className="absolute top-1.5 right-1.5" style={{ color: '#10B981' }} />}
+                        {connecting && <Loader2 size={14} className="absolute top-1.5 right-1.5 animate-spin" style={{ color: '#4A7CFF' }} />}
                         <span style={{ fontSize: 20 }}>{p.icon}</span>
-                        <span>{p.label}</span>
+                        <span>{connected ? `${p.label} ✓` : connecting ? 'Connecting...' : p.label}</span>
                       </button>
                     )
                   })}
                 </div>
 
-                {selectedPlatforms.length > 0 && (
-                  <button type="button" onClick={handleNavigateToIntegrations}
-                    style={{ width: '100%', padding: '12px 24px', borderRadius: 12, border: 'none', background: 'linear-gradient(135deg, #4A7CFF, #8B5CF6)', color: 'white', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 4px 16px rgba(74,124,255,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                    <Link2 size={18} /> Connect {selectedPlatforms.length} platform{selectedPlatforms.length > 1 ? 's' : ''}
-                  </button>
-                )}
                 <p style={{ fontSize: 12, color: '#959DAF', textAlign: 'center' }}>
-                  You can always connect platforms later in Integrations
+                  You can always connect more platforms later in Integrations
                 </p>
               </div>
             )}
