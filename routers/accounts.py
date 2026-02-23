@@ -78,7 +78,7 @@ Page content:
 
 Return ONLY valid JSON, no markdown fences."""
 
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        model = genai.GenerativeModel("gemini-2.5-flash")
         resp = model.generate_content(prompt)
         text = resp.text.strip()
         if text.startswith("```"):

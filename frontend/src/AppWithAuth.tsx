@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useEffect } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AccountProvider, useAccount } from './contexts/AccountContext'
 import { Login } from './pages/Login'
@@ -66,6 +67,19 @@ function ProtectedRoute({ children, skipOnboardingCheck = false }: { children: R
   return <>{children}</>
 }
 
+function OAuthPopupBridge() {
+  const [searchParams] = useSearchParams()
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const error = searchParams.get('error')
+    if ((success || error) && window.opener) {
+      localStorage.setItem('oauth_result', JSON.stringify({ platform: success || '', error: error || '', ts: Date.now() }))
+      window.close()
+    }
+  }, [searchParams])
+  return null
+}
+
 function AppRoutes() {
   const { loading } = useAuth()
 
@@ -79,6 +93,8 @@ function AppRoutes() {
   }
 
   return (
+    <>
+    <OAuthPopupBridge />
     <Routes>
             {/* Public Landing Page */}
             <Route path="/" element={<LandingPage />} />
@@ -163,6 +179,7 @@ function AppRoutes() {
               }
             />
           </Routes>
+    </>
   )
 }
 

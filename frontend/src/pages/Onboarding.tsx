@@ -26,14 +26,14 @@ const VOICE_OPTIONS = [
 const TOTAL_STEPS = 5
 
 const PLATFORMS_LIST = [
-  { id: 'facebook', label: 'Facebook', icon: '📘' },
-  { id: 'instagram', label: 'Instagram', icon: '📸' },
-  { id: 'linkedin', label: 'LinkedIn', icon: '💼' },
-  { id: 'tiktok', label: 'TikTok', icon: '🎵' },
-  { id: 'x', label: 'X (Twitter)', icon: '🐦' },
-  { id: 'google_business', label: 'Google Business', icon: '📍' },
-  { id: 'meta_ads', label: 'Meta Ads', icon: '📊' },
-  { id: 'google_ads', label: 'Google Ads', icon: '📈' },
+  { id: 'facebook', label: 'Facebook', icon: '📘', oauth: true },
+  { id: 'instagram', label: 'Instagram', icon: '📸', oauth: true },
+  { id: 'linkedin', label: 'LinkedIn', icon: '💼', oauth: true },
+  { id: 'tiktok', label: 'TikTok', icon: '🎵', oauth: true },
+  { id: 'x', label: 'X (Twitter)', icon: '🐦', oauth: true },
+  { id: 'google_business', label: 'Google Business', icon: '📍', oauth: false },
+  { id: 'meta_ads', label: 'Meta Ads', icon: '📊', oauth: true },
+  { id: 'google_ads', label: 'Google Ads', icon: '📈', oauth: false },
 ]
 
 export function Onboarding() {
@@ -54,8 +54,23 @@ export function Onboarding() {
 
   const [analyzing, setAnalyzing] = useState(false)
   const [brandKit, setBrandKit] = useState<any>(null)
-  const [connectedPlatforms] = useState<string[]>([])
+  const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([])
   const [connectingPlatform, setConnectingPlatform] = useState<string | null>(null)
+
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== 'oauth_result' || !e.newValue) return
+      try {
+        const { platform, error: oauthErr } = JSON.parse(e.newValue)
+        if (oauthErr) { setError(`Connection failed: ${oauthErr}`) }
+        else if (platform) { setConnectedPlatforms(prev => prev.includes(platform) ? prev : [...prev, platform]) }
+      } catch { /* ignore */ }
+      setConnectingPlatform(null)
+      localStorage.removeItem('oauth_result')
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
 
   const incompleteAccount = useMemo(
     () => accounts.find(a => a.metadata?.onboarding_complete === false),
@@ -201,7 +216,18 @@ export function Onboarding() {
       })
       if (!res.ok) throw new Error('Failed to start OAuth')
       const data = await res.json()
-      window.location.href = data.auth_url
+      localStorage.removeItem('oauth_result')
+      const popup = window.open(data.auth_url, '_blank', 'width=600,height=700,left=200,top=100')
+      if (!popup) {
+        window.location.href = data.auth_url
+        return
+      }
+      const timer = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(timer)
+          setConnectingPlatform(null)
+        }
+      }, 500)
     } catch (err: any) {
       setError(err.message || 'Connection failed')
       setConnectingPlatform(null)
@@ -373,20 +399,21 @@ export function Onboarding() {
                   {PLATFORMS_LIST.map(p => {
                     const connected = connectedPlatforms.includes(p.id)
                     const connecting = connectingPlatform === p.id
+                    const disabled = connecting || connected || !p.oauth
                     return (
-                      <button key={p.id} type="button" disabled={connecting || connected}
-                        onClick={() => handleConnectPlatform(p.id)}
+                      <button key={p.id} type="button" disabled={disabled}
+                        onClick={() => p.oauth && handleConnectPlatform(p.id)}
                         className="relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition border-2"
                         style={{
                           borderColor: connected ? '#10B981' : connecting ? '#4A7CFF' : '#E5E9F0',
                           background: connected ? '#ECFDF5' : connecting ? '#4A7CFF10' : '#FAFBFC',
-                          color: connected ? '#059669' : connecting ? '#4A7CFF' : '#5C6478',
-                          opacity: connecting ? 0.7 : 1,
+                          color: connected ? '#059669' : connecting ? '#4A7CFF' : !p.oauth ? '#B0B8C9' : '#5C6478',
+                          opacity: connecting || !p.oauth ? 0.6 : 1,
                         }}>
                         {connected && <Check size={14} className="absolute top-1.5 right-1.5" style={{ color: '#10B981' }} />}
                         {connecting && <Loader2 size={14} className="absolute top-1.5 right-1.5 animate-spin" style={{ color: '#4A7CFF' }} />}
                         <span style={{ fontSize: 20 }}>{p.icon}</span>
-                        <span>{connected ? `${p.label} ✓` : connecting ? 'Connecting...' : p.label}</span>
+                        <span>{connected ? `${p.label} ✓` : connecting ? 'Connecting...' : !p.oauth ? `${p.label} (Settings)` : p.label}</span>
                       </button>
                     )
                   })}
