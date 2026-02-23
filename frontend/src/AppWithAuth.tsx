@@ -1,5 +1,4 @@
-import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AccountProvider, useAccount } from './contexts/AccountContext'
 import { Login } from './pages/Login'
@@ -67,28 +66,19 @@ function ProtectedRoute({ children, skipOnboardingCheck = false }: { children: R
   return <>{children}</>
 }
 
-function OAuthRedirectHandler() {
-  const [searchParams] = useSearchParams()
-  useEffect(() => {
-    const success = searchParams.get('success')
-    const error = searchParams.get('error')
-    if (!success && !error) return
-
-    const fromOnboarding = localStorage.getItem('onboarding_connected')
-    if (fromOnboarding !== null && success) {
-      window.location.replace(`/onboarding?connected=${success}`)
-    }
-  }, [searchParams])
-  return null
-}
-
 function AppRoutes() {
   const { loading } = useAuth()
 
-  // Always render popup bridge (even during loading) so OAuth popups close immediately
+  // Intercept OAuth callback BEFORE any render — if user came from onboarding, redirect back
+  const params = new URLSearchParams(window.location.search)
+  const oauthSuccess = params.get('success')
+  if (oauthSuccess && localStorage.getItem('onboarding_connected') !== null) {
+    window.location.replace(`/onboarding?connected=${oauthSuccess}`)
+    return null
+  }
+
   return (
     <>
-    <OAuthRedirectHandler />
     {loading ? (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
         <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
