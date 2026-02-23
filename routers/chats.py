@@ -184,7 +184,11 @@ async def send_message(
     Send a message and get AI response from Gemini with function calling support
     """
     logger.info(f"💬 Received message for chat {chat_id}")
-    logger.info(f"📝 Message content: {request.content[:100]}")
+    
+    from services.credits_service import check_balance
+    bal = await check_balance(current_user["user_id"], min_credits=10.0)
+    if not bal["ok"]:
+        raise HTTPException(status_code=402, detail=f"Not enough credits. You have {bal['remaining']:.0f}, need at least 10.")
     
     try:
         import google.generativeai as genai

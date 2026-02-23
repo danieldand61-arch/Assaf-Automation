@@ -306,9 +306,12 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
     """Main endpoint for content generation"""
     logger.info(f"🚀 Starting content generation for URL: {request.url}")
     logger.info(f"   User: {current_user.get('user_id', 'unknown')}")
-    logger.info(f"   Keywords: {request.keywords}")
-    logger.info(f"   Platforms: {request.platforms}")
-    logger.info(f"   Language: {request.language}")
+    
+    # Credit balance check
+    from services.credits_service import check_balance
+    balance = await check_balance(current_user["user_id"], min_credits=25.0)
+    if not balance["ok"]:
+        raise HTTPException(status_code=402, detail=f"Not enough credits. You have {balance['remaining']:.0f}, need at least {balance['needed']:.0f}. Please top up your balance.")
     
     try:
         # 1. Scrape website (or build from keywords if no URL)

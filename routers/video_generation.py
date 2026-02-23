@@ -62,13 +62,16 @@ async def generate_text_to_video(
     - 5s with sound: 1000 credits
     - 10s with sound: 2000 credits
     """
+    from services.credits_service import check_balance
+    bal = await check_balance(current_user["user_id"], min_credits=500.0)
+    if not bal["ok"]:
+        raise HTTPException(status_code=402, detail=f"Not enough credits. You have {bal['remaining']:.0f}, need at least 500. Please top up your balance.")
+    
     api_key = get_kling_api_key()
     
-    # Validate prompt length
     if len(request.prompt) > 1000:
         raise HTTPException(status_code=400, detail="Prompt must be 1000 characters or less")
     
-    # Validate parameters
     if request.aspect_ratio not in ["16:9", "9:16", "1:1"]:
         raise HTTPException(status_code=400, detail="Invalid aspect_ratio. Must be 16:9, 9:16, or 1:1")
     
@@ -174,6 +177,11 @@ async def generate_image_to_video(
     - 5s with sound: 1000 credits
     - 10s with sound: 2000 credits
     """
+    from services.credits_service import check_balance
+    bal = await check_balance(current_user["user_id"], min_credits=500.0)
+    if not bal["ok"]:
+        raise HTTPException(status_code=402, detail=f"Not enough credits. You have {bal['remaining']:.0f}, need at least 500. Please top up your balance.")
+    
     api_key = get_kling_api_key()
     
     # Validate

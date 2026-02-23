@@ -11,9 +11,17 @@ from services.content_generator import generate_posts
 from services.image_generator import generate_images
 from services.google_ads_generator import generate_google_ads
 from services.scraper import scrape_website
+from services.credits_service import check_balance
 from middleware.auth import get_current_user
 
 logger = logging.getLogger(__name__)
+
+
+async def _require_credits(user: Optional[dict], min_credits: float):
+    if user:
+        bal = await check_balance(user["user_id"], min_credits)
+        if not bal["ok"]:
+            raise HTTPException(status_code=402, detail=f"Not enough credits. You have {bal['remaining']:.0f}, need at least {bal['needed']:.0f}.")
 
 router = APIRouter(prefix="/api/content", tags=["content"])
 
@@ -64,9 +72,10 @@ async def regenerate_text(request: RegenerateTextRequest, req: Request = None):
     """
     Regenerate a single post variation
     """
+    user = await get_optional_user(req) if req else None
+    user_id = user["user_id"] if user else None
+    await _require_credits(user, 10.0)
     try:
-        user = await get_optional_user(req) if req else None
-        user_id = user["user_id"] if user else None
         logger.info(f"♻️ Regenerating text variation {request.variation_index}")
         
         variations = await generate_posts(
@@ -97,9 +106,10 @@ async def regenerate_image(request: RegenerateImageRequest, req: Request = None)
     """
     Regenerate image for a post
     """
+    user = await get_optional_user(req) if req else None
+    user_id = user["user_id"] if user else None
+    await _require_credits(user, 80.0)
     try:
-        user = await get_optional_user(req) if req else None
-        user_id = user["user_id"] if user else None
         logger.info(f"♻️ Regenerating image for platform: {request.platform}")
         
         from main import PostVariation as PV
@@ -136,9 +146,10 @@ async def edit_text(request: EditTextRequest, req: Request = None):
     Edit existing text with AI assistance
     Actions: shorten, lengthen, add_emojis, remove_emojis, change_tone
     """
+    user = await get_optional_user(req) if req else None
+    await _require_credits(user, 10.0)
     try:
         import google.generativeai as genai
-        user = await get_optional_user(req) if req else None
         
         action_prompts = {
             "shorten": f"Shorten this text to be more concise while keeping the main message:\n\n{request.text}",
@@ -192,10 +203,10 @@ async def generate_google_ads_endpoint(request: GenerateGoogleAdsRequest, req: R
     """
     Generate complete Google Ads RSA package
     """
+    user = await get_optional_user(req) if req else None
+    user_id = user["user_id"] if user else None
+    await _require_credits(user, 40.0)
     try:
-        user = await get_optional_user(req) if req else None
-        user_id = user["user_id"] if user else None
-        
         ads_package = await generate_google_ads(
             website_data=request.website_data,
             keywords=request.keywords,

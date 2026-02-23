@@ -96,6 +96,18 @@ def calculate_credits(
     return round(max(token_credits, minimum), 2)
 
 
+async def check_balance(user_id: str, min_credits: float = 10.0) -> dict:
+    """Check if user has enough credits. Returns {ok, remaining, needed}."""
+    try:
+        supabase = get_supabase()
+        res = supabase.table("user_credits").select("credits_remaining").eq("user_id", user_id).limit(1).execute()
+        remaining = float(res.data[0]["credits_remaining"]) if res.data else 0.0
+        return {"ok": remaining >= min_credits, "remaining": remaining, "needed": min_credits}
+    except Exception as e:
+        logger.warning(f"⚠️ Balance check failed (allowing): {e}")
+        return {"ok": True, "remaining": 0, "needed": min_credits}
+
+
 async def record_usage(
     user_id: str,
     service_type: str,

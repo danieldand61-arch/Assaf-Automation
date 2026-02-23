@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { getApiUrl } from '../lib/api'
-import { Loader2, Search, ArrowUpDown, Users, DollarSign, Activity, LogOut } from 'lucide-react'
+import { Loader2, Search, ArrowUpDown, Users, DollarSign, Activity, LogOut, Plus, Coins } from 'lucide-react'
 
 interface UserStats {
   user_id: string
   email: string
   full_name: string
+  total_credits: number
+  credits_used: number
+  credits_remaining: number
   usage_by_service: {
     [key: string]: {
       requests: number
@@ -29,6 +32,10 @@ export function Admin() {
   const [sortBy, setSortBy] = useState<'email' | 'credits' | 'requests'>('credits')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
   const [error, setError] = useState('')
+  const [creditModal, setCreditModal] = useState<{ user: UserStats } | null>(null)
+  const [creditAmount, setCreditAmount] = useState('')
+  const [creditReason, setCreditReason] = useState('')
+  const [addingCredits, setAddingCredits] = useState(false)
 
   // Check admin access
   useEffect(() => {
@@ -65,6 +72,28 @@ export function Admin() {
       setError(err.message || 'Failed to load users')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const addCredits = async () => {
+    if (!creditModal || !creditAmount) return
+    setAddingCredits(true)
+    try {
+      const apiUrl = getApiUrl()
+      const res = await fetch(`${apiUrl}/api/admin/user/${creditModal.user.user_id}/add-credits`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: parseFloat(creditAmount), reason: creditReason || 'Manual top-up' }),
+      })
+      if (!res.ok) throw new Error('Failed to add credits')
+      setCreditModal(null)
+      setCreditAmount('')
+      setCreditReason('')
+      await loadUsers()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setAddingCredits(false)
     }
   }
 
@@ -218,7 +247,7 @@ export function Admin() {
                     User
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
-                    Total API Usage
+                    Credits Balance
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider">
                     By Platform
@@ -245,8 +274,19 @@ export function Admin() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="font-bold text-gray-900 dark:text-white">
-                        {getTotalTokens(user).toLocaleString()} tokens
+                      <div className="space-y-1">
+                        <div className="font-bold text-gray-900 dark:text-white">
+                          {(user.credits_remaining ?? 0).toLocaleString()} cr
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          Used: {(user.credits_used ?? 0).toLocaleString()} / {(user.total_credits ?? 0).toLocaleString()}
+                        </div>
+                        <button
+                          onClick={() => setCreditModal({ user })}
+                          className="mt-1 flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition"
+                        >
+                          <Plus size={12} /> Add Credits
+                        </button>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -349,13 +389,66 @@ export function Admin() {
           </div>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 text-red-700 dark:text-red-300">
             {error}
           </div>
         )}
       </div>
+
+      {creditModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setCreditModal(null)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <Coins className="w-6 h-6 text-green-600" />
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Add Credits</h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              {creditModal.user.full_name} ({creditModal.user.email})
+              <br />
+              Current balance: <strong>{(creditModal.user.credits_remaining ?? 0).toLocaleString()} cr</strong>
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Amount (credits)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number" min="1" value={creditAmount} onChange={e => setCreditAmount(e.target.value)}
+                    placeholder="e.g. 10000"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 focus:outline-none"
+                  />
+                  <div className="flex gap-1">
+                    {[1000, 5000, 10000, 50000].map(v => (
+                      <button key={v} onClick={() => setCreditAmount(String(v))}
+                        className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                        {v >= 1000 ? `${v / 1000}K` : v}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Reason (optional)</label>
+                <input
+                  type="text" value={creditReason} onChange={e => setCreditReason(e.target.value)}
+                  placeholder="Manual top-up"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setCreditModal(null)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                Cancel
+              </button>
+              <button onClick={addCredits} disabled={!creditAmount || addingCredits}
+                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2">
+                {addingCredits ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+                Add {creditAmount ? `${parseInt(creditAmount).toLocaleString()} cr` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
