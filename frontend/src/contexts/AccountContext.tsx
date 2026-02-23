@@ -60,12 +60,15 @@ export function AccountProvider({ children }: { children: ReactNode }) {
         headers: getAuthHeaders(),
       })
       
-      console.log('📊 Fetched accounts:', response.data.accounts)
-      setAccounts(response.data.accounts)
+      const fetched: Account[] = response.data.accounts || []
+      setAccounts(fetched)
       
-      // Set first account as active if none selected
-      if (response.data.accounts && response.data.accounts.length > 0 && !activeAccount) {
-        setActiveAccount(response.data.accounts[0])
+      if (fetched.length > 0) {
+        const currentId = activeAccount?.id
+        const refreshed = currentId ? fetched.find(a => a.id === currentId) : null
+        setActiveAccount(refreshed || fetched[0])
+      } else {
+        setActiveAccount(null)
       }
     } catch (error) {
       console.error('Failed to fetch accounts:', error)
