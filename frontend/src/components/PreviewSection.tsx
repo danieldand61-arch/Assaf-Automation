@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Calendar, Send, Download, RefreshCw, Edit3, BookmarkPlus, Check, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, Calendar, Send, Download, RefreshCw, Edit3, BookmarkPlus, Check, AlertTriangle, ImageOff, ChevronDown, ChevronUp } from 'lucide-react'
 import { useContentStore } from '../store/contentStore'
 import { useAuth } from '../contexts/AuthContext'
 import JSZip from 'jszip'
@@ -119,7 +119,9 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
     setEditingImageIdx(null)
   }
 
-  const cols = variations.length >= 3 ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
+  const cols = variations.length >= 3 ? 'grid-cols-1 lg:grid-cols-2' : variations.length === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 max-w-xl mx-auto'
+  const [expandedIdx, setExpandedIdx] = useState<Record<number, boolean>>({})
+  const TEXT_CLAMP = 200
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto">
@@ -156,21 +158,23 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
           const fullText = getFullText(v)
           const overLimit = fullText.length > meta.charLimit
           const status = publishedStatus[idx]
+          const isPlaceholder = img?.url?.includes('placehold.co')
+          const isExpanded = expandedIdx[idx]
+          const needsTruncate = v.text.length > TEXT_CLAMP
 
           return (
             <div key={idx} className="bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700">
               {/* Platform header */}
-              <div className="flex items-center gap-2 px-5 py-3 border-b border-gray-100 dark:border-gray-700"
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-gray-100 dark:border-gray-700"
                 style={{ background: `${meta.color}10` }}
               >
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
                   style={{ background: meta.color }}
                 >
                   {meta.label[0]}
                 </div>
                 <span className="text-sm font-bold" style={{ color: meta.color }}>{meta.label}</span>
                 <div className="flex-1" />
-                {/* Char count */}
                 <span className={`text-xs font-medium flex items-center gap-1 ${overLimit ? 'text-red-500' : 'text-gray-400'}`}>
                   {overLimit && <AlertTriangle size={12} />}
                   {fullText.length}/{meta.charLimit}
@@ -178,43 +182,62 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
               </div>
 
               {/* Image / Video */}
-              {img?.url && (
-                <div className="relative">
+              {img?.url && !isPlaceholder ? (
+                <div className="relative" style={{ maxHeight: 280, overflow: 'hidden' }}>
                   {img.url.startsWith('data:video') ? (
-                    <video src={img.url} className="w-full aspect-square object-cover" controls muted />
+                    <video src={img.url} className="w-full h-full object-cover" style={{ maxHeight: 280 }} controls muted />
                   ) : (
-                    <img src={img.url} alt="" className="w-full aspect-square object-cover" />
+                    <img src={img.url} alt="" className="w-full h-full object-cover" style={{ maxHeight: 280 }} />
                   )}
                   {!userMedia && (
                     <button onClick={() => setEditingImageIdx(idx)}
-                      className="absolute top-3 right-3 bg-white/90 dark:bg-gray-800/90 backdrop-blur px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 transition flex items-center gap-1"
+                      className="absolute top-2 right-2 bg-white/90 dark:bg-gray-800/90 backdrop-blur px-2.5 py-1 rounded-lg text-xs font-semibold text-gray-700 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 transition flex items-center gap-1"
                     >
-                      <Edit3 size={12} /> Edit Image
+                      <Edit3 size={11} /> Edit Image
                     </button>
                   )}
                 </div>
-              )}
+              ) : isPlaceholder ? (
+                <div className="flex flex-col items-center justify-center py-8 bg-gray-50 dark:bg-gray-700/30 border-b border-gray-100 dark:border-gray-700">
+                  <ImageOff size={28} className="text-gray-300 dark:text-gray-500 mb-2" />
+                  <span className="text-xs text-gray-400 dark:text-gray-500 mb-2">Image generation failed</span>
+                  <button onClick={() => setEditingImageIdx(idx)}
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg text-white transition"
+                    style={{ background: 'linear-gradient(135deg, #4A7CFF, #7C3AED)' }}
+                  >
+                    <RefreshCw size={11} className="inline mr-1" style={{ verticalAlign: '-1px' }} />Regenerate
+                  </button>
+                </div>
+              ) : null}
 
               {/* Caption */}
-              <div className="px-5 py-4">
-                <p className="text-sm text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed mb-3">
-                  {v.text}
+              <div className="px-4 py-3">
+                <p className="text-[13px] text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
+                  {needsTruncate && !isExpanded ? v.text.slice(0, TEXT_CLAMP) + '...' : v.text}
                 </p>
+                {needsTruncate && (
+                  <button onClick={() => setExpandedIdx(prev => ({ ...prev, [idx]: !isExpanded }))}
+                    className="text-xs font-medium mt-1 flex items-center gap-0.5"
+                    style={{ color: meta.color }}
+                  >
+                    {isExpanded ? <><ChevronUp size={12} /> Show less</> : <><ChevronDown size={12} /> Read more</>}
+                  </button>
+                )}
                 {v.hashtags?.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mb-3">
+                  <div className="flex flex-wrap gap-1 mt-2">
                     {v.hashtags.map((tag: string, i: number) => (
                       <span key={i} className="text-xs text-blue-500 dark:text-blue-400">#{tag}</span>
                     ))}
                   </div>
                 )}
                 {v.call_to_action && (
-                  <p className="text-xs font-semibold text-purple-600 dark:text-purple-400">{v.call_to_action}</p>
+                  <p className="text-xs font-semibold text-purple-600 dark:text-purple-400 mt-2">{v.call_to_action}</p>
                 )}
               </div>
 
               {/* Status badge */}
               {status && (
-                <div className="px-5 pb-2">
+                <div className="px-4 pb-2">
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-400 px-3 py-1 rounded-full">
                     <Check size={12} /> {status}
                   </span>
@@ -222,7 +245,7 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
               )}
 
               {/* Actions */}
-              <div className="flex items-center gap-2 px-5 py-3 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+              <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
                 <button onClick={() => setEditingIdx(idx)}
                   className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
                 >
