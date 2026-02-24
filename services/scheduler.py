@@ -284,7 +284,7 @@ async def _daily_ad_sync():
             return
 
         today = datetime.now(timezone.utc).date()
-        date_from = today - timedelta(days=30)
+        date_from = today - timedelta(days=90)
 
         for row in rows.data:
             uid = row.get("user_id")

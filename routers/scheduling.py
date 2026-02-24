@@ -49,6 +49,9 @@ async def schedule_post(
         if not active_account_id:
             raise HTTPException(status_code=400, detail="No active account found")
         
+        if not request.platforms:
+            raise HTTPException(status_code=400, detail="Select at least one platform to post")
+        
         # Validate scheduled time is in future
         scheduled_dt = datetime.fromisoformat(request.scheduled_time.replace('Z', '+00:00'))
         now = datetime.now(timezone.utc)
@@ -207,6 +210,9 @@ async def publish_now(
         
         if not active_account_id:
             raise HTTPException(status_code=400, detail="No active account found")
+        
+        if not request.platforms:
+            raise HTTPException(status_code=400, detail="Select at least one platform to post")
         
         # Schedule for immediate execution (current time)
         now = datetime.now(timezone.utc)

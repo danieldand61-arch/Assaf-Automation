@@ -24,5 +24,8 @@ apscheduler==3.10.4
 # Video Translation
 elevenlabs==1.9.0
 
+# Rate limiting
+slowapi==0.1.9
+
 # Google Ads API
 google-ads==25.1.0

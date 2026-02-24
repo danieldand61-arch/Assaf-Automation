@@ -303,16 +303,21 @@ async def send_message(
                     
                     if account.data:
                         acc = account.data
-                        metadata = acc.get('metadata', {})
+                        metadata = acc.get('metadata', {}) or {}
+                        brand_kit = metadata.get('brand_kit', {}) or {}
                         
                         company_context = f"""
 DEFAULT COMPANY CONTEXT:
-- Company: {acc.get('name', 'Not specified')}
-- Industry: {acc.get('industry', 'Not specified')}
-- Description: {acc.get('description', 'Not specified')}
+- Company: {brand_kit.get('business_name') or acc.get('name', 'Not specified')}
+- Industry: {brand_kit.get('industry') or acc.get('industry', 'Not specified')}
+- Description: {brand_kit.get('description') or acc.get('description', 'Not specified')}
+- Products/Services: {', '.join(brand_kit.get('products', [])) or 'Not specified'}
+- Key Features: {', '.join(brand_kit.get('key_features', [])) or 'Not specified'}
 - Target Audience: {acc.get('target_audience', 'General audience')}
-- Brand Voice: {acc.get('brand_voice', 'professional')}
-- Website: {metadata.get('website_url', 'Not provided')}
+- Brand Voice: {brand_kit.get('brand_voice') or acc.get('brand_voice', 'professional')}
+- Brand Colors: {', '.join(brand_kit.get('brand_colors', []) or acc.get('brand_colors', []) or [])}
+- Website: {brand_kit.get('website_url') or metadata.get('website_url', 'Not provided')}
+- Logo: {brand_kit.get('logo_url') or acc.get('logo_url', '')}
 - Marketing Goal: {metadata.get('marketing_goal', 'Not specified')}
 - Geographic Focus: {metadata.get('geographic_focus', 'Not specified')}
 - Budget Range: {metadata.get('budget_range', 'Not specified')}

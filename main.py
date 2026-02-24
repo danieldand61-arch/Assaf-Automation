@@ -5,6 +5,9 @@ import google.generativeai as genai
 import os
 import logging
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Import models from separate file (avoid circular imports)
 from models import GenerateRequest, GeneratedContent, PostVariation, ImageVariation
@@ -16,11 +19,15 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="Social Media Automation API",
     version="2.0",
     description="AI-powered social media content generation with multi-account support"
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # CORS must be FIRST!
 app.add_middleware(

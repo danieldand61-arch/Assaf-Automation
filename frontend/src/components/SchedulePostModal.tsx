@@ -129,6 +129,11 @@ export function SchedulePostModal({
       return
     }
 
+    if (selectedPlatforms.length === 0) {
+      alert('Please select at least one platform')
+      return
+    }
+
     setIsPosting(true)
     
     try {

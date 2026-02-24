@@ -287,6 +287,9 @@ async def post_to_social_media(
         platforms_list = json.loads(platforms)
         logger.info(f"   Platforms: {platforms_list}")
         
+        if not platforms_list:
+            raise HTTPException(status_code=400, detail="Select at least one platform to post")
+        
         # Get active account
         supabase = get_supabase()
         user_settings = supabase.table("user_settings")\

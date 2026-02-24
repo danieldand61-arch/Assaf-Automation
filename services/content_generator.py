@@ -35,14 +35,19 @@ async def generate_posts(
         logger.info(f" DEBUG: Model object created successfully")
         
         logger.info(f" DEBUG: Calling generate_content...")
-        response = model.generate_content(
-            prompt,
-            generation_config={
-                "temperature": 0.8,
-                "top_p": 0.95,
-                "top_k": 40,
-                "max_output_tokens": 8192,  # Increased for 4 variations with hashtags
-            }
+        import asyncio
+        from functools import partial
+        response = await asyncio.to_thread(
+            partial(
+                model.generate_content,
+                prompt,
+                generation_config={
+                    "temperature": 0.8,
+                    "top_p": 0.95,
+                    "top_k": 40,
+                    "max_output_tokens": 8192,
+                }
+            )
         )
         logger.info(f"🔍 DEBUG: generate_content returned successfully")
         

@@ -31,7 +31,7 @@ def _get_active_account_id(user_id: str) -> str:
 
 @router.post("/sync")
 async def sync_all(
-    days: int = Query(30, ge=1, le=365),
+    days: int = Query(90, ge=1, le=365),
     force: bool = Query(False),
     user=Depends(get_current_user),
 ):
