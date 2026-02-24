@@ -123,26 +123,25 @@ class CreditsTracker:
         return round(total_cost, 6)
     
     async def get_user_balance(self) -> Dict:
-        """Get user's current credits balance"""
+        """Get user's current credits balance, auto-creating record if missing"""
         try:
             result = self.supabase.table("user_credits")\
                 .select("*")\
                 .eq("user_id", self.user_id)\
-                .single()\
+                .limit(1)\
                 .execute()
             
             if result.data:
+                row = result.data[0]
                 return {
-                    "total_purchased": float(result.data.get("total_credits_purchased", 0)),
-                    "used": float(result.data.get("credits_used", 0)),
-                    "remaining": float(result.data.get("credits_remaining", 0))
+                    "total_purchased": float(row.get("total_credits_purchased", 0)),
+                    "used": float(row.get("credits_used", 0)),
+                    "remaining": float(row.get("credits_remaining", 0))
                 }
-            else:
-                return {
-                    "total_purchased": 0,
-                    "used": 0,
-                    "remaining": 0
-                }
+            
+            from services.credits_service import ensure_user_credits_exist
+            await ensure_user_credits_exist(self.user_id, initial_credits=500.0)
+            return {"total_purchased": 500.0, "used": 0, "remaining": 500.0}
                 
         except Exception as e:
             logger.error(f"Failed to get user balance: {e}")
