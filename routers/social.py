@@ -277,9 +277,8 @@ async def facebook_connect(
     if not active_account_id:
         raise HTTPException(status_code=400, detail="No active business account found for user.")
     
-    # Facebook OAuth parameters for Facebook Pages (basic permissions only)
     redirect_uri = f"{BACKEND_URL}/api/social/facebook/callback"
-    scope = "pages_show_list,pages_read_engagement,public_profile"
+    scope = "pages_show_list,pages_read_engagement,pages_manage_posts,public_profile"
     
     # Build Facebook authorization URL
     auth_url = (
