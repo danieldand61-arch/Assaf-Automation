@@ -314,50 +314,62 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
         raise HTTPException(status_code=402, detail=f"Not enough credits. You have {balance['remaining']:.0f}, need at least {balance['needed']:.0f}. Please top up your balance.")
     
     try:
-        # 1. Scrape website (or build from keywords if no URL)
+        # 1. Get website data: Brand Kit first for default URL, scrape for custom URL
         logger.info("📄 Step 1: Getting website data...")
         url_str = str(request.url).strip()
-        if url_str and url_str != 'None':
-            from services.scraper import scrape_website
-            website_data = await scrape_website(url_str)
-            logger.info(f"✅ Website scraped: {website_data.get('title', 'No title')}")
-        else:
-            website_data = {
-                "url": "", "title": "Brand", "description": request.keywords,
-                "content": request.keywords, "colors": [], "logo_url": "",
-                "brand_voice": "professional", "products": [], "key_features": [],
-            }
-            logger.info("ℹ️ No URL provided, using keywords as context")
+        website_data = None
 
-        # 1b. Enrich website_data with Brand Kit (only when using default onboarding site)
         if not request.use_custom_url:
+            # Default mode: load Brand Kit from DB, fall back to scraping
             try:
                 from database.supabase_client import get_supabase
                 supabase = get_supabase()
                 uid = current_user.get("user_id")
-                acct = supabase.table("accounts").select("brand_voice, logo_url, brand_colors, metadata, industry, description, name").eq("user_id", uid).eq("is_active", True).limit(1).execute()
+                acct = supabase.table("accounts").select("brand_voice, logo_url, brand_colors, metadata, industry, description, name, website_url").eq("user_id", uid).eq("is_active", True).limit(1).execute()
                 if acct.data:
                     a = acct.data[0]
                     bk = (a.get("metadata") or {}).get("brand_kit") or {}
-                    if not website_data.get("title") or website_data["title"] == "Brand":
-                        website_data["title"] = bk.get("business_name") or a.get("name") or website_data.get("title", "")
-                    if not website_data.get("brand_voice") or website_data["brand_voice"] == "professional":
-                        website_data["brand_voice"] = bk.get("brand_voice") or a.get("brand_voice") or "professional"
-                    if not website_data.get("logo_url"):
-                        website_data["logo_url"] = bk.get("logo_url") or a.get("logo_url") or ""
-                    if not website_data.get("colors"):
-                        website_data["colors"] = bk.get("brand_colors") or a.get("brand_colors") or []
-                    if not website_data.get("products"):
-                        website_data["products"] = bk.get("products") or []
-                    if not website_data.get("key_features"):
-                        website_data["key_features"] = bk.get("key_features") or []
-                    if not website_data.get("description"):
-                        website_data["description"] = bk.get("description") or a.get("description") or ""
-                    logger.info("✅ Brand Kit merged into website_data")
+                    bk_name = bk.get("business_name") or a.get("name") or ""
+                    bk_desc = bk.get("description") or a.get("description") or ""
+                    bk_products = bk.get("products") or []
+                    if bk_name and (bk_desc or bk_products):
+                        website_data = {
+                            "url": bk.get("website_url") or a.get("website_url") or url_str or "",
+                            "title": bk_name,
+                            "description": bk_desc,
+                            "content": bk_desc,
+                            "colors": bk.get("brand_colors") or a.get("brand_colors") or [],
+                            "logo_url": bk.get("logo_url") or a.get("logo_url") or "",
+                            "brand_voice": bk.get("brand_voice") or a.get("brand_voice") or "professional",
+                            "products": bk_products,
+                            "key_features": bk.get("key_features") or [],
+                            "industry": bk.get("industry") or a.get("industry") or "",
+                        }
+                        logger.info(f"✅ Using Brand Kit: {bk_name}")
             except Exception as bk_err:
                 logger.warning(f"⚠️ Could not load Brand Kit: {bk_err}")
-        else:
-            logger.info("ℹ️ Custom URL mode — skipping Brand Kit enrichment")
+
+        if website_data is None:
+            # Custom URL mode or Brand Kit empty: scrape
+            if url_str and url_str != 'None':
+                from services.scraper import scrape_website
+                try:
+                    website_data = await scrape_website(url_str)
+                    logger.info(f"✅ Website scraped: {website_data.get('title', 'No title')}")
+                except Exception as scrape_err:
+                    logger.warning(f"⚠️ Scrape failed ({scrape_err}), using keywords")
+                    website_data = {
+                        "url": url_str, "title": "Brand", "description": request.keywords,
+                        "content": request.keywords, "colors": [], "logo_url": "",
+                        "brand_voice": "professional", "products": [], "key_features": [],
+                    }
+            else:
+                website_data = {
+                    "url": "", "title": "Brand", "description": request.keywords,
+                    "content": request.keywords, "colors": [], "logo_url": "",
+                    "brand_voice": "professional", "products": [], "key_features": [],
+                }
+                logger.info("ℹ️ No URL provided, using keywords as context")
 
         # 2. Generate post texts (with tracking)
         logger.info("✍️  Step 2: Generating post texts...")
