@@ -16,8 +16,6 @@ const QUICK_PROMPTS = [
   { icon: Sparkles, text: 'Write me a strategy for next month' },
 ]
 
-const ADVISOR_CHAT_KEY = 'joyo_advisor_chat'
-
 function renderMarkdown(text: string): string {
   let html = text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -38,13 +36,19 @@ export default function AIAdvisor() {
   const { theme } = useTheme()
   const t = getJoyoTheme(theme)
 
+  const userId = session?.user?.id || ''
+  const chatKey = `joyo_advisor_chat_${userId}`
+  const chatIdKey = `${chatKey}_id`
+
   const [messages, setMessages] = useState<Message[]>(() => {
-    try { const s = localStorage.getItem(ADVISOR_CHAT_KEY); return s ? JSON.parse(s) : [] } catch { return [] }
+    if (!userId) return []
+    try { const s = localStorage.getItem(chatKey); return s ? JSON.parse(s) : [] } catch { return [] }
   })
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [chatId, setChatId] = useState<string | null>(() => {
-    try { return localStorage.getItem(ADVISOR_CHAT_KEY + '_id') } catch { return null }
+    if (!userId) return null
+    try { return localStorage.getItem(chatIdKey) } catch { return null }
   })
   const [hasAds, setHasAds] = useState<boolean | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -54,11 +58,11 @@ export default function AIAdvisor() {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   useEffect(() => {
-    try { localStorage.setItem(ADVISOR_CHAT_KEY, JSON.stringify(messages)) } catch {}
-  }, [messages])
+    if (userId) try { localStorage.setItem(chatKey, JSON.stringify(messages)) } catch {}
+  }, [messages, chatKey, userId])
   useEffect(() => {
-    if (chatId) localStorage.setItem(ADVISOR_CHAT_KEY + '_id', chatId)
-  }, [chatId])
+    if (chatId && userId) localStorage.setItem(chatIdKey, chatId)
+  }, [chatId, chatIdKey, userId])
 
   useEffect(() => {
     if (!session) return
@@ -81,8 +85,8 @@ export default function AIAdvisor() {
   const clearChat = () => {
     setMessages([])
     setChatId(null)
-    localStorage.removeItem(ADVISOR_CHAT_KEY)
-    localStorage.removeItem(ADVISOR_CHAT_KEY + '_id')
+    localStorage.removeItem(chatKey)
+    localStorage.removeItem(chatIdKey)
   }
 
   const sendMessage = async (text: string) => {

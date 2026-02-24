@@ -19,7 +19,7 @@ _CAMPAIGN_COLS = {
     "platform_campaign_id", "campaign_name", "status", "objective",
     "daily_budget", "lifetime_budget", "impressions", "clicks", "ctr",
     "spend", "avg_cpc", "reach", "frequency", "conversions", "roas",
-    "cost_per_conversion", "purchase_value", "account_id", "platform",
+    "cost_per_conversion", "account_id", "platform",
     "date_from", "date_to",
 }
 
