@@ -64,9 +64,7 @@ async def instagram_connect(
     
     # Facebook OAuth parameters for Instagram Business
     redirect_uri = f"{BACKEND_URL}/api/social/instagram/callback"
-    # Basic scopes for Development Mode (work for Admins and Test Users)
-    # instagram_basic, instagram_content_publish require App Review for production
-    scope = "pages_show_list,public_profile"
+    scope = "pages_show_list,pages_read_engagement,instagram_basic,instagram_content_publish,public_profile"
     
     # Build Facebook authorization URL
     auth_url = (
@@ -157,21 +155,22 @@ async def instagram_callback(
             pages_data = pages_response.json()
             pages = pages_data.get("data", [])
             
+            logger.info(f"📋 Found {len(pages)} Facebook Pages: {[p.get('name', p.get('id')) for p in pages]}")
+            
             if not pages:
-                logger.error(f"❌ No Facebook Pages found")
+                logger.error(f"❌ No Facebook Pages found. Raw response: {pages_data}")
                 return RedirectResponse(
                     url=f"{FRONTEND_URL}/settings?tab=social&error=No Facebook Pages found. Please create a Facebook Page and connect it to your Instagram Business account."
                 )
             
-            # Try to find a page with Instagram Business Account
             instagram_account = None
             page_access_token = None
             
             for page in pages:
                 page_id = page.get("id")
+                page_name = page.get("name", "unknown")
                 page_token = page.get("access_token")
                 
-                # Get Instagram Business Account connected to this page
                 ig_response = await client.get(
                     f"{FACEBOOK_GRAPH_URL}/{page_id}",
                     params={
@@ -180,6 +179,8 @@ async def instagram_callback(
                     }
                 )
                 
+                logger.info(f"   📄 Page '{page_name}' ({page_id}): ig check status={ig_response.status_code}, body={ig_response.text[:300]}")
+                
                 if ig_response.status_code == 200:
                     ig_data = ig_response.json()
                     ig_account = ig_data.get("instagram_business_account")
@@ -187,11 +188,11 @@ async def instagram_callback(
                     if ig_account:
                         instagram_account = ig_account
                         page_access_token = page_token
-                        logger.info(f"✅ Found Instagram Business Account: {ig_account.get('id')}")
+                        logger.info(f"✅ Found Instagram Business Account: {ig_account.get('id')} via page '{page_name}'")
                         break
             
             if not instagram_account:
-                logger.error(f"❌ No Instagram Business Account found")
+                logger.error(f"❌ No Instagram Business Account found across {len(pages)} pages")
                 return RedirectResponse(
                     url=f"{FRONTEND_URL}/settings?tab=social&error=No Instagram Business Account found. Please convert your Instagram account to a Business account and connect it to a Facebook Page."
                 )
