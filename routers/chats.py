@@ -389,7 +389,13 @@ DATA ANALYSIS: When the user asks about campaigns, reference real campaign names
 
 LANGUAGE: ALWAYS respond in the SAME LANGUAGE the user writes in (Russian, English, Hebrew, etc).
 
-FORMAT: Use bold headers, bullet points, and structured tables for data comparisons. Never output JSON."""
+FORMAT:
+- Use **bold headers** for each section (Executive Summary, Strategic Breakdown, The Winning Move).
+- Put a blank line between every section for clear visual separation.
+- Use bullet points with dashes (-) for lists.
+- Use structured tables for data comparisons when relevant.
+- Keep paragraphs short (2-3 sentences max).
+- Never output JSON."""
             else:
                 system_instruction = f"""You are Joyo Marketing AI assistant. Today's date is {current_date}.
 

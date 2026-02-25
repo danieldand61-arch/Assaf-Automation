@@ -17,15 +17,24 @@ const STRATEGY_CHIPS = [
 
 function renderMarkdown(text: string): string {
   let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  html = html.replace(/^### (.+)$/gm, '<div style="font-size:15px;font-weight:700;margin:12px 0 4px">$1</div>')
-  html = html.replace(/^## (.+)$/gm, '<div style="font-size:16px;font-weight:700;margin:14px 0 6px">$1</div>')
-  html = html.replace(/^# (.+)$/gm, '<div style="font-size:17px;font-weight:700;margin:16px 0 6px">$1</div>')
+  // Headers
+  html = html.replace(/^### (.+)$/gm, '<h4 style="font-size:14px;font-weight:700;margin:16px 0 6px;color:inherit">$1</h4>')
+  html = html.replace(/^## (.+)$/gm, '<h3 style="font-size:15px;font-weight:700;margin:18px 0 8px;color:inherit">$1</h3>')
+  html = html.replace(/^# (.+)$/gm, '<h2 style="font-size:16px;font-weight:800;margin:20px 0 8px;color:inherit">$1</h2>')
+  // Bold/italic
   html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>')
   html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
+  // Code
   html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.08);padding:1px 5px;border-radius:4px;font-size:12px">$1</code>')
-  html = html.replace(/^[-•]\s+(.+)$/gm, '<div style="padding-left:14px">• $1</div>')
-  html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<div style="padding-left:14px">$1. $2</div>')
+  // Bullet points
+  html = html.replace(/^[-•]\s+(.+)$/gm, '<div style="padding-left:16px;margin:3px 0">• $1</div>')
+  // Numbered lists
+  html = html.replace(/^(\d+)\.\s+(.+)$/gm, '<div style="padding-left:16px;margin:3px 0">$1. $2</div>')
+  // Paragraphs: double newlines → spacing
+  html = html.replace(/\n\n+/g, '<div style="margin:12px 0"></div>')
+  // Single newlines → line breaks (but not inside already-replaced elements)
+  html = html.replace(/\n/g, '<br/>')
   return html
 }
 
