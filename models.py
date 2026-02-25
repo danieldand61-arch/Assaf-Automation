@@ -12,6 +12,7 @@ class PostVariation(BaseModel):
     engagement_score: float
     call_to_action: str
     platform: str = ""
+    variant_type: str = ""  # "storyteller" or "closer"
 
 
 class ImageVariation(BaseModel):

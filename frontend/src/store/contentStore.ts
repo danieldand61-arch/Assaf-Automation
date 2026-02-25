@@ -6,6 +6,8 @@ interface PostVariation {
   char_count: number
   engagement_score: number
   call_to_action: string
+  platform: string
+  variant_type: string
 }
 
 interface ImageVariation {

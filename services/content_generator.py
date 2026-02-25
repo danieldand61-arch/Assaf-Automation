@@ -117,61 +117,40 @@ def _build_prompt(
     language: str,
     include_emojis: bool
 ) -> str:
-    """Builds prompt for Gemini 3 Flash Preview with marketing psychology integration"""
+    """Builds prompt for Gemini with dual-variant marketing psychology"""
     
-    # Language names for prompt
-    language_names = {
-        "en": "English",
-        "he": "Hebrew",
-        "es": "Spanish",
-        "pt": "Portuguese"
-    }
+    language_names = {"en": "English", "he": "Hebrew", "es": "Spanish", "pt": "Portuguese"}
     language_name = language_names.get(language, "English")
-    
     emoji_instruction = "Use emojis strategically for emotional impact." if include_emojis else "Don't use emojis."
     
-    platforms_str = " and ".join(platforms)
-    
-    # Determine if B2B or B2C
     is_b2b = target_audience.lower() in ["b2b", "business owners", "professionals", "enterprises"]
-    audience_guidance = """
-B2B FOCUS:
-- Address fear of failure and risk mitigation
-- Build trust and authority (social proof, credentials)
-- Provide rational justification (ROI, efficiency gains)
-- Help decision-maker look smart to their team
-- Use: "Proven system", "Industry leaders trust us", "Reduce costs by X%"
-""" if is_b2b else """
-B2C FOCUS:
-- Lead with lifestyle and identity transformation
-- Emotional connection and aspiration
-- Faster hooks and visual storytelling
-- Use: "Transform your...", "Feel amazing", "Join thousands who..."
-"""
-    
-    # Platform-specific rules for Caption Intelligence
-    platform_rules = {
-        "facebook":        "Facebook: conversational, medium length (100-250 words), community angle, storytelling. Ask questions to boost engagement. 3-5 hashtags.",
-        "instagram":       "Instagram: visual-focused, emoji-friendly, lifestyle tone. 8-15 hashtags (mix trending + niche). Use line breaks for readability. Under 2200 chars.",
-        "linkedin":        "LinkedIn: professional thought-leadership tone, longer (150-300 words). Data-driven, no emojis unless subtle. 3-5 industry hashtags. Under 3000 chars.",
-        "tiktok":          "TikTok: casual, trending, Gen-Z friendly, very short (1-3 sentences). Use trending phrases. 3-6 hashtags with #fyp #viral. Under 2200 chars.",
-        "x":               "X (Twitter): short, punchy, under 280 chars total including hashtags. One strong hook. 1-3 hashtags max. No fluff.",
-        "google_business": "Google Business: factual, local-SEO optimized, include location keywords. Service-focused, professional. No hashtags. Under 1500 chars.",
+    audience_guidance = """B2B: Address risk mitigation, build authority (social proof, credentials), rational justification (ROI, efficiency), help decision-maker look smart.""" if is_b2b else """B2C: Lead with lifestyle transformation, emotional connection, aspiration, visual storytelling."""
+
+    char_limits = {
+        "facebook": 1200, "instagram": 800, "linkedin": 3000,
+        "tiktok": 2200, "x": 280, "google_business": 1500,
     }
 
-    # Build per-platform instruction block
-    platform_instructions = ""
-    for i, p in enumerate(platforms):
+    platform_rules = {
+        "facebook":        "Conversational, community angle, ask questions. 3-5 hashtags. Max 1200 chars. Focus on Engagement.",
+        "instagram":       "Visual-focused, lifestyle tone, line breaks for readability. 8-15 hashtags. Max 800 chars. Focus on the Hook.",
+        "linkedin":        "Professional thought-leadership, data-driven. 3-5 industry hashtags. Max 3000 chars. Focus on Authority.",
+        "tiktok":          "Casual, trending, Gen-Z friendly, very short. 3-6 hashtags with #fyp. Max 2200 chars.",
+        "x":               "Short, punchy, under 280 chars total. 1-3 hashtags max. No fluff.",
+        "google_business": "Factual, local-SEO optimized. No hashtags. Max 1500 chars.",
+    }
+
+    platforms_block = ""
+    for p in platforms:
         rule = platform_rules.get(p, "General social media post, 100-200 words, 3-5 hashtags.")
-        platform_instructions += f"\nVariation {i+1} — for {p.upper()}:\n  {rule}\n"
+        limit = char_limits.get(p, 1000)
+        platforms_block += f"\n{p.upper()} (max {limit} chars): {rule}"
 
-    num = len(platforms)
+    num = len(platforms) * 2
 
-    prompt = f"""
-Create exactly {num} social media post variation(s) IN {language_name.upper()}.
-Each variation is optimized for a SPECIFIC platform. The tone, length, hashtag count, and style MUST be different for each.
+    prompt = f"""You are a Senior Conversion Copywriter. Generate social media content that triggers buying responses.
 
-BRAND INFORMATION:
+BRAND:
 - Name: {website_data.get('title', 'N/A')}
 - Description: {website_data.get('description', 'N/A')}
 - Content: {website_data.get('content', 'N/A')[:500]}
@@ -179,41 +158,52 @@ BRAND INFORMATION:
 - Products: {', '.join(website_data.get('products', []))}
 - Features: {', '.join(website_data.get('key_features', []))}
 
-POST REQUIREMENTS:
+REQUIREMENTS:
 - Language: {language_name} (ALL text in {language_name.upper()})
-- Topic/keywords: {keywords}
+- Topic: {keywords}
 - Style: {style}
 - Audience: {target_audience}
 - {emoji_instruction}
+- {audience_guidance}
 
-{audience_guidance}
+PLATFORM RULES:{platforms_block}
 
-PER-PLATFORM INSTRUCTIONS (follow strictly):
-{platform_instructions}
+OUTPUT: For EACH platform, generate exactly 2 distinct variations:
+- Variant A "storyteller": Emotional/Right Brain. Use status, relief, aspiration, metaphors, "The Dream State". Framework: PAS (Pain-Agitate-Solution).
+- Variant B "closer": Logical/Left Brain. Use facts, ROI, efficiency, direct Pain-Point resolution. Framework: AIDA (Attention-Interest-Desire-Action).
 
-POST STRUCTURE: Hook → Problem → Solution → Proof → CTA
-Use psychological triggers: social proof, scarcity, authority, reciprocity.
+STRICT RULES:
+1. Every post MUST open with a 3-6 word curiosity-gap headline hook.
+2. Absolutely NO em-dashes. Use commas, periods, or ellipsis instead.
+3. No AI fingerprints. Human-like sentence rhythm.
+4. Every post MUST end with a clear Call to Action.
+5. Respect each platform's character limit strictly.
+6. Total: exactly {num} variations ({len(platforms)} platforms x 2 variants each).
 
-RESPONSE — strict JSON, no markdown:
+RESPONSE - strict JSON, no markdown:
 {{
   "variations": [
     {{
-      "platform": "facebook",
-      "text": "Full post text optimized for this platform",
+      "platform": "instagram",
+      "variant_type": "storyteller",
+      "text": "Full post text",
+      "hashtags": ["tag1", "tag2"],
+      "call_to_action": "Shop Now",
+      "engagement_score": 85
+    }},
+    {{
+      "platform": "instagram",
+      "variant_type": "closer",
+      "text": "Full post text",
       "hashtags": ["tag1", "tag2"],
       "call_to_action": "Learn More",
-      "engagement_score": 85
+      "engagement_score": 80
     }}
   ]
 }}
 
-RULES:
-- Return ONLY valid JSON
-- Exactly {num} variations, one per platform in order: {', '.join(platforms)}
-- Each variation MUST match its platform's tone, length, and hashtag rules above
-- engagement_score is a NUMBER 0-100
-- hashtags array of strings without # prefix
-"""
+Platform order: {', '.join(platforms)}. For each platform, storyteller first, then closer.
+engagement_score is NUMBER 0-100. hashtags without # prefix. Return ONLY valid JSON."""
     
     return prompt
 
@@ -282,7 +272,8 @@ def _parse_gemini_response(content: str, platforms: List[str]) -> List[PostVaria
             else:
                 hashtags = []
                 
-            plat = var.get('platform', platforms[i] if i < len(platforms) else '')
+            plat = var.get('platform', platforms[i // 2] if i // 2 < len(platforms) else '')
+            vtype = var.get('variant_type', 'storyteller' if i % 2 == 0 else 'closer')
             variations.append(PostVariation(
                 text=text,
                 hashtags=hashtags[:12],
@@ -290,6 +281,7 @@ def _parse_gemini_response(content: str, platforms: List[str]) -> List[PostVaria
                 engagement_score=float(var.get('engagement_score', 70)) / 100.0,
                 call_to_action=var.get('call_to_action', 'Learn more!'),
                 platform=plat,
+                variant_type=vtype,
             ))
         
         logger.info(f"✅ DEBUG: Successfully parsed {len(variations)} variations!")
@@ -316,9 +308,12 @@ def _parse_gemini_response(content: str, platforms: List[str]) -> List[PostVaria
 def _calculate_char_limits(platforms: List[str]) -> Dict[str, int]:
     """Returns character limits for platforms"""
     limits = {
-        "facebook": 63206,  # Practical limit ~500-1000 for good engagement
-        "instagram": 2200,
+        "facebook": 1200,
+        "instagram": 800,
         "twitter": 280,
-        "linkedin": 3000
+        "x": 280,
+        "linkedin": 3000,
+        "tiktok": 2200,
+        "google_business": 1500,
     }
     return {p: limits.get(p, 1000) for p in platforms}
