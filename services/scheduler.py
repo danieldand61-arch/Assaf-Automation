@@ -70,6 +70,32 @@ async def publish_post(post: dict):
         
         image_url = post.get("image_url")
         
+        # If image_url is base64, upload to Supabase Storage first
+        if image_url and image_url.startswith("data:"):
+            try:
+                import base64, uuid
+                header, b64data = image_url.split(",", 1)
+                image_bytes = base64.b64decode(b64data)
+                supabase_tmp = get_supabase()
+                filename = f"scheduled/{uuid.uuid4().hex}.jpg"
+                bucket = "posts"
+                try:
+                    supabase_tmp.storage.from_(bucket).upload(
+                        path=filename, file=image_bytes,
+                        file_options={"content-type": "image/jpeg", "upsert": "true"}
+                    )
+                except Exception:
+                    bucket = "products"
+                    supabase_tmp.storage.from_(bucket).upload(
+                        path=filename, file=image_bytes,
+                        file_options={"content-type": "image/jpeg", "upsert": "true"}
+                    )
+                image_url = supabase_tmp.storage.from_(bucket).get_public_url(filename)
+                logger.info(f"   Uploaded base64 image to {image_url[:80]}...")
+            except Exception as upload_err:
+                logger.warning(f"⚠️ Failed to upload base64 image: {upload_err}")
+                image_url = None
+        
         logger.info(f"📤 Publishing post {post_id} to {platforms}")
         
         supabase = get_supabase()
