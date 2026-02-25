@@ -378,7 +378,7 @@ export function SchedulePostModal({
                   <img 
                     src={postData.imageUrl} 
                     alt="Post" 
-                    className="w-full h-48 object-cover"
+                    className="w-full max-h-64 object-contain"
                   />
                 )}
               </div>

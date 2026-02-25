@@ -420,7 +420,7 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
                     <img 
                       src={imageFile ? URL.createObjectURL(imageFile) : prefilledImageUrl} 
                       alt="Preview" 
-                      className="w-full h-48 object-cover rounded-lg"
+                      className="w-full max-h-64 object-contain rounded-lg"
                     />
                     {!uploading && (
                       <button

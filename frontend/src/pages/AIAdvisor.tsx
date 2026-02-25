@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Loader2, Sparkles, TrendingUp, Target, DollarSign, Users, Zap, AlertTriangle, Trash2, Plus, MessageSquare, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Send, Loader2, Sparkles, TrendingUp, Target, DollarSign, Users, Zap, AlertTriangle, Trash2, Plus, MessageSquare, ChevronLeft, ChevronRight, BarChart3, RefreshCw, Eye } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
@@ -8,13 +8,11 @@ import { getApiUrl } from '../lib/api'
 interface Message { role: 'user' | 'assistant'; content: string }
 interface ChatItem { id: string; title: string; created_at: string; updated_at: string; message_count?: number }
 
-const QUICK_PROMPTS = [
-  { icon: TrendingUp, text: 'How were my campaigns this week?' },
-  { icon: Target, text: 'Which campaign should I scale up?' },
-  { icon: DollarSign, text: 'Where am I wasting budget?' },
-  { icon: Users, text: 'How can I improve my targeting?' },
-  { icon: Zap, text: 'Give me 3 quick wins for better ROI' },
-  { icon: Sparkles, text: 'Write me a strategy for next month' },
+const STRATEGY_CHIPS = [
+  { icon: BarChart3, text: 'Analyze my Customer Acquisition Cost (CAC)' },
+  { icon: RefreshCw, text: 'Develop a Re-targeting Roadmap' },
+  { icon: Eye, text: 'Audit my Brand Tone Consistency' },
+  { icon: TrendingUp, text: 'Build a Growth Flywheel strategy' },
 ]
 
 function renderMarkdown(text: string): string {
@@ -226,10 +224,10 @@ export default function AIAdvisor() {
         }}>
           <div>
             <h1 style={{ fontSize: 18, fontWeight: 700, color: t.text }}>
-              {activeChat?.title || 'AI Advisor'}
+              {activeChat?.title || 'Strategic Advisor'}
             </h1>
             <p style={{ fontSize: 11.5, color: t.textMuted }}>
-              {activeChatId ? `Chat started ${new Date(activeChat?.created_at || '').toLocaleDateString()}` : 'Ask about your campaigns, strategy, and performance'}
+              {activeChatId ? `Chat started ${new Date(activeChat?.created_at || '').toLocaleDateString()}` : 'Elite CMO at your service'}
             </p>
           </div>
         </div>
@@ -253,24 +251,33 @@ export default function AIAdvisor() {
           display: 'flex', flexDirection: 'column', gap: 12,
         }}>
           {messages.length === 0 && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 20 }}>
-              <div style={{ width: 56, height: 56, borderRadius: 16, background: `${t.accent}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Sparkles size={24} style={{ color: t.accent }} />
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 24 }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: 20,
+                background: `linear-gradient(135deg, ${t.accent}20, rgba(139,92,246,0.15))`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: `0 8px 32px ${t.accent}15`,
+              }}>
+                <Sparkles size={28} style={{ color: t.accent }} />
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: t.text, marginBottom: 4 }}>How can I help?</h3>
-                <p style={{ fontSize: 12, color: t.textMuted }}>Ask about your campaigns or pick a question below</p>
+              <div style={{ textAlign: 'center', maxWidth: 400 }}>
+                <h3 style={{ fontSize: 20, fontWeight: 800, color: t.text, marginBottom: 6, letterSpacing: -0.5 }}>
+                  What's your strategic challenge today?
+                </h3>
+                <p style={{ fontSize: 13, color: t.textMuted, lineHeight: 1.5 }}>
+                  Your elite CMO is ready. Ask about growth strategy, campaign optimization, or brand positioning.
+                </p>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%', maxWidth: 480 }}>
-                {QUICK_PROMPTS.map((qp, i) => (
-                  <button key={i} onClick={() => sendMessage(qp.text)} style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px',
-                    borderRadius: 12, border: `1px solid ${t.border}`, background: t.card,
-                    color: t.text, fontSize: 12, fontWeight: 500, textAlign: 'left', cursor: 'pointer',
-                    transition: 'transform 0.15s',
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', maxWidth: 520 }}>
+                {STRATEGY_CHIPS.map((chip, i) => (
+                  <button key={i} onClick={() => sendMessage(chip.text)} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '10px 16px',
+                    borderRadius: 24, border: `1px solid ${t.border}`, background: t.card,
+                    color: t.textSecondary, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                    transition: 'all 0.15s',
                   }}>
-                    <qp.icon size={14} style={{ color: t.accent, flexShrink: 0 }} />
-                    {qp.text}
+                    <chip.icon size={14} style={{ color: t.accent }} />
+                    {chip.text}
                   </button>
                 ))}
               </div>
@@ -312,7 +319,7 @@ export default function AIAdvisor() {
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendMessage(input)}
-            placeholder="Ask about your campaigns..."
+            placeholder="What's your strategic challenge today?"
             style={{
               flex: 1, padding: '10px 14px', borderRadius: 10, fontSize: 13, outline: 'none',
               background: t.surfaceSecondary, border: `1px solid ${t.border}`, color: t.text,
