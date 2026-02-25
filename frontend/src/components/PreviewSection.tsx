@@ -37,7 +37,7 @@ function CharBar({ current, max }: { current: number; max: number }) {
   )
 }
 
-function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle }: { v: any; img: any; brandHandle: string; isExpanded: boolean; onToggle: () => void }) {
+function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImage }: { v: any; img: any; brandHandle: string; isExpanded: boolean; onToggle: () => void; onEditImage?: () => void }) {
   const TEXT_CLAMP = 120
   const needsTruncate = v.text.length > TEXT_CLAMP
   return (
@@ -53,8 +53,13 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle }: { v: any
       </div>
       {/* IG Image 4:5 */}
       {img?.url && !img.url.includes('placehold.co') ? (
-        <div className="w-full bg-black/5 dark:bg-black/30" style={{ aspectRatio: '4/5' }}>
+        <div className="group/img relative w-full bg-black/5 dark:bg-black/30 cursor-pointer" style={{ aspectRatio: '4/5' }} onClick={onEditImage}>
           <img src={img.url} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
+              <Edit3 size={12} /> Edit Image
+            </span>
+          </div>
         </div>
       ) : (
         <div className="w-full flex items-center justify-center bg-gray-100 dark:bg-gray-700/40" style={{ aspectRatio: '4/5' }}>
@@ -88,7 +93,7 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle }: { v: any
   )
 }
 
-function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle }: { v: any; img: any; brandHandle: string; isExpanded: boolean; onToggle: () => void }) {
+function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImage }: { v: any; img: any; brandHandle: string; isExpanded: boolean; onToggle: () => void; onEditImage?: () => void }) {
   const TEXT_CLAMP = 400
   const needsTruncate = v.text.length > TEXT_CLAMP
   return (
@@ -123,8 +128,13 @@ function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle }: { v: any;
       </div>
       {/* FB Image — full width, no crop, like real FB feed */}
       {img?.url && !img.url.includes('placehold.co') ? (
-        <div className="w-full bg-black/5 dark:bg-black/20">
+        <div className="group/img relative w-full bg-black/5 dark:bg-black/20 cursor-pointer" onClick={onEditImage}>
           <img src={img.url} alt="" className="w-full object-contain" />
+          <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
+              <Edit3 size={12} /> Edit Image
+            </span>
+          </div>
         </div>
       ) : (
         <div className="w-full h-[200px] flex items-center justify-center bg-gray-100 dark:bg-gray-700/40">
@@ -147,7 +157,7 @@ function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle }: { v: any;
   )
 }
 
-function GenericMockup({ v, img, meta, isExpanded, onToggle }: { v: any; img: any; meta: any; isExpanded: boolean; onToggle: () => void }) {
+function GenericMockup({ v, img, meta, isExpanded, onToggle, onEditImage }: { v: any; img: any; meta: any; isExpanded: boolean; onToggle: () => void; onEditImage?: () => void }) {
   const TEXT_CLAMP = 200
   const needsTruncate = v.text.length > TEXT_CLAMP
   return (
@@ -159,7 +169,14 @@ function GenericMockup({ v, img, meta, isExpanded, onToggle }: { v: any; img: an
         <span className="text-xs font-bold" style={{ color: meta.color }}>{meta.label}</span>
       </div>
       {img?.url && !img.url.includes('placehold.co') ? (
-        <img src={img.url} alt="" className="w-full max-h-[280px] object-cover" />
+        <div className="group/img relative w-full cursor-pointer" onClick={onEditImage}>
+          <img src={img.url} alt="" className="w-full object-contain" />
+          <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
+              <Edit3 size={12} /> Edit Image
+            </span>
+          </div>
+        </div>
       ) : null}
       <div className="px-3 py-2">
         <p className="text-[12px] text-gray-800 dark:text-gray-200 whitespace-pre-wrap leading-relaxed">
@@ -398,13 +415,16 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
                     <div className="flex-1">
                       {platform === 'instagram' ? (
                         <InstagramMockup v={v} img={img} brandHandle={brandHandle} isExpanded={isExpanded}
-                          onToggle={() => setExpandedIdx(prev => ({ ...prev, [idx]: !isExpanded }))} />
+                          onToggle={() => setExpandedIdx(prev => ({ ...prev, [idx]: !isExpanded }))}
+                          onEditImage={!userMedia ? () => setEditingImageIdx(idx) : undefined} />
                       ) : platform === 'facebook' ? (
                         <FacebookMockup v={v} img={img} brandHandle={brandName || 'Your Brand'} isExpanded={isExpanded}
-                          onToggle={() => setExpandedIdx(prev => ({ ...prev, [idx]: !isExpanded }))} />
+                          onToggle={() => setExpandedIdx(prev => ({ ...prev, [idx]: !isExpanded }))}
+                          onEditImage={!userMedia ? () => setEditingImageIdx(idx) : undefined} />
                       ) : (
                         <GenericMockup v={v} img={img} meta={meta} isExpanded={isExpanded}
-                          onToggle={() => setExpandedIdx(prev => ({ ...prev, [idx]: !isExpanded }))} />
+                          onToggle={() => setExpandedIdx(prev => ({ ...prev, [idx]: !isExpanded }))}
+                          onEditImage={!userMedia ? () => setEditingImageIdx(idx) : undefined} />
                       )}
                     </div>
 
@@ -430,14 +450,6 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
                         <BookmarkPlus size={11} /> {savingIdx === idx ? '...' : 'Save'}
                       </button>
                       <div className="flex-1" />
-                      {!userMedia && img?.url && (
-                        <button onClick={() => setEditingImageIdx(idx)}
-                          className="p-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
-                          title="Edit image"
-                        >
-                          <Edit3 size={11} />
-                        </button>
-                      )}
                       <button onClick={() => setSchedulingIdx(idx)}
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                       >
