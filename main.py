@@ -332,7 +332,7 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
                 from database.supabase_client import get_supabase
                 supabase = get_supabase()
                 uid = current_user.get("user_id")
-                acct = supabase.table("accounts").select("brand_voice, logo_url, brand_colors, metadata, industry, description, name, website_url").eq("user_id", uid).eq("is_active", True).limit(1).execute()
+                acct = supabase.table("accounts").select("brand_voice, logo_url, brand_colors, metadata, industry, description, name").eq("user_id", uid).eq("is_active", True).limit(1).execute()
                 if acct.data:
                     a = acct.data[0]
                     bk = (a.get("metadata") or {}).get("brand_kit") or {}
@@ -341,7 +341,7 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
                     bk_products = bk.get("products") or []
                     if bk_name and (bk_desc or bk_products):
                         website_data = {
-                            "url": bk.get("website_url") or a.get("website_url") or url_str or "",
+                            "url": bk.get("website_url") or (a.get("metadata") or {}).get("website_url") or url_str or "",
                             "title": bk_name,
                             "description": bk_desc,
                             "content": bk_desc,

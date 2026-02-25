@@ -29,20 +29,18 @@ async def publish_to_facebook(connection: Dict[str, Any], content: str, image_ur
         logger.info(f"📘 Publishing to Facebook page: {page_id}")
         
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Post to Facebook Page
-            params = {
-                "message": content,
-                "access_token": access_token
-            }
-            
-            # Add image if provided
             if image_url:
-                params["url"] = image_url
                 endpoint = f"https://graph.facebook.com/v19.0/{page_id}/photos"
+                response = await client.post(
+                    endpoint,
+                    data={"message": content, "url": image_url, "access_token": access_token}
+                )
             else:
                 endpoint = f"https://graph.facebook.com/v19.0/{page_id}/feed"
-            
-            response = await client.post(endpoint, params=params)
+                response = await client.post(
+                    endpoint,
+                    data={"message": content, "access_token": access_token}
+                )
             
             if response.status_code != 200:
                 error_text = response.text
