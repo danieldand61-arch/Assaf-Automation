@@ -56,24 +56,76 @@ async def post_to_facebook(connection: dict, text: str, image_data: Optional[byt
 
 
 async def post_to_instagram(connection: dict, text: str, image_data: Optional[bytes]) -> dict:
-    """Post to Instagram Business Account"""
+    """Post to Instagram Business Account via Container API"""
     try:
         if not image_data:
-            raise Exception("Instagram requires an image")
-        
+            raise Exception("Instagram requires an image to post")
+
         access_token = connection["access_token"]
         instagram_account_id = connection["platform_user_id"]
-        
-        # First upload image to a temporary location (or use a URL)
-        # For now, this is simplified - in production you'd upload to your server first
-        raise Exception("Instagram posting requires image URL. Upload image to your server first.")
-        
-        # The flow would be:
-        # 1. Upload image to your server
-        # 2. Get public URL
-        # 3. Create media container with URL
-        # 4. Publish container
-        
+
+        # 1. Upload image to Supabase Storage to get a public URL
+        import uuid
+        supabase = get_supabase()
+        filename = f"instagram/{uuid.uuid4().hex}.jpg"
+        bucket = "posts"
+        try:
+            supabase.storage.from_(bucket).upload(
+                path=filename, file=image_data,
+                file_options={"content-type": "image/jpeg", "upsert": "true"}
+            )
+        except Exception:
+            bucket = "products"
+            supabase.storage.from_(bucket).upload(
+                path=filename, file=image_data,
+                file_options={"content-type": "image/jpeg", "upsert": "true"}
+            )
+        image_url = supabase.storage.from_(bucket).get_public_url(filename)
+        logger.info(f"   Uploaded image for Instagram: {image_url[:80]}...")
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            # 2. Create media container
+            container_resp = await client.post(
+                f"{FACEBOOK_GRAPH_URL}/{instagram_account_id}/media",
+                params={
+                    "image_url": image_url,
+                    "caption": text,
+                    "access_token": access_token,
+                }
+            )
+            if container_resp.status_code != 200:
+                raise Exception(f"Instagram container error: {container_resp.text}")
+
+            container_id = container_resp.json().get("id")
+            if not container_id:
+                raise Exception("Instagram API returned no container ID")
+
+            # 3. Wait for container to be ready, then publish
+            import asyncio
+            for _ in range(10):
+                await asyncio.sleep(2)
+                status_resp = await client.get(
+                    f"{FACEBOOK_GRAPH_URL}/{container_id}",
+                    params={"fields": "status_code", "access_token": access_token}
+                )
+                status = status_resp.json().get("status_code")
+                if status == "FINISHED":
+                    break
+                if status == "ERROR":
+                    raise Exception(f"Instagram container processing failed: {status_resp.text}")
+
+            # 4. Publish
+            publish_resp = await client.post(
+                f"{FACEBOOK_GRAPH_URL}/{instagram_account_id}/media_publish",
+                params={"creation_id": container_id, "access_token": access_token}
+            )
+            if publish_resp.status_code != 200:
+                raise Exception(f"Instagram publish error: {publish_resp.text}")
+
+            post_id = publish_resp.json().get("id")
+            logger.info(f"   ✅ Instagram post published: {post_id}")
+            return {"success": True, "post_id": post_id}
+
     except Exception as e:
         logger.error(f"Instagram post error: {str(e)}")
         raise
