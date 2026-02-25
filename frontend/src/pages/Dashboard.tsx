@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, Target, ArrowUp, ArrowDown, Film, Coins, Zap, MessageSquare, Image, Video, Megaphone, Lightbulb, TrendingUp, FileText, Rocket, Palette, BarChart3, Settings } from 'lucide-react'
+import { Send, Target, ArrowUp, ArrowDown, Film, Coins, Zap, MessageSquare, Image, Video, Megaphone, Lightbulb, TrendingUp, FileText, Rocket, Palette, BarChart3 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme } from '../styles/joyo-theme'

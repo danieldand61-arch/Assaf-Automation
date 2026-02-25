@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
-import { Archive, Calendar, Trash2, RefreshCw, Send } from 'lucide-react'
+import { Archive, Calendar, Trash2, RefreshCw } from 'lucide-react'
 import { SchedulePostModal } from './SchedulePostModal'
 
 const PLATFORM_COLORS: Record<string, { bg: string; text: string; label: string }> = {
