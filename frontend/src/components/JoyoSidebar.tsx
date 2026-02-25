@@ -115,8 +115,11 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
       {/* Navigation */}
       <div style={{ 
         flex: 1, 
-        padding: collapsed ? '4px 10px' : '4px 14px', 
-        overflowY: 'auto' 
+        padding: collapsed ? '8px 10px' : '8px 14px', 
+        overflowY: 'auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 2,
       }}>
         {navItems.map((item) => {
           const Icon = item.icon
@@ -132,14 +135,15 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
-                padding: collapsed ? '10px 0' : '10px 14px',
+                padding: collapsed ? '11px 0' : '11px 14px',
+                marginBottom: 1,
                 borderRadius: 10,
                 border: 'none',
                 cursor: isDisabled ? 'not-allowed' : 'pointer',
-                background: isActive ? 'rgba(74,124,255,0.15)' : 'transparent',
-                color: isDisabled ? 'rgba(255,255,255,0.25)' : (isActive ? '#B4CDFF' : 'rgba(255,255,255,0.5)'),
+                background: isActive ? 'rgba(74,124,255,0.18)' : 'transparent',
+                color: isDisabled ? 'rgba(255,255,255,0.25)' : (isActive ? 'white' : 'rgba(255,255,255,0.5)'),
                 fontSize: 13.5,
-                fontWeight: isActive ? 600 : 500,
+                fontWeight: isActive ? 650 : 500,
                 transition: 'all 0.2s',
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 position: 'relative',

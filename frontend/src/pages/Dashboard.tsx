@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, Target, ArrowUp, ArrowDown, Film, Coins, Zap, MessageSquare, Image, Video, Megaphone, Lightbulb, TrendingUp, FileText } from 'lucide-react'
+import { Send, Target, ArrowUp, ArrowDown, Film, Coins, Zap, MessageSquare, Image, Video, Megaphone, Lightbulb, TrendingUp, FileText, Rocket, Palette, BarChart3, Settings } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
@@ -230,8 +230,8 @@ function buildRecommendations(
   bal: { total_purchased: number; used: number; remaining: number } | undefined,
   totalGens: number,
   t: any
-): { text: string; color: string }[] {
-  const recs: { text: string; color: string }[] = []
+): { text: string; color: string; icon: any }[] {
+  const recs: { text: string; color: string; icon: any }[] = []
 
   const postCount = (services['social_posts']?.count || 0)
   const imgCount = (services['image_generation']?.count || 0)
@@ -240,50 +240,41 @@ function buildRecommendations(
   const videoCount = (services['video_dubbing']?.count || 0) + (services['video_dubbing_actual']?.count || 0)
 
   if (totalGens === 0) {
-    recs.push({ text: 'Get started! Create your first social post to see AI-powered recommendations here.', color: t.accent })
-    recs.push({ text: 'Try Google Ads generator to build a complete RSA campaign strategy.', color: t.success })
-    recs.push({ text: 'Set up your Brand Kit in Settings so AI can tailor content to your brand.', color: t.purple })
+    recs.push({ text: 'Create your first social post to see AI-powered recommendations here.', color: t.accent, icon: Rocket })
+    recs.push({ text: 'Set up your Brand Kit in Settings so AI can tailor content to your brand.', color: t.purple, icon: Palette })
+    recs.push({ text: 'Try Google Ads generator to build a complete RSA campaign strategy.', color: t.success, icon: Target })
     return recs
   }
 
-  // Platform mix
   if (postCount > 0 && adsCount === 0) {
-    recs.push({ text: `You've created ${postCount} posts but haven't tried Google Ads yet — it can drive targeted traffic fast.`, color: t.success })
+    recs.push({ text: `You've created ${postCount} posts but haven't tried Google Ads yet — drive targeted traffic fast.`, color: t.success, icon: Target })
   }
   if (adsCount > 0 && postCount === 0) {
-    recs.push({ text: `You're running ${adsCount} ad campaigns — complement them with organic social posts for better ROI.`, color: t.accent })
+    recs.push({ text: `You're running ${adsCount} ad campaigns — complement them with organic social posts for better ROI.`, color: t.accent, icon: Send })
   }
   if (postCount > 5 && imgCount < postCount / 2) {
-    recs.push({ text: 'Posts with images get 2.3x more engagement. Try generating images for more of your posts.', color: t.purple })
+    recs.push({ text: 'Posts with images get 2.3x more engagement. Try generating images for more of your posts.', color: t.purple, icon: Image })
   }
-
-  // Chat usage
   if (chatCount === 0) {
-    recs.push({ text: 'Use the AI chat to get marketing insights and content ideas tailored to your brand.', color: t.accent })
+    recs.push({ text: 'Use the AI Advisor to get marketing insights and content ideas tailored to your brand.', color: t.accent, icon: MessageSquare })
   }
-
-  // Credits
   if (bal) {
     const pct = bal.remaining / (bal.total_purchased || 1)
     if (pct < 0.15 && bal.remaining > 0) {
-      recs.push({ text: `You have only ${bal.remaining.toFixed(0)} credits left (${(pct * 100).toFixed(0)}%). Consider topping up soon.`, color: t.warning })
+      recs.push({ text: `Only ${bal.remaining.toFixed(0)} credits left (${(pct * 100).toFixed(0)}%). Consider topping up soon.`, color: t.warning, icon: Coins })
     }
     if (pct > 0.8) {
-      recs.push({ text: `You still have ${(pct * 100).toFixed(0)}% of your credits — now is a great time to experiment with new content types.`, color: t.success })
+      recs.push({ text: `${(pct * 100).toFixed(0)}% credits remaining — great time to experiment with new content types.`, color: t.success, icon: Zap })
     }
   }
-
-  // Volume-based
   if (postCount >= 10) {
-    recs.push({ text: `Great momentum with ${postCount} posts this month! Try scheduling posts in advance for consistent publishing.`, color: t.accent })
+    recs.push({ text: `${postCount} posts this month! Try scheduling posts in advance for consistent publishing.`, color: t.accent, icon: TrendingUp })
   }
   if (videoCount > 0) {
-    recs.push({ text: `You've translated ${videoCount} videos — consider creating short social clips from them for more reach.`, color: t.purple })
+    recs.push({ text: `${videoCount} videos translated — create short social clips from them for more reach.`, color: t.purple, icon: Film })
   }
-
-  // Ensure at least 2 recommendations
   if (recs.length < 2) {
-    recs.push({ text: 'Consistency is key — aim to create content at least 3 times per week for optimal engagement.', color: t.accent })
+    recs.push({ text: 'Consistency is key — aim to create content at least 3 times per week.', color: t.accent, icon: Lightbulb })
   }
 
   return recs.slice(0, 4)
@@ -353,29 +344,32 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
     <div style={{ maxWidth: 1160, margin: '0 auto' }}>
       {/* Welcome Banner */}
       <div style={{
-        borderRadius: 18, padding: '26px 30px', marginBottom: 22,
-        background: 'linear-gradient(135deg, #1B2A4A 0%, #2A3F6E 50%, #3B4F8A 100%)',
+        borderRadius: 20, padding: '32px 34px', marginBottom: 22,
+        background: 'linear-gradient(135deg, #4A7CFF 0%, #6366F1 40%, #8B5CF6 70%, #A855F7 100%)',
         position: 'relative', overflow: 'hidden', animation: 'fadeUp 0.4s ease both'
       }}>
-        <div style={{ position: 'absolute', top: -40, right: -20, width: 200, height: 200, borderRadius: '50%', background: 'rgba(74,124,255,0.12)' }} />
-        <h1 style={{ fontSize: 24, fontWeight: 800, color: 'white', marginBottom: 5 }}>
+        <div style={{ position: 'absolute', top: -60, right: -40, width: 260, height: 260, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
+        <div style={{ position: 'absolute', bottom: -30, left: '40%', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+        <h1 style={{ fontSize: 26, fontWeight: 800, color: 'white', marginBottom: 6 }}>
           Welcome back, {userName}
         </h1>
-        <p style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.7)', marginBottom: 18 }}>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', marginBottom: 20 }}>
           Your AI marketing platform is ready to create amazing content
         </p>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={() => onNavigate('social')} style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 10,
-            border: 'none', background: 'rgba(255,255,255,0.15)', color: 'white', fontSize: 12.5, fontWeight: 650, cursor: 'pointer'
+            display: 'flex', alignItems: 'center', gap: 8, padding: '11px 22px', borderRadius: 12,
+            border: 'none', background: 'white', color: '#4A7CFF', fontSize: 13.5, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.15)'
           }}>
-            <Send size={14} /> Create Posts
+            <Rocket size={16} /> Quick Start
           </button>
-          <button onClick={() => onNavigate('ads')} style={{
-            display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 10,
-            border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(255,255,255,0.8)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer'
+          <button onClick={() => onNavigate('advisor')} style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '11px 20px', borderRadius: 12,
+            border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            backdropFilter: 'blur(8px)'
           }}>
-            <Target size={14} /> Google Ads
+            <MessageSquare size={14} /> AI Advisor
           </button>
         </div>
       </div>
@@ -423,7 +417,39 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           {/* Two-column: Chart + AI Recommendations */}
           <div style={{ display: 'flex', gap: 18, marginBottom: 22, flexWrap: 'wrap' }}>
             <div style={{ flex: 2, minWidth: 400 }}>
-              <UsageChart history={history} />
+              {totalGens === 0 ? (
+                <div style={{
+                  background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
+                  padding: '22px 24px', position: 'relative', overflow: 'hidden', animation: 'fadeUp 0.5s ease 0.35s both'
+                }}>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 12 }}>Weekly Performance</h3>
+                  {/* Ghost Chart SVG */}
+                  <div style={{ position: 'relative' }}>
+                    <svg viewBox="0 0 700 200" style={{ width: '100%', height: 'auto', minHeight: 140, filter: 'blur(3px)', opacity: 0.3 }}>
+                      <defs>
+                        <linearGradient id="ghostGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#4A7CFF" stopOpacity="0.3" />
+                          <stop offset="100%" stopColor="#4A7CFF" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                      <path d="M40,170 L90,150 L140,160 L190,120 L240,130 L290,80 L340,90 L390,60 L440,70 L490,40 L540,55 L590,30 L640,45 L660,35" fill="none" stroke="#4A7CFF" strokeWidth="3" />
+                      <path d="M40,200 L40,170 L90,150 L140,160 L190,120 L240,130 L290,80 L340,90 L390,60 L440,70 L490,40 L540,55 L590,30 L640,45 L660,35 L660,200 Z" fill="url(#ghostGrad)" />
+                    </svg>
+                    <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <BarChart3 size={28} style={{ color: t.accent, opacity: 0.8 }} />
+                      <p style={{ fontSize: 13, fontWeight: 600, color: t.text, textAlign: 'center' }}>Publish your first post to see engagement data here</p>
+                      <button onClick={() => onNavigate('social')} style={{
+                        padding: '8px 18px', borderRadius: 10, border: 'none',
+                        background: t.gradient1, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                      }}>
+                        <Send size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />Create First Post
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <UsageChart history={history} />
+              )}
             </div>
             <div style={{ flex: 1, minWidth: 280 }}>
               <div style={{
@@ -433,16 +459,25 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Lightbulb size={16} color={t.warning} /> AI Recommendations
                 </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {buildRecommendations(mergedServices, bal, totalGens, t).map((rec, i) => (
-                    <div key={i} style={{
-                      padding: '12px 14px', borderRadius: 12,
-                      background: `${rec.color}10`, borderLeft: `3px solid ${rec.color}`,
-                      fontSize: 12.5, color: t.textSecondary, lineHeight: 1.5,
-                    }}>
-                      {rec.text}
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {buildRecommendations(mergedServices, bal, totalGens, t).map((rec, i) => {
+                    const RecIcon = rec.icon
+                    return (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 10,
+                        padding: '12px 14px', borderRadius: 12,
+                        background: `${rec.color}10`, borderLeft: `3px solid ${rec.color}`,
+                      }}>
+                        <div style={{
+                          width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+                          background: `${rec.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}>
+                          <RecIcon size={14} color={rec.color} />
+                        </div>
+                        <span style={{ fontSize: 12.5, color: t.textSecondary, lineHeight: 1.5 }}>{rec.text}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               </div>
             </div>

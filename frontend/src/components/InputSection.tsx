@@ -62,10 +62,10 @@ const IMAGE_SIZES = [
 ]
 
 const STYLES = [
-  { value: 'professional',   label: 'Professional' },
-  { value: 'casual',         label: 'Casual & Fun' },
-  { value: 'bold',           label: 'Bold & Vibrant' },
-  { value: 'minimal',        label: 'Minimal & Clean' },
+  { value: 'professional', label: 'Professional',   preview: '"Our enterprise-grade solution ensures..."' },
+  { value: 'casual',       label: 'Casual & Fun',   preview: '"Hey! Ready to level up your game?"' },
+  { value: 'bold',         label: 'Bold & Vibrant',  preview: '"Stop scrolling. This changes everything."' },
+  { value: 'minimal',      label: 'Minimal & Clean', preview: '"Simple. Effective. Yours."' },
 ]
 
 const LANGUAGES = [
@@ -423,10 +423,16 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Style</label>
-                <select value={form.style} onChange={e => set('style', e.target.value)} className={fieldCls}>
-                  {STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                </select>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Brand Voice</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {STYLES.map(s => (
+                    <button key={s.value} type="button" onClick={() => set('style', s.value)}
+                      className={`text-left p-2.5 rounded-xl border-2 transition ${form.style === s.value ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'}`}>
+                      <div className="text-xs font-bold text-gray-800 dark:text-gray-200">{s.label}</div>
+                      <div className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 italic leading-tight">{s.preview}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
             </>
           )}
