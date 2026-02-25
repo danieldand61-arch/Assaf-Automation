@@ -89,7 +89,7 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle }: { v: any
 }
 
 function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle }: { v: any; img: any; brandHandle: string; isExpanded: boolean; onToggle: () => void }) {
-  const TEXT_CLAMP = 200
+  const TEXT_CLAMP = 400
   const needsTruncate = v.text.length > TEXT_CLAMP
   return (
     <div className="flex flex-col">
@@ -121,9 +121,11 @@ function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle }: { v: any;
           <p className="text-[11px] text-blue-500 mt-1">{v.hashtags.map((t: string) => `#${t}`).join(' ')}</p>
         )}
       </div>
-      {/* FB Image */}
+      {/* FB Image — full width, no crop, like real FB feed */}
       {img?.url && !img.url.includes('placehold.co') ? (
-        <img src={img.url} alt="" className="w-full max-h-[300px] object-cover" />
+        <div className="w-full bg-black/5 dark:bg-black/20">
+          <img src={img.url} alt="" className="w-full object-contain" />
+        </div>
       ) : (
         <div className="w-full h-[200px] flex items-center justify-center bg-gray-100 dark:bg-gray-700/40">
           <ImageOff size={32} className="text-gray-300" />
