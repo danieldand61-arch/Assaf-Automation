@@ -31,15 +31,25 @@ async def publish_to_instagram(connection: Dict[str, Any], content: str, image_u
         
         # Instagram Graph API - Create container
         async with httpx.AsyncClient(timeout=90.0) as client:
-            # Step 1: Create media container
-            container_response = await client.post(
-                f"https://graph.facebook.com/v19.0/{instagram_account_id}/media",
-                params={
-                    "image_url": image_url,
-                    "caption": content,
-                    "access_token": access_token
-                }
-            )
+            # Step 1: Create media container (with retry for transient errors)
+            container_response = None
+            for attempt in range(3):
+                container_response = await client.post(
+                    f"https://graph.facebook.com/v19.0/{instagram_account_id}/media",
+                    params={
+                        "image_url": image_url,
+                        "caption": content,
+                        "access_token": access_token
+                    }
+                )
+                if container_response.status_code == 200:
+                    break
+                error_data = container_response.json().get("error", {})
+                if error_data.get("is_transient"):
+                    logger.warning(f"⚠️ Transient error on container creation (attempt {attempt+1}/3), retrying in {5*(attempt+1)}s...")
+                    await asyncio.sleep(5 * (attempt + 1))
+                    continue
+                break
             
             if container_response.status_code != 200:
                 error_text = container_response.text
@@ -68,14 +78,24 @@ async def publish_to_instagram(connection: Dict[str, Any], content: str, image_u
             else:
                 raise Exception("Instagram container not ready after 60s")
             
-            # Step 3: Publish the container
-            publish_response = await client.post(
-                f"https://graph.facebook.com/v19.0/{instagram_account_id}/media_publish",
-                params={
-                    "creation_id": container_id,
-                    "access_token": access_token
-                }
-            )
+            # Step 3: Publish the container (with retry for transient errors)
+            publish_response = None
+            for attempt in range(3):
+                publish_response = await client.post(
+                    f"https://graph.facebook.com/v19.0/{instagram_account_id}/media_publish",
+                    params={
+                        "creation_id": container_id,
+                        "access_token": access_token
+                    }
+                )
+                if publish_response.status_code == 200:
+                    break
+                error_data = publish_response.json().get("error", {})
+                if error_data.get("is_transient") or error_data.get("error_subcode") == 2207027:
+                    logger.warning(f"⚠️ Transient error on publish (attempt {attempt+1}/3), retrying in {5*(attempt+1)}s...")
+                    await asyncio.sleep(5 * (attempt + 1))
+                    continue
+                break
             
             if publish_response.status_code != 200:
                 error_text = publish_response.text
