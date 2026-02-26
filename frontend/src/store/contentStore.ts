@@ -8,6 +8,7 @@ interface PostVariation {
   call_to_action: string
   platform: string
   variant_type: string
+  strategist_note: string
 }
 
 interface ImageVariation {

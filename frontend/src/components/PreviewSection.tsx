@@ -411,6 +411,15 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
                       </button>
                     </div>
 
+                    {/* Strategist's Note */}
+                    {v.strategist_note && (
+                      <div className="mx-3 mt-2 mb-1 px-3 py-2 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800/40">
+                        <p className="text-[11px] text-purple-700 dark:text-purple-300 leading-relaxed">
+                          <span className="font-semibold">🧠 Strategy:</span> {v.strategist_note}
+                        </p>
+                      </div>
+                    )}
+
                     {/* Social Mockup */}
                     <div className="flex-1">
                       {platform === 'instagram' ? (

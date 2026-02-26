@@ -357,7 +357,7 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
         '1200x628': 'Landscape 16:9. Wide cinematic composition. Subject on left or right third.',
     }.get(image_size.replace('_story', ''), 'Balanced composition with clear focal point.')
 
-    prompt = f"""You are an elite advertising creative director. Create a premium social media advertisement image.
+    prompt = f"""You are an elite advertising creative director specializing in scroll-stopping social media visuals.
 
 BRAND: "{brand}"
 BRAND VOICE: {voice}
@@ -365,14 +365,11 @@ BRAND VOICE: {voice}
 {f'PRODUCTS: {products}' if products else ''}
 {f'KEY FEATURES: {features}' if features else ''}
 
-CRITICAL — THE IMAGE MUST DIRECTLY ILLUSTRATE THIS SPECIFIC POST:
+THE IMAGE MUST DIRECTLY ILLUSTRATE THIS SPECIFIC POST:
 "{post_text}"
 
-Read the post above carefully. Identify the CORE SUBJECT, the SPECIFIC SCENARIO, and the EMOTION described.
-The image MUST depict EXACTLY what the post talks about. NOT a generic brand photo. NOT a logo. NOT an abstract concept.
-If the post mentions coffee in winter, show a real person holding coffee in a cold setting.
-If the post mentions saving time, show a person relaxed while technology works for them.
-The viewer should see the image and immediately understand what the post is about WITHOUT reading it.
+Read the post carefully. Identify the CORE SUBJECT, SCENARIO, and EMOTION.
+The image MUST depict what the post talks about. The viewer should understand the post topic from the image alone.
 
 VISUAL DIRECTION:
 - {style_by_variant}
@@ -380,22 +377,25 @@ VISUAL DIRECTION:
 - Mood: {mood}
 - {size_comp}
 {f'- {color_hint}' if color_hint else ''}
-
-PHOTOGRAPHY STYLE:
 - Professional advertising quality, shallow depth of field, natural lighting
 
+ANTI-UNCANNY-VALLEY PROTOCOL:
+- AVOID generating human faces unless the post absolutely requires a person as the hero subject.
+- PREFER: macro product shots, symbolic objects, high-end environments, textured surfaces, abstract concepts, aerial/flat-lay compositions, hands-only shots, silhouettes.
+- If showing people, use back angles, silhouettes, or cropped body shots (hands holding product, over-shoulder views). NOT front-facing portraits.
+- This is critical: bad AI faces destroy credibility. When in doubt, focus on the PRODUCT or ENVIRONMENT, not people.
+
 COMPOSITION:
-- One hero subject that directly represents the specific scenario from the post
+- One hero subject that represents the scenario from the post
 - Environmental storytelling through props and setting that match the post context
-- Aspirational lifestyle context that the target audience identifies with
-- Visual hierarchy that draws the eye to the key selling point mentioned in the post
+- Aspirational context the target audience identifies with
+- Visual hierarchy drawing the eye to the key selling point
 
 STRICT RULES:
 - ABSOLUTELY NO text, words, letters, numbers, watermarks, logos, or typography
 - NO UI elements, buttons, overlays, or borders
 - ONE single cohesive photograph, no collages or split frames
 - NO stock photo feel. Must look like a real premium ad campaign shoot
-- The image alone should make someone stop scrolling
 - The image MUST match the post content. Generic brand imagery is FORBIDDEN."""
 
     return prompt.strip()
