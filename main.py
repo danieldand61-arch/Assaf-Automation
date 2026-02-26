@@ -344,7 +344,7 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
                             "url": bk.get("website_url") or (a.get("metadata") or {}).get("website_url") or url_str or "",
                             "title": bk_name,
                             "description": bk_desc,
-                            "content": bk_desc,
+                            "content": bk.get("content_preview") or bk_desc,
                             "colors": bk.get("brand_colors") or a.get("brand_colors") or [],
                             "logo_url": bk.get("logo_url") or a.get("logo_url") or "",
                             "brand_voice": bk.get("brand_voice") or a.get("brand_voice") or "professional",

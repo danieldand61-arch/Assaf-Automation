@@ -152,6 +152,7 @@ def _build_prompt(
 
 BRAND:
 - Name: {website_data.get('title', 'N/A')}
+- Industry: {website_data.get('industry', 'N/A')}
 - Description: {website_data.get('description', 'N/A')}
 - Content: {website_data.get('content', 'N/A')[:500]}
 - Voice: {website_data.get('brand_voice', 'professional')}

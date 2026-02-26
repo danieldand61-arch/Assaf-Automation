@@ -331,6 +331,7 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
     brand = website_data.get('title', '').strip() or 'a brand'
     industry = website_data.get('industry', '') or website_data.get('description', '')[:80]
     products = ', '.join(website_data.get('products', [])[:3])
+    features = ', '.join(website_data.get('key_features', [])[:3])
     voice = website_data.get('brand_voice', 'professional')
     colors = website_data.get('colors', [])
     color_hint = f'Subtly incorporate brand colors ({", ".join(colors[:3])}) through props, backgrounds, or accents.' if colors else ''
@@ -362,6 +363,7 @@ BRAND: "{brand}"
 BRAND VOICE: {voice}
 {f'INDUSTRY: {industry}' if industry else ''}
 {f'PRODUCTS: {products}' if products else ''}
+{f'KEY FEATURES: {features}' if features else ''}
 
 CRITICAL — THE IMAGE MUST DIRECTLY ILLUSTRATE THIS SPECIFIC POST:
 "{post_text}"
