@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
-import { Loader2, Mail, Lock, User, Sparkles } from 'lucide-react'
+import { Loader2, Mail, Lock, User } from 'lucide-react'
 
 export function Signup() {
   const { signUp, signInWithGoogle } = useAuth()
@@ -47,9 +47,7 @@ export function Signup() {
         
         {/* Logo/Brand */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl mb-4">
-            <Sparkles className="w-8 h-8 text-white" />
-          </div>
+          <img src="/logo.png" alt="JOYO Marketing" className="h-12 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             Create Account
           </h1>

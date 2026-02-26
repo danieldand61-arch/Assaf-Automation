@@ -21,11 +21,7 @@ export default function Header() {
               onClick={() => navigate(user ? '/app' : '/')}
               className="flex items-center gap-3 hover:opacity-80 transition-opacity"
             >
-              <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-2 rounded-xl">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
+              <img src="/favicon.png" alt="JOYO" className="w-10 h-10 rounded-xl" />
               <div>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">
                   {t('title')}
