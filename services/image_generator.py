@@ -62,7 +62,8 @@ async def generate_images(
             try:
                 logger.info(f"🔍 Generating image {idx + 1}/{len(variations)} (attempt {attempt + 1}) for: {variation.text[:50]}...")
                 
-                image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt)
+                plat = variation.platform or (platforms[idx % len(platforms)] if platforms else 'instagram')
+                image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt, platform=plat, image_size=image_size)
                 
                 response = await asyncio.to_thread(
                     model.generate_content,
@@ -320,53 +321,99 @@ def _get_aspect_ratio(dimensions: str) -> str:
         return "1:1"
 
 
-def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_prompt: str = None) -> str:
-    """Build a focused image prompt driven by the post text."""
+def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_prompt: str = None, platform: str = 'instagram', image_size: str = '1080x1080') -> str:
+    """Build an advertising-grade image prompt."""
 
     if custom_prompt:
         logger.info(f"🎨 Using custom prompt: {custom_prompt[:100]}...")
         return custom_prompt.strip()
 
-    title = website_data.get('title', '').strip() or 'a brand'
+    brand = website_data.get('title', '').strip() or 'a brand'
+    industry = website_data.get('industry', '') or website_data.get('description', '')[:80]
+    products = ', '.join(website_data.get('products', [])[:3])
+    voice = website_data.get('brand_voice', 'professional')
     colors = website_data.get('colors', [])
-    color_hint = f'Use these brand colors in the composition: {", ".join(colors[:3])}.' if colors else ''
+    color_hint = f'Subtly incorporate brand colors ({", ".join(colors[:3])}) through props, backgrounds, or accents.' if colors else ''
 
-    post_text = variation.text[:300]
+    post_text = variation.text[:250]
     mood = _detect_mood(variation.text)
+    vtype = getattr(variation, 'variant_type', '') or ''
 
-    prompt = f"""Create a photorealistic social media image for "{title}".
+    style_by_variant = 'warm editorial lifestyle photography with aspirational feel' if vtype == 'storyteller' else 'clean, bold commercial photography with high contrast and sharp focus'
 
-POST CAPTION (the image must match this):
+    platform_style = {
+        'instagram': 'Instagram-optimized: vibrant colors, high saturation, lifestyle editorial feel. Hero subject with negative space for text overlay.',
+        'facebook': 'Facebook feed-optimized: eye-catching, scroll-stopping composition. Bright, relatable scene that triggers engagement.',
+        'linkedin': 'LinkedIn-appropriate: professional, corporate-quality photography. Clean backgrounds, business context, polished look.',
+        'tiktok': 'TikTok aesthetic: trendy, Gen-Z visual language. Bold colors, dynamic angles, lifestyle-forward.',
+        'x': 'Twitter/X card: clean, minimal, high-impact single subject with strong focal point.',
+    }.get(platform, 'Social media advertising: professional, eye-catching, commercial quality.')
+
+    size_comp = {
+        '1080x1080': 'Square 1:1. Center the subject. Symmetrical or rule-of-thirds composition.',
+        '1080x1350': 'Portrait 4:5. Vertical composition. Subject in upper third, breathing room at bottom.',
+        '1080x1920': 'Story/Reel 9:16. Full vertical. Subject centered, dramatic top-to-bottom flow.',
+        '1200x628': 'Landscape 16:9. Wide cinematic composition. Subject on left or right third.',
+    }.get(image_size.replace('_story', ''), 'Balanced composition with clear focal point.')
+
+    prompt = f"""You are an elite advertising creative director. Create a premium social media advertisement image.
+
+BRAND: "{brand}"
+BRAND VOICE: {voice}
+{f'INDUSTRY: {industry}' if industry else ''}
+{f'PRODUCTS: {products}' if products else ''}
+
+THE AD MUST CONVEY THIS MESSAGE:
 "{post_text}"
 
-STYLE:
-- Professional commercial photography, shallow depth of field, natural lighting
+VISUAL DIRECTION:
+- {style_by_variant}
+- {platform_style}
 - Mood: {mood}
-- {color_hint}
+- {size_comp}
+{f'- {color_hint}' if color_hint else ''}
 
-RULES:
-- NO text, words, letters, numbers, watermarks, or logos in the image
-- NO UI elements, buttons, or overlays
-- ONE single photograph, no collages
-- The image must visually match the topic described in the caption above"""
+PHOTOGRAPHY SPECS:
+- Shot on Canon EOS R5, 85mm f/1.4 lens
+- Shallow depth of field with creamy bokeh on background
+- Golden hour or studio softbox lighting
+- Color graded for social media (slightly lifted shadows, rich midtones)
+- 8K detail, advertising campaign quality
+
+COMPOSITION:
+- One hero subject that instantly communicates the brand/product value
+- Environmental storytelling through props and setting
+- Aspirational lifestyle context that the target audience identifies with
+- Visual hierarchy that draws the eye to the key selling point
+
+STRICT RULES:
+- ABSOLUTELY NO text, words, letters, numbers, watermarks, logos, or typography
+- NO UI elements, buttons, overlays, or borders
+- ONE single cohesive photograph, no collages or split frames
+- NO stock photo feel. Must look like a real premium ad campaign shoot
+- The image alone should make someone stop scrolling"""
 
     return prompt.strip()
 
 
 def _detect_mood(text: str) -> str:
-    """Return a short mood keyword from post text."""
+    """Return a cinematographic mood direction from post text."""
     t = text.lower()
-    if any(w in t for w in ['sale', 'offer', 'discount', 'limited', 'hurry']):
-        return 'vibrant and energetic'
-    if any(w in t for w in ['luxury', 'premium', 'exclusive', 'elegant']):
-        return 'sophisticated and refined'
-    if any(w in t for w in ['fun', 'exciting', 'amazing', 'wow']):
-        return 'bright and exciting'
-    if any(w in t for w in ['trust', 'secure', 'reliable', 'professional']):
-        return 'trustworthy and calm'
-    if any(w in t for w in ['health', 'natural', 'organic', 'eco']):
-        return 'fresh and natural'
-    return 'warm and inviting'
+    if any(w in t for w in ['sale', 'offer', 'discount', 'limited', 'hurry', 'deal', 'save']):
+        return 'high-energy, urgency-driven. Warm reds and oranges. Dynamic composition'
+    if any(w in t for w in ['luxury', 'premium', 'exclusive', 'elegant', 'vip', 'gold']):
+        return 'dark and moody elegance. Deep blacks, gold accents, dramatic lighting'
+    if any(w in t for w in ['fun', 'exciting', 'amazing', 'wow', 'love', 'happy', 'joy']):
+        return 'bright, joyful, saturated. Warm sunlight, genuine happiness, candid moment'
+    if any(w in t for w in ['trust', 'secure', 'reliable', 'professional', 'expert']):
+        return 'confident and authoritative. Cool blues, clean lines, sharp focus'
+    if any(w in t for w in ['health', 'natural', 'organic', 'eco', 'fresh', 'clean']):
+        return 'fresh and airy. Soft greens, natural textures, morning light, dew drops'
+    if any(w in t for w in ['tech', 'digital', 'ai', 'smart', 'innovation', 'future']):
+        return 'futuristic and sleek. Cool tones, minimalist, subtle glow effects'
+    if any(w in t for w in ['food', 'coffee', 'drink', 'taste', 'delicious', 'recipe']):
+        return 'appetizing and indulgent. Warm tones, steam/texture details, close-up macro'
+    return 'warm and inviting. Golden hour lighting, lifestyle editorial feel'
 
 
 async def _overlay_logo(main_image: Image.Image, logo_url: str) -> Image.Image:

@@ -168,17 +168,24 @@ REQUIREMENTS:
 
 PLATFORM RULES:{platforms_block}
 
-OUTPUT: For EACH platform, generate exactly 2 distinct variations:
-- Variant A "storyteller": Emotional/Right Brain. Use status, relief, aspiration, metaphors, "The Dream State". Framework: PAS (Pain-Agitate-Solution).
-- Variant B "closer": Logical/Left Brain. Use facts, ROI, efficiency, direct Pain-Point resolution. Framework: AIDA (Attention-Interest-Desire-Action).
+POST STRUCTURE (every post MUST follow this flow):
+Hook → Problem → Solution → Proof → CTA
+1. Hook: 3-6 word curiosity-gap opening line that stops the scroll.
+2. Problem: Name the specific pain or frustration the audience feels right now.
+3. Solution: Position the brand/product as the clear, inevitable answer.
+4. Proof: Include one concrete element: a stat, a number, a mini-testimonial, or a before/after result.
+5. CTA: End with a direct, urgency-driven call to action.
+
+OUTPUT: For EACH platform, generate exactly 2 distinct variations following the structure above:
+- Variant A "storyteller": Adapt the skeleton through emotional lens. Use status, relief, aspiration, vivid metaphors. Agitate the problem before solving. PAS framework.
+- Variant B "closer": Adapt the skeleton through logical lens. Use facts, ROI, efficiency, data. AIDA framework.
 
 STRICT RULES:
-1. Every post MUST open with a 3-6 word curiosity-gap headline hook.
-2. Absolutely NO em-dashes. Use commas, periods, or ellipsis instead.
-3. No AI fingerprints. Human-like sentence rhythm.
-4. Every post MUST end with a clear Call to Action.
-5. Respect each platform's character limit strictly.
-6. Total: exactly {num} variations ({len(platforms)} platforms x 2 variants each).
+1. Every variation MUST contain all 5 skeleton parts (Hook, Problem, Solution, Proof, CTA) woven naturally into the text.
+2. Absolutely NO em-dashes (—). Use commas, periods, or ellipsis instead.
+3. No AI fingerprints. Human-like sentence rhythm. Vary sentence length.
+4. Respect each platform's character limit strictly.
+5. Total: exactly {num} variations ({len(platforms)} platforms x 2 variants each).
 
 RESPONSE - strict JSON, no markdown:
 {{
