@@ -120,6 +120,7 @@ export function MainWorkspace() {
           skip_image_generation: !!data.media_file,
           user_media_url: data.media_file || undefined,
           use_custom_url: !!data.use_custom_url,
+          include_people: !!data.include_people,
         })
       })
 

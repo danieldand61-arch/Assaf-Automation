@@ -20,7 +20,8 @@ async def generate_images(
     image_size: str = "1080x1080",
     include_logo: bool = False,
     custom_prompt: str = None,
-    user_id: str = None
+    user_id: str = None,
+    include_people: bool = False
 ) -> List[ImageVariation]:
     """Generates images for posts using Gemini 2.5 Flash Image"""
     
@@ -63,7 +64,7 @@ async def generate_images(
                 logger.info(f"🔍 Generating image {idx + 1}/{len(variations)} (attempt {attempt + 1}) for: {variation.text[:50]}...")
                 
                 plat = variation.platform or (platforms[idx % len(platforms)] if platforms else 'instagram')
-                image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt, platform=plat, image_size=image_size)
+                image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt, platform=plat, image_size=image_size, include_people=include_people)
                 
                 response = await asyncio.to_thread(
                     model.generate_content,
@@ -321,7 +322,7 @@ def _get_aspect_ratio(dimensions: str) -> str:
         return "1:1"
 
 
-def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_prompt: str = None, platform: str = 'instagram', image_size: str = '1080x1080') -> str:
+def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_prompt: str = None, platform: str = 'instagram', image_size: str = '1080x1080', include_people: bool = False) -> str:
     """Build an advertising-grade image prompt."""
 
     if custom_prompt:
@@ -340,45 +341,70 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
     mood = _detect_mood(variation.text)
     vtype = getattr(variation, 'variant_type', '') or ''
 
-    cta = getattr(variation, 'call_to_action', '') or ''
-    hook = post_text.split('\n')[0][:60]
+    style_by_variant = 'warm editorial lifestyle photography with aspirational feel' if vtype == 'storyteller' else 'clean, bold commercial photography with high contrast and sharp focus'
 
-    if vtype == 'storyteller':
-        prompt = f"""Create a premium product/object photograph for "{brand}" ({industry}).
+    platform_style = {
+        'instagram': 'Instagram-optimized: vibrant colors, high saturation, lifestyle editorial feel. Hero subject with negative space for text overlay.',
+        'facebook': 'Facebook feed-optimized: eye-catching, scroll-stopping composition. Bright, relatable scene that triggers engagement.',
+        'linkedin': 'LinkedIn-appropriate: professional, corporate-quality photography. Clean backgrounds, business context, polished look.',
+        'tiktok': 'TikTok aesthetic: trendy, Gen-Z visual language. Bold colors, dynamic angles, lifestyle-forward.',
+        'x': 'Twitter/X card: clean, minimal, high-impact single subject with strong focal point.',
+    }.get(platform, 'Social media advertising: professional, eye-catching, commercial quality.')
 
-POST CONTEXT: "{post_text}"
+    size_comp = {
+        '1080x1080': 'Square 1:1. Center the subject. Symmetrical or rule-of-thirds composition.',
+        '1080x1350': 'Portrait 4:5. Vertical composition. Subject in upper third, breathing room at bottom.',
+        '1080x1920': 'Story/Reel 9:16. Full vertical. Subject centered, dramatic top-to-bottom flow.',
+        '1200x628': 'Landscape 16:9. Wide cinematic composition. Subject on left or right third.',
+    }.get(image_size.replace('_story', ''), 'Balanced composition with clear focal point.')
 
-STYLE A — PRODUCT & OBJECT PHOTOGRAPHY:
-- Macro or close-up shot of the product, key object, or environment from the post.
-- NO PEOPLE. NO faces, hands, silhouettes, or human body parts.
-- Focus on: product, texture, environment, symbolic object that represents the post topic.
+    people_line = (
+        'If the post mentions a person or lifestyle scenario, show a real person naturally interacting with the product/environment. Authentic expression, natural skin.'
+        if include_people else
+        'Do NOT include any people, faces, hands, silhouettes, or human body parts in the image. Focus on product, environment, and objects only.'
+    )
+
+    prompt = f"""You are an elite advertising creative director. Create a premium social media advertisement image.
+
+BRAND: "{brand}"
+BRAND VOICE: {voice}
+{f'INDUSTRY: {industry}' if industry else ''}
+{f'PRODUCTS: {products}' if products else ''}
+{f'KEY FEATURES: {features}' if features else ''}
+
+CRITICAL — THE IMAGE MUST DIRECTLY ILLUSTRATE THIS SPECIFIC POST:
+"{post_text}"
+
+Read the post above carefully. Identify the CORE SUBJECT, the SPECIFIC SCENARIO, and the EMOTION described.
+The image MUST depict EXACTLY what the post talks about. NOT a generic brand photo. NOT a logo. NOT an abstract concept.
+The viewer should see the image and immediately understand what the post is about WITHOUT reading it.
+
+PEOPLE DIRECTIVE:
+{people_line}
+
+VISUAL DIRECTION:
+- {style_by_variant}
+- {platform_style}
 - Mood: {mood}
-- Natural lighting, shallow depth of field, slight grain. Real camera feel.
+- {size_comp}
 {f'- {color_hint}' if color_hint else ''}
 
-RULES:
-- NO text, words, numbers, watermarks, logos, or typography in the image.
-- ONE single photograph, no collages.
-- Must visually match the post topic. Generic imagery forbidden."""
-    else:
-        prompt = f"""Create an agency-quality digital promotional banner for "{brand}" ({industry}).
+PHOTOGRAPHY STYLE:
+- Professional advertising quality, shallow depth of field, natural lighting
 
-POST CONTEXT: "{post_text}"
+COMPOSITION:
+- One hero subject that directly represents the specific scenario from the post
+- Environmental storytelling through props and setting that match the post context
+- Aspirational lifestyle context that the target audience identifies with
+- Visual hierarchy that draws the eye to the key selling point mentioned in the post
 
-STYLE B — GRAPHIC DESIGN & PROMOTIONAL BANNER:
-- Professional digital banner or promotional visual, NOT a photograph.
-- Layout: Split-screen or hero banner composition with bold geometric shapes.
-- Include 3D isometric renders, floating product icons, dashboard mockups, or abstract tech visuals relevant to the post.
-- HIGH-FIDELITY TEXT RENDERING: Include the exact phrase "{hook}" in bold modern sans-serif typography as the hero headline.
-{f'- Also render CTA text: "{cta}" as a button or badge element.' if cta else ''}
-- Mood: {mood}
-{f'- Brand colors: {", ".join(colors[:3])}. Use them as primary palette.' if colors else ''}
-
-RULES:
-- NO photographs of people. Use illustrations, 3D renders, icons, or abstract shapes.
-- Clean, modern, agency-level graphic design. Think Dribbble/Behance quality.
-- ONE cohesive banner, no collages.
-- Must visually match the post topic."""
+STRICT RULES:
+- ABSOLUTELY NO text, words, letters, numbers, watermarks, logos, or typography
+- NO UI elements, buttons, overlays, or borders
+- ONE single cohesive photograph, no collages or split frames
+- NO stock photo feel. Must look like a real premium ad campaign shoot
+- The image alone should make someone stop scrolling
+- The image MUST match the post content. Generic brand imagery is FORBIDDEN."""
 
     return prompt.strip()
 

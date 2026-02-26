@@ -1,6 +1,7 @@
 """
 Instagram publisher - publishes content to Instagram Business accounts
 """
+import asyncio
 import httpx
 import logging
 from typing import Dict, Any
@@ -29,7 +30,7 @@ async def publish_to_instagram(connection: Dict[str, Any], content: str, image_u
         logger.info(f"📸 Publishing to Instagram account: {instagram_account_id}")
         
         # Instagram Graph API - Create container
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=90.0) as client:
             # Step 1: Create media container
             container_response = await client.post(
                 f"https://graph.facebook.com/v19.0/{instagram_account_id}/media",
@@ -50,7 +51,24 @@ async def publish_to_instagram(connection: Dict[str, Any], content: str, image_u
             
             logger.info(f"✅ Media container created: {container_id}")
             
-            # Step 2: Publish the container
+            # Step 2: Wait for container to be ready (Instagram needs time to process)
+            for attempt in range(20):
+                status_resp = await client.get(
+                    f"https://graph.facebook.com/v19.0/{container_id}",
+                    params={"fields": "status_code", "access_token": access_token}
+                )
+                status_data = status_resp.json()
+                status_code = status_data.get("status_code")
+                logger.info(f"🔄 Container status (attempt {attempt+1}): {status_code}")
+                if status_code == "FINISHED":
+                    break
+                if status_code == "ERROR":
+                    raise Exception(f"Instagram container processing failed: {status_data}")
+                await asyncio.sleep(3)
+            else:
+                raise Exception("Instagram container not ready after 60s")
+            
+            # Step 3: Publish the container
             publish_response = await client.post(
                 f"https://graph.facebook.com/v19.0/{instagram_account_id}/media_publish",
                 params={
