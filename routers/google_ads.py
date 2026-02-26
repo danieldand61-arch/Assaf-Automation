@@ -125,7 +125,7 @@ async def google_ads_oauth_callback(
         logger.info(f"✅ Refresh token obtained")
         
         # Redirect to frontend with token (will be saved after customer_id input)
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        frontend_url = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
         return RedirectResponse(
             url=f"{frontend_url}/settings?tab=connections&google_ads_token={refresh_token}&success=google_ads_oauth"
         )
@@ -134,7 +134,7 @@ async def google_ads_oauth_callback(
         raise
     except Exception as e:
         logger.error(f"❌ OAuth callback error: {str(e)}")
-        frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+        frontend_url = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
         return RedirectResponse(
             url=f"{frontend_url}/settings?tab=connections&error=oauth_failed"
         )

@@ -23,7 +23,7 @@ TWITTER_CLIENT_ID = os.getenv("TWITTER_CLIENT_ID")
 TWITTER_CLIENT_SECRET = os.getenv("TWITTER_CLIENT_SECRET")
 TIKTOK_CLIENT_KEY = os.getenv("TIKTOK_CLIENT_KEY")
 TIKTOK_CLIENT_SECRET = os.getenv("TIKTOK_CLIENT_SECRET")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "https://assaf-automation.vercel.app")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
 BACKEND_URL = os.getenv("BACKEND_URL", "https://assaf-automation-production.up.railway.app")
 
 FACEBOOK_OAUTH_URL = "https://www.facebook.com/v19.0/dialog/oauth"

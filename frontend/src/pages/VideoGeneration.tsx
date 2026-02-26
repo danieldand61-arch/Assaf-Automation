@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Player } from '@remotion/player'
 import { ProductVideo } from '../remotion/ProductVideo'
+import { getApiUrl } from '../lib/api'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_URL = getApiUrl()
 
 interface VideoTask {
   task_id: string

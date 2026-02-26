@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
+import { getApiUrl } from '../lib/api'
 
 export function AuthCallback() {
   const navigate = useNavigate()
@@ -14,7 +15,7 @@ export function AuthCallback() {
       if (accessToken) {
         // Check if user needs onboarding
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_URL || 'https://assaf-automation-production.up.railway.app'}/api/accounts`, {
+          const response = await fetch(`${getApiUrl()}/api/accounts`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
           })
           
