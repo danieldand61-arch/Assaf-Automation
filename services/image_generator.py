@@ -379,12 +379,8 @@ VISUAL DIRECTION:
 - {size_comp}
 {f'- {color_hint}' if color_hint else ''}
 
-PHOTOGRAPHY SPECS:
-- Shot on Canon EOS R5, 85mm f/1.4 lens
-- Shallow depth of field with creamy bokeh on background
-- Golden hour or studio softbox lighting
-- Color graded for social media (slightly lifted shadows, rich midtones)
-- 8K detail, advertising campaign quality
+PHOTOGRAPHY STYLE:
+- Professional advertising quality, shallow depth of field, natural lighting
 
 COMPOSITION:
 - One hero subject that directly represents the specific scenario from the post
