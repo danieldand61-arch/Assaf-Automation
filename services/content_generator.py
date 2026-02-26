@@ -168,20 +168,27 @@ REQUIREMENTS:
 
 PLATFORM RULES:{platforms_block}
 
-POST STRUCTURE (every post MUST follow this flow):
-Hook → Problem → Solution → Proof → CTA
-1. Hook: 3-6 word curiosity-gap opening line that stops the scroll.
+POST STRUCTURE (every post MUST follow this flow, with BLANK LINES between each section):
+Hook
+(blank line)
+Problem → Solution → Proof
+(blank line)
+CTA
+
+1. Hook: 3-6 word curiosity-gap opening line that stops the scroll. MUST stand alone as its own paragraph, followed by an empty line.
 2. Problem: Name the specific pain or frustration the audience feels right now.
 3. Solution: Position the brand/product as the clear, inevitable answer.
 4. Proof: Include one concrete element: a stat, a number, a mini-testimonial, or a before/after result.
-5. CTA: End with a direct, urgency-driven call to action.
+5. CTA: End with a direct, urgency-driven call to action. MUST be its own paragraph, separated by an empty line before it.
+
+FORMATTING: Use \\n\\n (double newline) to create visual paragraph breaks. The post must NOT be one continuous block of text. It must breathe.
 
 OUTPUT: For EACH platform, generate exactly 2 distinct variations following the structure above:
 - Variant A "storyteller": Adapt the skeleton through emotional lens. Use status, relief, aspiration, vivid metaphors. Agitate the problem before solving. PAS framework.
 - Variant B "closer": Adapt the skeleton through logical lens. Use facts, ROI, efficiency, data. AIDA framework.
 
 STRICT RULES:
-1. Every variation MUST contain all 5 skeleton parts (Hook, Problem, Solution, Proof, CTA) woven naturally into the text.
+1. Every variation MUST contain all 5 skeleton parts with paragraph breaks between Hook, body, and CTA.
 2. Absolutely NO em-dashes (—). Use commas, periods, or ellipsis instead.
 3. No AI fingerprints. Human-like sentence rhythm. Vary sentence length.
 4. Respect each platform's character limit strictly.

@@ -363,8 +363,14 @@ BRAND VOICE: {voice}
 {f'INDUSTRY: {industry}' if industry else ''}
 {f'PRODUCTS: {products}' if products else ''}
 
-THE AD MUST CONVEY THIS MESSAGE:
+CRITICAL — THE IMAGE MUST DIRECTLY ILLUSTRATE THIS SPECIFIC POST:
 "{post_text}"
+
+Read the post above carefully. Identify the CORE SUBJECT, the SPECIFIC SCENARIO, and the EMOTION described.
+The image MUST depict EXACTLY what the post talks about. NOT a generic brand photo. NOT a logo. NOT an abstract concept.
+If the post mentions coffee in winter, show a real person holding coffee in a cold setting.
+If the post mentions saving time, show a person relaxed while technology works for them.
+The viewer should see the image and immediately understand what the post is about WITHOUT reading it.
 
 VISUAL DIRECTION:
 - {style_by_variant}
@@ -381,17 +387,18 @@ PHOTOGRAPHY SPECS:
 - 8K detail, advertising campaign quality
 
 COMPOSITION:
-- One hero subject that instantly communicates the brand/product value
-- Environmental storytelling through props and setting
+- One hero subject that directly represents the specific scenario from the post
+- Environmental storytelling through props and setting that match the post context
 - Aspirational lifestyle context that the target audience identifies with
-- Visual hierarchy that draws the eye to the key selling point
+- Visual hierarchy that draws the eye to the key selling point mentioned in the post
 
 STRICT RULES:
 - ABSOLUTELY NO text, words, letters, numbers, watermarks, logos, or typography
 - NO UI elements, buttons, overlays, or borders
 - ONE single cohesive photograph, no collages or split frames
 - NO stock photo feel. Must look like a real premium ad campaign shoot
-- The image alone should make someone stop scrolling"""
+- The image alone should make someone stop scrolling
+- The image MUST match the post content. Generic brand imagery is FORBIDDEN."""
 
     return prompt.strip()
 

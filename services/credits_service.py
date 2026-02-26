@@ -37,7 +37,7 @@ CREDITS_PER_1K_OUTPUT = 6.0
 
 # Fixed credits per operation
 FIXED_CREDITS = {
-    "image_generation": 80.0,     # $0.039 real → ×2000 = 78 → round 80
+    "image_generation": 120.0,    # Gemini 3 Pro Image Preview
 }
 
 # Per-minute rate for video dubbing (ElevenLabs)
@@ -57,7 +57,7 @@ MIN_CREDITS = {
     "gemini_chat":      10.0,
     "chat":             10.0,
     "google_ads":       40.0,
-    "image_generation": 80.0,
+    "image_generation": 120.0,
     "design_analysis":  10.0,
     "text_edit":        10.0,
     "text_regen":       10.0,
