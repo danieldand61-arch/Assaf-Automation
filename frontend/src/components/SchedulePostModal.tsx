@@ -142,7 +142,6 @@ export function SchedulePostModal({
       const updatedPostData = getUpdatedPostData()
       
       if (scheduleType === 'now') {
-        // Post immediately
         const response = await fetch(`${apiUrl}/api/scheduling/publish-now`, {
           method: 'POST',
           headers: { 
@@ -162,7 +161,14 @@ export function SchedulePostModal({
           throw new Error(error.detail || 'Publishing failed')
         }
         
-        alert('✅ Post is being published! It will appear on your connected platforms shortly.')
+        const result = await response.json()
+        if (result.success) {
+          alert(result.error_message
+            ? `⚠️ Post published with issues: ${result.error_message}`
+            : '✅ Post published successfully!')
+        } else {
+          throw new Error(result.error_message || 'Publishing failed on all platforms')
+        }
       } else {
         // Schedule for later
         if (!scheduledDate || !scheduledTime) {

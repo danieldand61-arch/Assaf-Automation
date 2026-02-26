@@ -194,12 +194,11 @@ async def publish_now(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Publish a post immediately to connected platforms
+    Publish a post immediately — waits for real result before responding.
     """
     try:
         supabase = get_supabase()
         
-        # Get active account
         user_settings = supabase.table("user_settings")\
             .select("active_account_id")\
             .eq("user_id", current_user["user_id"])\
@@ -214,7 +213,6 @@ async def publish_now(
         if not request.platforms:
             raise HTTPException(status_code=400, detail="Select at least one platform to post")
         
-        # Schedule for immediate execution (current time)
         now = datetime.now(timezone.utc)
         
         post_data = {
@@ -241,11 +239,36 @@ async def publish_now(
         logger.info(f"   Account: {active_account_id}")
         logger.info(f"   Platforms: {request.platforms}")
         
-        return {
-            "success": True,
-            "post_id": created_post["id"],
-            "message": "Post will be published shortly"
-        }
+        # Publish synchronously and return real result
+        from services.scheduler import publish_post
+        await publish_post(created_post)
+        
+        # Re-read post to get actual status
+        updated = supabase.table("scheduled_posts")\
+            .select("status,error_message")\
+            .eq("id", created_post["id"])\
+            .single()\
+            .execute()
+        
+        status = updated.data.get("status", "failed") if updated.data else "failed"
+        error_msg = updated.data.get("error_message") if updated.data else None
+        
+        if status == "published":
+            return {
+                "success": True,
+                "post_id": created_post["id"],
+                "message": "Post published successfully!",
+                "status": "published",
+                "error_message": error_msg  # may contain partial-success info
+            }
+        else:
+            return {
+                "success": False,
+                "post_id": created_post["id"],
+                "message": error_msg or "Publishing failed",
+                "status": status,
+                "error_message": error_msg
+            }
         
     except HTTPException:
         raise
