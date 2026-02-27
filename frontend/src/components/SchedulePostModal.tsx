@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 interface SchedulePostModalProps {
   isOpen: boolean
-  onClose: () => void
+  onClose: (success?: boolean) => void
   postData: {
     text: string
     hashtags: string[]
@@ -200,7 +200,7 @@ export function SchedulePostModal({
         alert(`✅ Post scheduled for ${scheduleDateTime.toLocaleString()}!`)
       }
       
-      onClose()
+      onClose(true)
     } catch (error) {
       console.error('Scheduling error:', error)
       alert(`❌ Failed to schedule post: ${error instanceof Error ? error.message : 'Unknown error'}`)
@@ -220,7 +220,7 @@ export function SchedulePostModal({
         <div className="flex justify-between items-center p-6 border-b dark:border-gray-700">
           <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Schedule Post</h2>
           <button 
-            onClick={onClose}
+            onClick={() => onClose()}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
           >
             <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -426,7 +426,7 @@ export function SchedulePostModal({
         {/* Footer */}
         <div className="flex justify-end gap-3 p-6 border-t dark:border-gray-700">
           <button
-            onClick={onClose}
+            onClick={() => onClose()}
             className="px-6 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-medium transition"
           >
             Cancel

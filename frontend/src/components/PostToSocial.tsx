@@ -12,7 +12,7 @@ interface Connection {
 
 interface PostToSocialProps {
   isOpen: boolean
-  onClose: () => void
+  onClose: (success?: boolean) => void
   prefilledData?: {
     text?: string
     imageUrl?: string
@@ -216,12 +216,16 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
       setResults(postResults)
       
       const allSuccess = Object.values(postResults).every(r => r === 'success')
+      const anySuccess = Object.values(postResults).some(r => r === 'success')
       if (allSuccess) {
         setUploadStatus('success')
         setTimeout(() => {
-          onClose()
+          onClose(true)
           resetForm()
         }, 3000)
+      } else if (anySuccess) {
+        setUploadStatus('error')
+        setErrorMessage('Some posts failed. Check results above.')
       } else {
         setUploadStatus('error')
         setErrorMessage('Some posts failed. Check results above.')
@@ -261,7 +265,7 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
             <h2 className="text-2xl font-bold text-gray-800 dark:text-white">Post to Social Media</h2>
           </div>
           <button 
-            onClick={onClose}
+            onClick={() => onClose()}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
           >
             <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
@@ -526,7 +530,7 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
         {/* Footer */}
         <div className="flex justify-end gap-3 p-6 border-t dark:border-gray-700">
           <button
-            onClick={onClose}
+            onClick={() => onClose()}
             disabled={uploading}
             className="px-6 py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-lg font-medium transition disabled:opacity-50"
           >

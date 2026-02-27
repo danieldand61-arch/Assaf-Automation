@@ -215,6 +215,7 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
   const [schedulingIdx, setSchedulingIdx] = useState<number | null>(null)
   const [savingIdx, setSavingIdx] = useState<number | null>(null)
   const [publishedStatus, setPublishedStatus] = useState<Record<number, string>>({})
+  const [savedToLibrary, setSavedToLibrary] = useState<Record<number, boolean>>({})
   const [regeneratingIdx, setRegeneratingIdx] = useState<number | null>(null)
   const [expandedIdx, setExpandedIdx] = useState<Record<number, boolean>>({})
 
@@ -238,7 +239,7 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
   }
 
   const autoSaveToLibrary = async (idx: number) => {
-    if (!session) return
+    if (!session || savedToLibrary[idx]) return
     try {
       const v = variations[idx]
       const img = images[idx] || images[0]
@@ -247,6 +248,7 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
         body: JSON.stringify({ text: v.text, hashtags: v.hashtags, call_to_action: v.call_to_action, image_url: img?.url, platforms })
       })
+      setSavedToLibrary(prev => ({ ...prev, [idx]: true }))
     } catch { /* silent */ }
   }
 
@@ -268,7 +270,7 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
   }
 
   const handleSave = async (idx: number) => {
-    if (!session) return
+    if (!session || savedToLibrary[idx]) return
     setSavingIdx(idx)
     try {
       const v = variations[idx]
@@ -279,6 +281,7 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
         body: JSON.stringify({ text: v.text, hashtags: v.hashtags, call_to_action: v.call_to_action, image_url: img?.url, platforms })
       })
       if (!res.ok) throw new Error('Save failed')
+      setSavedToLibrary(prev => ({ ...prev, [idx]: true }))
       setPublishedStatus(prev => ({ ...prev, [idx]: 'Saved to Library ✓' }))
     } catch { alert('Failed to save') }
     finally { setSavingIdx(null) }
@@ -444,10 +447,11 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
                       >
                         <Edit3 size={11} /> Edit
                       </button>
-                      <button onClick={() => handleSave(idx)} disabled={savingIdx === idx}
+                      <button onClick={() => handleSave(idx)} disabled={savingIdx === idx || savedToLibrary[idx]}
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-100 transition disabled:opacity-50"
                       >
-                        <BookmarkPlus size={11} /> {savingIdx === idx ? '...' : 'Save'}
+                        {savedToLibrary[idx] ? <Check size={11} /> : <BookmarkPlus size={11} />}
+                        {savingIdx === idx ? '...' : savedToLibrary[idx] ? 'Saved' : 'Save'}
                       </button>
                       <div className="flex-1" />
                       <button onClick={() => setSchedulingIdx(idx)}
@@ -496,9 +500,11 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
       {postingIdx !== null && (
         <PostToSocial
           isOpen
-          onClose={() => {
-            autoSaveToLibrary(postingIdx)
-            setPublishedStatus(prev => ({ ...prev, [postingIdx!]: 'Published ✓' }))
+          onClose={(success?: boolean) => {
+            if (success) {
+              autoSaveToLibrary(postingIdx)
+              setPublishedStatus(prev => ({ ...prev, [postingIdx!]: 'Published ✓' }))
+            }
             setPostingIdx(null)
           }}
           prefilledData={{ text: getFullText(variations[postingIdx]), imageUrl: (images[postingIdx] || images[0])?.url }}
@@ -507,9 +513,11 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
       {schedulingIdx !== null && (
         <SchedulePostModal
           isOpen
-          onClose={() => {
-            autoSaveToLibrary(schedulingIdx)
-            setPublishedStatus(prev => ({ ...prev, [schedulingIdx!]: 'Scheduled ✓' }))
+          onClose={(success?: boolean) => {
+            if (success) {
+              autoSaveToLibrary(schedulingIdx)
+              setPublishedStatus(prev => ({ ...prev, [schedulingIdx!]: 'Scheduled ✓' }))
+            }
             setSchedulingIdx(null)
           }}
           postData={{
