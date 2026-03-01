@@ -50,7 +50,8 @@ async def google_ads_oauth_authorize(user = Depends(get_current_user)):
         logger.info(f"🔐 Starting OAuth flow for user {user['user_id']}")
         
         client_id = os.getenv("GOOGLE_ADS_CLIENT_ID")
-        redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{os.getenv('FRONTEND_URL')}/auth/google-ads/callback")
+        frontend_url = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
+        redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{frontend_url}/auth/google-ads/callback")
         
         if not client_id:
             raise HTTPException(status_code=500, detail="Google Ads OAuth not configured")
@@ -93,7 +94,8 @@ async def google_ads_oauth_callback(
         
         client_id = os.getenv("GOOGLE_ADS_CLIENT_ID")
         client_secret = os.getenv("GOOGLE_ADS_CLIENT_SECRET")
-        redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{os.getenv('FRONTEND_URL')}/auth/google-ads/callback")
+        frontend_url = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
+        redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{frontend_url}/auth/google-ads/callback")
         
         if not client_id or not client_secret:
             raise HTTPException(status_code=500, detail="Google Ads OAuth not configured")

@@ -61,10 +61,10 @@ const IMAGE_SIZES = [
 ]
 
 const STYLES = [
-  { value: 'professional', label: 'Professional & Authoritative' },
-  { value: 'casual',       label: 'Friendly & Casual' },
-  { value: 'bold',         label: 'Bold & Sales-driven' },
-  { value: 'minimal',      label: 'Minimal & Clean' },
+  { value: 'professional', label: 'Professional & Authoritative', preview: '"Our enterprise-grade solution delivers measurable results..."' },
+  { value: 'casual',       label: 'Friendly & Casual',            preview: '"Hey! Ready to level up your game? Let\'s dive in..."' },
+  { value: 'bold',         label: 'Bold & Sales-driven',          preview: '"Stop wasting money. Get 3x ROI — starting today."' },
+  { value: 'minimal',      label: 'Minimal & Clean',              preview: '"Simple. Effective. Built for you."' },
 ]
 
 const LANGUAGES = [
@@ -393,9 +393,18 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Brand Voice</label>
-                    <select value={form.style} onChange={e => set('style', e.target.value)} className={selectCls}>
-                      {STYLES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
-                    </select>
+                    <div className="grid grid-cols-2 gap-2">
+                      {STYLES.map(s => (
+                        <button key={s.value} type="button" onClick={() => set('style', s.value)}
+                          className={`text-left p-2.5 rounded-xl border-2 transition-all ${form.style === s.value
+                            ? 'border-[#4A7CFF] bg-blue-50 dark:bg-blue-900/20'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
+                        >
+                          <span className="text-xs font-bold text-gray-900 dark:text-white block">{s.label}</span>
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500 italic leading-tight block mt-0.5">{s.preview}</span>
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">

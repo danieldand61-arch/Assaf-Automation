@@ -121,7 +121,7 @@ export function SavedPostsLibrary() {
 
               <div className="p-4 space-y-2.5">
                 {/* Hook / Headline */}
-                <h3 className="text-sm font-bold text-gray-900 dark:text-white leading-snug line-clamp-2">{hook}</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white leading-snug line-clamp-2">{hook}</h3>
 
                 {/* Text preview */}
                 <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 leading-relaxed">{post.text}</p>

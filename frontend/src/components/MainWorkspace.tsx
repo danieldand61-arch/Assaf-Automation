@@ -187,7 +187,7 @@ export function MainWorkspace() {
 
       <JoyoSidebar
         activeTab={activeTab}
-        onTabChange={(tab) => { setActiveTab(tab as TabType); if (tab === 'social') setSocialScreen(generatedContent ? 'results' : 'form') }}
+        onTabChange={(tab) => setActiveTab(tab as TabType)}
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed(!collapsed)}
       />
@@ -195,44 +195,38 @@ export function MainWorkspace() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <JoyoTopBar title={pageTitles[activeTab]} />
 
-        <div key={activeTab} style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto' }}>
-          {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as TabType)} />}
-
-          {/* ── Social Post Generator — 3 screens ──────────────── */}
-          {activeTab === 'social' && (
-            <>
-              {/* Screen 1: Form */}
-              {socialScreen === 'form' && (
-                <InputSection onGenerate={handleGenerate} savedForm={savedFormRef.current} />
-              )}
-
-              {/* Screen 2: Generating */}
-              {socialScreen === 'generating' && (
-                <GeneratingScreen
-                  progress={progress}
-                  platformStatus={platformStatus}
-                  theme={JoyoTheme}
-                />
-              )}
-
-              {/* Screen 3: Results */}
-              {socialScreen === 'results' && generatedContent && (
-                <PreviewSection onReset={handleReset} onBack={handleBackToForm} />
-              )}
-            </>
+        {/* Social tab stays mounted so generation doesn't reset on tab switch */}
+        <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto', display: activeTab === 'social' ? undefined : 'none' }}>
+          {socialScreen === 'form' && (
+            <InputSection onGenerate={handleGenerate} savedForm={savedFormRef.current} />
           )}
-
-          {activeTab === 'ads' && <GoogleAdsGeneration />}
-          {activeTab === 'analyst' && <AdAnalytics />}
-          {activeTab === 'advisor' && <AIAdvisor />}
-          {activeTab === 'media' && <PlaceholderPage title="Media Studio" description="Create, edit, and manage your visual content — templates, batch resize, background removal, and more." />}
-          {activeTab === 'video' && <VideoTranslation />}
-          {activeTab === 'videogen' && <VideoGeneration />}
-          {activeTab === 'library' && <Library />}
-          {activeTab === 'calendar' && <Scheduled />}
-          {activeTab === 'integrations' && <Connections />}
-          {activeTab === 'settings' && <Settings />}
+          {socialScreen === 'generating' && (
+            <GeneratingScreen
+              progress={progress}
+              platformStatus={platformStatus}
+              theme={JoyoTheme}
+            />
+          )}
+          {socialScreen === 'results' && generatedContent && (
+            <PreviewSection onReset={handleReset} onBack={handleBackToForm} />
+          )}
         </div>
+
+        {activeTab !== 'social' && (
+          <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto' }}>
+            {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as TabType)} />}
+            {activeTab === 'ads' && <GoogleAdsGeneration />}
+            {activeTab === 'analyst' && <AdAnalytics />}
+            {activeTab === 'advisor' && <AIAdvisor />}
+            {activeTab === 'media' && <PlaceholderPage title="Media Studio" description="Create, edit, and manage your visual content — templates, batch resize, background removal, and more." />}
+            {activeTab === 'video' && <VideoTranslation />}
+            {activeTab === 'videogen' && <VideoGeneration />}
+            {activeTab === 'library' && <Library />}
+            {activeTab === 'calendar' && <Scheduled />}
+            {activeTab === 'integrations' && <Connections />}
+            {activeTab === 'settings' && <Settings />}
+          </div>
+        )}
       </div>
 
       <FloatingChat />

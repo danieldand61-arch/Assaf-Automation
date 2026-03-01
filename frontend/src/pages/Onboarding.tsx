@@ -15,12 +15,12 @@ const GOAL_OPTIONS = [
 ]
 
 const VOICE_OPTIONS = [
-  { id: 'professional', label: 'Professional', emoji: '👔' },
-  { id: 'casual', label: 'Casual / Friendly', emoji: '😊' },
-  { id: 'luxury', label: 'Luxury / Premium', emoji: '✨' },
-  { id: 'playful', label: 'Playful / Fun', emoji: '🎉' },
-  { id: 'authoritative', label: 'Authoritative', emoji: '📚' },
-  { id: 'bold', label: 'Bold / Edgy', emoji: '🔥' },
+  { id: 'professional', label: 'Professional', emoji: '👔', preview: '"Our enterprise-grade solution ensures..."' },
+  { id: 'casual', label: 'Casual / Friendly', emoji: '😊', preview: '"Hey! Ready to level up your game?"' },
+  { id: 'luxury', label: 'Luxury / Premium', emoji: '✨', preview: '"Experience the pinnacle of craftsmanship..."' },
+  { id: 'playful', label: 'Playful / Fun', emoji: '🎉', preview: '"Let\'s make some magic happen today!"' },
+  { id: 'authoritative', label: 'Authoritative', emoji: '📚', preview: '"Research shows a 47% increase in..."' },
+  { id: 'bold', label: 'Bold / Edgy', emoji: '🔥', preview: '"Stop settling. Start dominating."' },
 ]
 
 const TOTAL_STEPS = 5
@@ -311,10 +311,11 @@ export function Onboarding() {
                       const active = brandVoices.includes(v.id)
                       return (
                         <button key={v.id} type="button" onClick={() => toggleVoice(v.id)}
-                          className="relative flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition border-2"
+                          className="relative flex flex-col items-start gap-1 px-4 py-3 rounded-xl text-sm font-medium transition border-2"
                           style={{ borderColor: active ? '#8B5CF6' : '#E5E9F0', background: active ? '#8B5CF610' : '#FAFBFC', color: active ? '#8B5CF6' : '#5C6478' }}>
                           {active && <Check size={14} className="absolute top-1.5 right-1.5" style={{ color: '#8B5CF6' }} />}
-                          <span>{v.emoji}</span> {v.label}
+                          <span className="flex items-center gap-2"><span>{v.emoji}</span> {v.label}</span>
+                          <span className="text-[10px] italic font-normal" style={{ color: '#9CA3AF' }}>{v.preview}</span>
                         </button>
                       )
                     })}
