@@ -147,8 +147,8 @@ export function Privacy() {
             </h2>
             <p>
               For privacy-related questions, please contact us at:{' '}
-              <a href="mailto:privacy@assaf-automation.com" className="text-blue-600 hover:underline">
-                privacy@assaf-automation.com
+              <a href="mailto:privacy@joyo.marketing" className="text-blue-600 hover:underline">
+                privacy@joyo.marketing
               </a>
             </p>
           </section>

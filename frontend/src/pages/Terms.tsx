@@ -174,8 +174,8 @@ export function Terms() {
             </h2>
             <p>
               For questions about these Terms, contact us at:{' '}
-              <a href="mailto:support@assaf-automation.com" className="text-blue-600 hover:underline">
-                support@assaf-automation.com
+              <a href="mailto:support@joyo.marketing" className="text-blue-600 hover:underline">
+                support@joyo.marketing
               </a>
             </p>
           </section>

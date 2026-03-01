@@ -89,6 +89,7 @@ export function MainWorkspace() {
     // Simulate per-platform progress while waiting for API
     const totalPlatforms = data.platforms.length
     let completed = 0
+    let apiDone = false
     const interval = setInterval(() => {
       if (completed < totalPlatforms) {
         const next = data.platforms[completed]
@@ -98,6 +99,12 @@ export function MainWorkspace() {
         setProgress(Math.min(Math.round((completed / totalPlatforms) * 90), 90))
       }
     }, 1500)
+
+    // Slow tick from 90→99% while waiting for image generation
+    const slowTick = setInterval(() => {
+      if (apiDone) return
+      setProgress(prev => prev >= 99 ? 99 : prev < 90 ? prev : prev + 1)
+    }, 4000)
 
     try {
       const apiUrl = getApiUrl()
@@ -124,7 +131,9 @@ export function MainWorkspace() {
         })
       })
 
+      apiDone = true
       clearInterval(interval)
+      clearInterval(slowTick)
 
       if (!response.ok) {
         const errorText = await response.text()
@@ -133,18 +142,17 @@ export function MainWorkspace() {
 
       const result = await response.json()
 
-      // Mark all platforms done
       data.platforms.forEach(p => { statuses[p] = 'done' })
       setPlatformStatus({ ...statuses })
       setProgress(100)
 
-      // Store result with form params + user media if provided
       setGeneratedContent({ ...result, request_params: data, user_media: data.media_file || null })
 
-      // Auto-transition to results after short delay
       setTimeout(() => setSocialScreen('results'), 600)
     } catch (error: any) {
+      apiDone = true
       clearInterval(interval)
+      clearInterval(slowTick)
       console.error('Generation error:', error)
       alert(`Failed to generate content: ${error.message}`)
       setSocialScreen('form')

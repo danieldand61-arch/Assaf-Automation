@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Sparkles, Loader2, Globe, Check, Mail, Link2 } from 'lucide-react'
+import { Sparkles, Loader2, Globe, Check, Link2 } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
@@ -23,7 +23,7 @@ const VOICE_OPTIONS = [
   { id: 'bold', label: 'Bold / Edgy', emoji: '🔥', preview: '"Stop settling. Start dominating."' },
 ]
 
-const TOTAL_STEPS = 5
+const TOTAL_STEPS = 4
 
 const PLATFORMS_LIST = [
   { id: 'facebook', label: 'Facebook', icon: '📘' },
@@ -50,8 +50,6 @@ export function Onboarding() {
   const [products, setProducts] = useState('')
   const [marketingGoals, setMarketingGoals] = useState<string[]>([])
   const [brandVoices, setBrandVoices] = useState<string[]>(['professional'])
-  const [email, setEmail] = useState('')
-
   const [analyzing, setAnalyzing] = useState(false)
   const [brandKit, setBrandKit] = useState<any>(null)
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>([])
@@ -78,7 +76,6 @@ export function Onboarding() {
       if (incompleteAccount.metadata?.website_url) setWebsiteUrl(incompleteAccount.metadata.website_url)
       if (incompleteAccount.metadata?.brand_kit) setBrandKit(incompleteAccount.metadata.brand_kit)
     }
-    if (user?.email) setEmail(user.email)
   }, [incompleteAccount, user])
 
   if (!user || accountsLoading) {
@@ -154,7 +151,7 @@ export function Onboarding() {
         marketing_goal: marketingGoals.join(','),
         brand_voices: brandVoices.join(','),
         website_url: websiteUrl || undefined,
-        contact_email: email || undefined,
+        contact_email: user?.email || undefined,
         onboarding_complete: onboardingComplete,
         brand_kit: mergedBrandKit,
         scraped_description: brandKit?.description || brandKit?.content_preview || undefined,
@@ -324,32 +321,8 @@ export function Onboarding() {
               </div>
             )}
 
-            {/* Step 4: Email */}
+            {/* Step 4: Select Platforms → go to Integrations to connect */}
             {currentStep === 4 && (
-              <div className="space-y-6">
-                <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>Almost there!</h2>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    <Mail className="inline w-4 h-4 mr-1" style={{ verticalAlign: '-2px' }} /> Email Address
-                  </label>
-                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} placeholder="your@email.com" />
-                </div>
-
-                <div style={{ background: '#F0F4FF', borderRadius: 14, padding: '16px 20px' }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: '#4A7CFF', marginBottom: 8 }}>Summary:</p>
-                  <div className="space-y-1 text-sm" style={{ color: '#5C6478' }}>
-                    {companyName && <p>🏢 {companyName} {industry ? `· ${industry}` : ''}</p>}
-                    {marketingGoals.length > 0 && <p>🎯 {marketingGoals.map(g => GOAL_OPTIONS.find(o => o.id === g)?.label).join(', ')}</p>}
-                    {brandVoices.length > 0 && <p>🗣️ {brandVoices.map(v => VOICE_OPTIONS.find(o => o.id === v)?.label).join(', ')}</p>}
-                    {websiteUrl && <p>🌐 {websiteUrl}</p>}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Step 5: Select Platforms → go to Integrations to connect */}
-            {currentStep === 5 && (
               <div className="space-y-6">
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>
                   <Link2 className="inline w-5 h-5 mr-2" style={{ verticalAlign: '-3px' }} />
