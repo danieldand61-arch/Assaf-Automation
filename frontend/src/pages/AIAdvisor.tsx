@@ -15,6 +15,12 @@ const STRATEGY_CHIPS = [
   { icon: TrendingUp, text: 'Build a Growth Flywheel strategy' },
 ]
 
+function isRTL(text: string): boolean {
+  const hebrewRange = /[\u0590-\u05FF\uFB1D-\uFB4F]/
+  const first100 = text.slice(0, 100)
+  return hebrewRange.test(first100)
+}
+
 function renderMarkdown(text: string): string {
   let html = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
   // Headers
@@ -293,21 +299,26 @@ export default function AIAdvisor() {
             </div>
           )}
 
-          {messages.map((msg, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              {msg.role === 'user' ? (
-                <div style={{
-                  maxWidth: '80%', padding: '10px 14px', borderRadius: 16,
-                  background: t.accent, color: '#fff', fontSize: 13, lineHeight: 1.6,
-                }}>{msg.content}</div>
-              ) : (
-                <div style={{
-                  maxWidth: '85%', padding: '10px 14px', borderRadius: 16,
-                  background: t.card, color: t.text, border: `1px solid ${t.border}`, fontSize: 13, lineHeight: 1.6,
-                }} dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
-              )}
-            </div>
-          ))}
+          {messages.map((msg, i) => {
+            const rtl = isRTL(msg.content)
+            return (
+              <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                {msg.role === 'user' ? (
+                  <div style={{
+                    maxWidth: '80%', padding: '10px 14px', borderRadius: 16,
+                    background: t.accent, color: '#fff', fontSize: 13, lineHeight: 1.6,
+                    direction: rtl ? 'rtl' : undefined, textAlign: rtl ? 'right' : undefined,
+                  }}>{msg.content}</div>
+                ) : (
+                  <div style={{
+                    maxWidth: '85%', padding: '10px 14px', borderRadius: 16,
+                    background: t.card, color: t.text, border: `1px solid ${t.border}`, fontSize: 13, lineHeight: 1.6,
+                    direction: rtl ? 'rtl' : undefined, textAlign: rtl ? 'right' : undefined,
+                  }} dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
+                )}
+              </div>
+            )
+          })}
 
           {loading && (
             <div style={{ display: 'flex', justifyContent: 'flex-start' }}>

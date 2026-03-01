@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Loader2, Check, Sparkles } from 'lucide-react'
+import { Loader2, Check, Sparkles, FileSearch, Palette, FileCheck } from 'lucide-react'
 import { JoyoSidebar } from './JoyoSidebar'
 import { JoyoTopBar } from './JoyoTopBar'
 import { FloatingChat } from './FloatingChat'
@@ -250,6 +250,12 @@ function PlaceholderPage({ title, description }: { title: string; description: s
 }
 
 /* ── Screen 2: Generating ────────────────────────────────────── */
+const GENERATION_STEPS = [
+  { label: 'Analyzing Brief', icon: FileSearch, description: 'Scanning website & keywords' },
+  { label: 'Rendering Visuals', icon: Palette, description: 'Generating AI images' },
+  { label: 'Finalizing', icon: FileCheck, description: 'Polishing content & hashtags' },
+]
+
 function GeneratingScreen({
   progress, platformStatus, theme
 }: {
@@ -257,52 +263,89 @@ function GeneratingScreen({
   platformStatus: Record<string, 'pending' | 'done'>
   theme: any
 }) {
+  const activeStep = progress < 35 ? 0 : progress < 75 ? 1 : 2
+
   return (
     <div className="flex flex-col items-center justify-center" style={{ minHeight: '60vh' }}>
-      {/* Sparkle icon */}
-      <div className="mb-6">
-        <Sparkles size={56} style={{ color: theme.accent, animation: 'spin 2s linear infinite' }} />
+      <div className="mb-8">
+        <Sparkles size={48} style={{ color: theme.accent, animation: 'spin 2s linear infinite' }} />
       </div>
 
-      <h2 className="text-2xl font-bold mb-2" style={{ color: theme.text }}>
+      <h2 className="text-2xl font-bold mb-1" style={{ color: theme.text }}>
         Creating your posts...
       </h2>
-      <p className="text-sm mb-8" style={{ color: theme.textSecondary }}>
+      <p className="text-sm mb-10" style={{ color: theme.textSecondary }}>
         AI is crafting optimized content for each platform
       </p>
 
-      {/* Progress bar */}
-      <div className="w-full max-w-md mb-8">
-        <div className="h-3 rounded-full overflow-hidden" style={{ background: theme.border }}>
-          <div
-            className="h-full rounded-full transition-all duration-700"
-            style={{
-              width: `${progress}%`,
+      {/* 3-step progress */}
+      <div className="w-full max-w-lg mb-10">
+        {/* Steps row */}
+        <div className="flex items-start justify-between relative">
+          {/* Connector line */}
+          <div className="absolute top-5 left-[calc(16.67%)] right-[calc(16.67%)] h-0.5" style={{ background: theme.border }}>
+            <div className="h-full transition-all duration-700 rounded-full" style={{
+              width: activeStep === 0 ? '0%' : activeStep === 1 ? '50%' : '100%',
               background: 'linear-gradient(90deg, #4A7CFF, #7C3AED)',
-            }}
-          />
+            }} />
+          </div>
+
+          {GENERATION_STEPS.map((step, i) => {
+            const StepIcon = step.icon
+            const isDone = i < activeStep
+            const isActive = i === activeStep
+            return (
+              <div key={i} className="flex flex-col items-center relative z-10" style={{ width: '33.33%' }}>
+                <div className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500" style={{
+                  background: isDone ? '#22C55E' : isActive ? 'linear-gradient(135deg, #4A7CFF, #7C3AED)' : theme.card,
+                  border: isDone || isActive ? 'none' : `2px solid ${theme.border}`,
+                  boxShadow: isActive ? '0 4px 20px rgba(74,124,255,0.35)' : undefined,
+                }}>
+                  {isDone ? (
+                    <Check size={18} className="text-white" />
+                  ) : isActive ? (
+                    <Loader2 size={18} className="text-white animate-spin" />
+                  ) : (
+                    <StepIcon size={18} style={{ color: theme.textMuted }} />
+                  )}
+                </div>
+                <span className="text-xs font-bold mt-2.5 text-center" style={{
+                  color: isDone ? '#22C55E' : isActive ? theme.accent : theme.textMuted,
+                }}>{step.label}</span>
+                <span className="text-[10px] mt-0.5 text-center" style={{ color: theme.textMuted }}>
+                  {step.description}
+                </span>
+              </div>
+            )
+          })}
         </div>
-        <p className="text-xs text-center mt-2" style={{ color: theme.textSecondary }}>
-          {progress}%
-        </p>
+      </div>
+
+      {/* Main progress bar */}
+      <div className="w-full max-w-md mb-8">
+        <div className="h-2 rounded-full overflow-hidden" style={{ background: theme.border }}>
+          <div className="h-full rounded-full transition-all duration-700" style={{
+            width: `${progress}%`,
+            background: 'linear-gradient(90deg, #4A7CFF, #7C3AED)',
+          }} />
+        </div>
+        <p className="text-xs text-center mt-2" style={{ color: theme.textSecondary }}>{progress}%</p>
       </div>
 
       {/* Per-platform status */}
-      <div className="space-y-3 w-full max-w-sm">
+      <div className="space-y-2 w-full max-w-sm">
         {Object.entries(platformStatus).map(([platform, status]) => (
-          <div key={platform} className="flex items-center gap-3 px-4 py-2.5 rounded-xl"
-            style={{ background: theme.card }}
-          >
+          <div key={platform} className="flex items-center gap-3 px-4 py-2 rounded-xl" style={{ background: theme.card }}>
             {status === 'done' ? (
-              <Check size={18} className="text-green-500 shrink-0" />
+              <Check size={16} className="text-green-500 shrink-0" />
             ) : (
-              <Loader2 size={18} className="animate-spin shrink-0" style={{ color: theme.accent }} />
+              <Loader2 size={16} className="animate-spin shrink-0" style={{ color: theme.accent }} />
             )}
             <span className="text-sm font-medium" style={{ color: theme.text }}>
               {PLATFORM_LABELS[platform] || platform}
             </span>
             {status === 'done' && (
-              <span className="ml-auto text-xs text-green-500 font-medium">ready!</span>
+              <span className="ml-auto text-[11px] text-green-500 font-semibold">ready!</span>
             )}
           </div>
         ))}

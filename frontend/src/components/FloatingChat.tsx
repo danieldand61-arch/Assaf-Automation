@@ -11,6 +11,10 @@ interface Message {
   content: string
 }
 
+function isRTL(text: string): boolean {
+  return /[\u0590-\u05FF\uFB1D-\uFB4F]/.test(text.slice(0, 100))
+}
+
 function renderMarkdown(text: string): string {
   let html = text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -227,6 +231,7 @@ export function FloatingChat() {
               </div>
             )}
             {messages.map((msg, i) => {
+              const rtl = isRTL(msg.content)
               const bubbleStyle = {
                 alignSelf: msg.role === 'user' ? 'flex-end' as const : 'flex-start' as const,
                 maxWidth: '80%',
@@ -237,7 +242,9 @@ export function FloatingChat() {
                 fontSize: 13,
                 lineHeight: 1.6,
                 boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
-                wordBreak: 'break-word' as const
+                wordBreak: 'break-word' as const,
+                direction: rtl ? 'rtl' as const : undefined,
+                textAlign: rtl ? 'right' as const : undefined,
               }
               return msg.role === 'assistant' ? (
                 <div key={i} style={bubbleStyle} dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
