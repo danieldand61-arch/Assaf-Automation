@@ -128,6 +128,7 @@ export function MainWorkspace() {
           user_media_url: data.media_file || undefined,
           use_custom_url: !!data.use_custom_url,
           include_people: !!data.include_people,
+          reference_image: data.uploaded_image || undefined,
         })
       })
 

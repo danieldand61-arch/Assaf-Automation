@@ -408,7 +408,8 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
                 image_size=request.image_size,
                 include_logo=request.include_logo,
                 user_id=current_user.get("user_id"),
-                include_people=request.include_people
+                include_people=request.include_people,
+                reference_image=request.reference_image
             )
             logger.info(f"✅ Generated {len(images)} images")
         

@@ -43,3 +43,4 @@ class GenerateRequest(BaseModel):
     user_media_url: Optional[str] = None
     use_custom_url: bool = False
     include_people: bool = False
+    reference_image: Optional[str] = None

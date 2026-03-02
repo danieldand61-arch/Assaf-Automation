@@ -21,7 +21,8 @@ async def generate_images(
     include_logo: bool = False,
     custom_prompt: str = None,
     user_id: str = None,
-    include_people: bool = False
+    include_people: bool = False,
+    reference_image: str = None
 ) -> List[ImageVariation]:
     """Generates images for posts using Gemini 2.5 Flash Image"""
     
@@ -50,6 +51,23 @@ async def generate_images(
     # Create model once, reuse for all variations
     model = genai.GenerativeModel(model_name)
     
+    # Decode reference image once if provided (base64 data URI)
+    ref_image_part = None
+    if reference_image:
+        try:
+            if reference_image.startswith('data:'):
+                header, b64data = reference_image.split(',', 1)
+                mime = header.split(':')[1].split(';')[0] if ':' in header else 'image/jpeg'
+                ref_bytes = base64.b64decode(b64data)
+            else:
+                resp = httpx.get(reference_image, timeout=15, follow_redirects=True)
+                ref_bytes = resp.content
+                mime = resp.headers.get("content-type", "image/jpeg")
+            ref_image_part = {"mime_type": mime, "data": ref_bytes}
+            logger.info(f"🖼️ Reference image loaded: {len(ref_bytes)} bytes, {mime}")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not load reference image: {e}")
+    
     # Generate unique image for each variation
     for idx, variation in enumerate(variations):
         # Pause between requests to avoid rate limiting (skip first)
@@ -64,11 +82,17 @@ async def generate_images(
                 logger.info(f"🔍 Generating image {idx + 1}/{len(variations)} (attempt {attempt + 1}) for: {variation.text[:50]}...")
                 
                 plat = variation.platform or (platforms[idx % len(platforms)] if platforms else 'instagram')
-                image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt, platform=plat, image_size=image_size, include_people=include_people)
+                image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt, platform=plat, image_size=image_size, include_people=include_people, has_reference=ref_image_part is not None)
+                
+                # Build content: reference image + prompt for multimodal, or just prompt
+                content = []
+                if ref_image_part:
+                    content.append(ref_image_part)
+                content.append(image_prompt)
                 
                 response = await asyncio.to_thread(
                     model.generate_content,
-                    image_prompt,
+                    content,
                     generation_config={
                         "temperature": 0.4,
                     }
@@ -322,7 +346,7 @@ def _get_aspect_ratio(dimensions: str) -> str:
         return "1:1"
 
 
-def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_prompt: str = None, platform: str = 'instagram', image_size: str = '1080x1080', include_people: bool = False) -> str:
+def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_prompt: str = None, platform: str = 'instagram', image_size: str = '1080x1080', include_people: bool = False, has_reference: bool = False) -> str:
     """Build an advertising-grade image prompt."""
 
     if custom_prompt:
@@ -364,7 +388,16 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
         'Do NOT include any people, faces, hands, silhouettes, or human body parts in the image. Focus on product, environment, and objects only.'
     )
 
+    reference_block = """
+REFERENCE IMAGE: The user has provided a reference image above. Use it as creative inspiration:
+- Match the overall mood, color palette, and visual style of the reference
+- Adapt the composition and aesthetic to fit the brand and post context below
+- Do NOT copy it exactly — create a NEW original image inspired by it
+- Blend the reference style with the brand identity
+""" if has_reference else ""
+
     prompt = f"""You are an elite advertising creative director. Create a premium social media advertisement image.
+{reference_block}
 
 BRAND: "{brand}"
 BRAND VOICE: {voice}
