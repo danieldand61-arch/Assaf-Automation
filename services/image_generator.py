@@ -388,16 +388,33 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
         'Do NOT include any people, faces, hands, silhouettes, or human body parts in the image. Focus on product, environment, and objects only.'
     )
 
-    reference_block = """
-REFERENCE IMAGE: The user has provided a reference image above. Use it as creative inspiration:
-- Match the overall mood, color palette, and visual style of the reference
-- Adapt the composition and aesthetic to fit the brand and post context below
-- Do NOT copy it exactly — create a NEW original image inspired by it
-- Blend the reference style with the brand identity
-""" if has_reference else ""
+    if has_reference:
+        prompt = f"""You are an elite advertising creative director. The user has provided a REFERENCE IMAGE above.
 
-    prompt = f"""You are an elite advertising creative director. Create a premium social media advertisement image.
-{reference_block}
+YOUR #1 PRIORITY: Generate a NEW image that closely matches the STYLE, MOOD, COLOR PALETTE, COMPOSITION, and VISUAL FEEL of the reference image.
+
+WHAT TO KEEP FROM THE REFERENCE:
+- Same overall mood and atmosphere (lighting, warmth/coolness, time of day)
+- Same color palette and tonal range
+- Similar composition style and framing
+- Same level of detail and artistic style (photographic, painterly, minimal, etc.)
+- Same emotional feeling the reference evokes
+
+WHAT TO ADAPT:
+- Subtly incorporate the brand context: "{brand}" ({industry})
+- The post topic: "{post_text[:200]}"
+- {size_comp}
+
+{people_line}
+
+STRICT RULES:
+- ABSOLUTELY NO text, words, letters, numbers, watermarks, logos, or typography
+- NO UI elements, buttons, overlays, or borders
+- ONE single cohesive image, no collages or split frames
+- The reference image is your PRIMARY guide. The brand context is SECONDARY.
+- If the reference shows a sunset landscape, generate a sunset landscape. If it shows food, generate food. FOLLOW THE REFERENCE."""
+    else:
+        prompt = f"""You are an elite advertising creative director. Create a premium social media advertisement image.
 
 BRAND: "{brand}"
 BRAND VOICE: {voice}
