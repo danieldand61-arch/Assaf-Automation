@@ -13,17 +13,19 @@ async def generate_posts(
     language: str = "en",
     include_emojis: bool = True,
     user_id: str = None,
-    account_id: str = None
+    account_id: str = None,
+    user_media_url: str = None
 ) -> List[PostVariation]:
     """Generates social media post variations using Gemini 3 Flash Preview"""
-    
+
     import logging
     logger = logging.getLogger(__name__)
     
     # Build prompt for Gemini
     prompt = _build_prompt(
         website_data, keywords, platforms, style, 
-        target_audience, language, include_emojis
+        target_audience, language, include_emojis,
+        user_media_url=user_media_url
     )
     
     # Use Gemini 2.5 Flash (as requested)
@@ -34,13 +36,32 @@ async def generate_posts(
         model = genai.GenerativeModel(model_name)
         logger.info(f" DEBUG: Model object created successfully")
         
+        # Build multimodal content if user provided an image
+        content_parts = []
+        if user_media_url:
+            logger.info(f"🖼️ User provided image: {user_media_url[:80]}...")
+            try:
+                import httpx
+                img_resp = httpx.get(user_media_url, timeout=15, follow_redirects=True)
+                if img_resp.status_code == 200:
+                    mime = img_resp.headers.get("content-type", "image/jpeg")
+                    if "/" not in mime:
+                        mime = "image/jpeg"
+                    content_parts.append({"mime_type": mime, "data": img_resp.content})
+                    logger.info(f"✅ Image fetched for vision ({len(img_resp.content)} bytes, {mime})")
+                else:
+                    logger.warning(f"⚠️ Could not fetch user image: HTTP {img_resp.status_code}")
+            except Exception as img_err:
+                logger.warning(f"⚠️ Could not fetch user image: {img_err}")
+        content_parts.append(prompt)
+        
         logger.info(f" DEBUG: Calling generate_content...")
         import asyncio
         from functools import partial
         response = await asyncio.to_thread(
             partial(
                 model.generate_content,
-                prompt,
+                content_parts,
                 generation_config={
                     "temperature": 0.8,
                     "top_p": 0.95,
@@ -115,7 +136,8 @@ def _build_prompt(
     style: str,
     target_audience: str,
     language: str,
-    include_emojis: bool
+    include_emojis: bool,
+    user_media_url: str = None
 ) -> str:
     """Builds prompt for Gemini with dual-variant marketing psychology"""
     
@@ -158,6 +180,8 @@ BRAND:
 - Voice: {website_data.get('brand_voice', 'professional')}
 - Products: {', '.join(website_data.get('products', []))}
 - Features: {', '.join(website_data.get('key_features', []))}
+
+{"USER IMAGE: The user has provided their own image/visual for this post. Write content that complements and references this image. Describe what you see and craft copy that works WITH the visual, not independently of it." if user_media_url else ""}
 
 REQUIREMENTS:
 - Language: {language_name} (ALL text in {language_name.upper()})

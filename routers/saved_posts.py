@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional, List
 from pydantic import BaseModel
 import logging
+import hashlib
 from datetime import datetime
 from middleware.auth import get_current_user
 from database.supabase_client import get_supabase
@@ -52,7 +53,23 @@ async def save_post(
         if not active_account_id:
             raise HTTPException(status_code=400, detail="No active account found")
         
-        # Save post
+        # Dedup: check if identical post already exists for this account
+        text_hash = hashlib.md5(post.text.strip().encode()).hexdigest()
+        existing = supabase.table("saved_posts")\
+            .select("id")\
+            .eq("account_id", active_account_id)\
+            .eq("text_hash", text_hash)\
+            .limit(1)\
+            .execute()
+        
+        if existing.data:
+            return {
+                "success": True,
+                "post_id": existing.data[0]["id"],
+                "message": "Post already in library",
+                "duplicate": True
+            }
+
         post_data = {
             "account_id": active_account_id,
             "user_id": current_user["user_id"],
@@ -64,6 +81,7 @@ async def save_post(
             "notes": post.notes,
             "source_url": post.source_url,
             "platforms": post.platforms,
+            "text_hash": text_hash,
             "saved_at": datetime.utcnow().isoformat()
         }
         

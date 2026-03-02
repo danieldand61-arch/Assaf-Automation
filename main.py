@@ -389,7 +389,8 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
             target_audience=request.target_audience,
             language=request.language,
             include_emojis=request.include_emojis,
-            user_id=current_user.get("user_id")  # Pass user_id for tracking
+            user_id=current_user.get("user_id"),
+            user_media_url=request.user_media_url
         )
         logger.info(f"✅ Generated {len(variations)} post variations")
         

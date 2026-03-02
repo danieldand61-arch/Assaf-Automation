@@ -215,7 +215,12 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
   const [schedulingIdx, setSchedulingIdx] = useState<number | null>(null)
   const [savingIdx, setSavingIdx] = useState<number | null>(null)
   const [publishedStatus, setPublishedStatus] = useState<Record<number, string>>({})
-  const [savedToLibrary, setSavedToLibrary] = useState<Record<number, boolean>>({})
+  const [savedToLibrary, setSavedToLibrary] = useState<Record<number, boolean>>(() => {
+    const init: Record<number, boolean> = {}
+    const vars = (content || globalContent)?.variations
+    if (vars?.length) vars.forEach((_: any, i: number) => { init[i] = true })
+    return init
+  })
   const [regeneratingIdx, setRegeneratingIdx] = useState<number | null>(null)
   const [expandedIdx, setExpandedIdx] = useState<Record<number, boolean>>({})
 
@@ -310,6 +315,13 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
       const newVar = data.variations?.find((nv: any) => nv.variant_type === matchType) || data.variations?.[0]
       if (newVar) {
         updateVariation(idx, newVar.text, newVar.hashtags || [], newVar.call_to_action || '')
+        // Auto-save regenerated variant
+        const newImg = data.images?.[0]?.url || images[idx]?.url || images[0]?.url
+        fetch(`${getApiUrl()}/api/saved-posts/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ text: newVar.text, hashtags: newVar.hashtags || [], call_to_action: newVar.call_to_action || '', image_url: newImg || '', platforms })
+        }).then(() => setSavedToLibrary(prev => ({ ...prev, [idx]: true }))).catch(() => {})
       }
       if (data.images?.[0]?.url) {
         updateImage(idx, data.images[0].url)
@@ -323,7 +335,18 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
   }
 
   const handleTextSave = (text: string, hashtags: string[], cta: string) => {
-    if (editingIdx !== null) updateVariation(editingIdx, text, hashtags, cta)
+    if (editingIdx !== null) {
+      updateVariation(editingIdx, text, hashtags, cta)
+      // Auto-save edited version
+      if (session) {
+        const img = images[editingIdx] || images[0]
+        fetch(`${getApiUrl()}/api/saved-posts/save`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+          body: JSON.stringify({ text, hashtags, call_to_action: cta, image_url: img?.url || '', platforms })
+        }).catch(() => {})
+      }
+    }
     setEditingIdx(null)
   }
 

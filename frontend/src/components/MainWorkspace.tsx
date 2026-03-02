@@ -148,6 +148,18 @@ export function MainWorkspace() {
 
       setGeneratedContent({ ...result, request_params: data, user_media: data.media_file || null })
 
+      // Auto-save all variations to library
+      if (session && result.variations?.length) {
+        result.variations.forEach((v: any, i: number) => {
+          const img = result.images?.[i] || result.images?.[0]
+          fetch(`${apiUrl}/api/saved-posts/save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
+            body: JSON.stringify({ text: v.text, hashtags: v.hashtags || [], call_to_action: v.call_to_action || '', image_url: img?.url || '', platforms: data.platforms })
+          }).catch(() => {})
+        })
+      }
+
       setTimeout(() => setSocialScreen('results'), 600)
     } catch (error: any) {
       apiDone = true
