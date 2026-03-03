@@ -17,6 +17,7 @@ class SchedulePostRequest(BaseModel):
     platforms: List[str]
     scheduled_time: str  # ISO format
     timezone: str = "UTC"
+    instagram_post_type: Optional[str] = "post"  # "post" or "story"
 
 class ScheduledPost(BaseModel):
     id: str
@@ -70,7 +71,8 @@ async def schedule_post(
             "scheduled_time": scheduled_dt.isoformat(),
             "timezone": request.timezone,
             "platforms": request.platforms,
-            "status": "pending"
+            "status": "pending",
+            "instagram_post_type": request.instagram_post_type or "post"
         }
         
         result = supabase.table("scheduled_posts").insert(post_data).execute()
@@ -225,7 +227,8 @@ async def publish_now(
             "scheduled_time": now.isoformat(),
             "timezone": request.timezone,
             "platforms": request.platforms,
-            "status": "pending"
+            "status": "pending",
+            "instagram_post_type": request.instagram_post_type or "post"
         }
         
         result = supabase.table("scheduled_posts").insert(post_data).execute()

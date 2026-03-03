@@ -142,8 +142,13 @@ async def publish_post(post: dict):
                     from services.publishers.facebook import publish_to_facebook
                     result = await publish_to_facebook(connection, content, image_url)
                 elif platform == "instagram":
-                    from services.publishers.instagram import publish_to_instagram
-                    result = await publish_to_instagram(connection, content, image_url)
+                    ig_type = post.get("instagram_post_type", "post")
+                    if ig_type == "story":
+                        from services.publishers.instagram import publish_story_to_instagram
+                        result = await publish_story_to_instagram(connection, image_url)
+                    else:
+                        from services.publishers.instagram import publish_to_instagram
+                        result = await publish_to_instagram(connection, content, image_url)
                 elif platform == "linkedin":
                     from services.publishers.linkedin import publish_to_linkedin
                     result = await publish_to_linkedin(connection, content, image_url)

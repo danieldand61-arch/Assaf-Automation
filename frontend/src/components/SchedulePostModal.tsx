@@ -51,6 +51,7 @@ export function SchedulePostModal({
   const [connectedPlatforms, setConnectedPlatforms] = useState<Connection[]>([])
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(initialPlatforms)
   const [loadingConnections, setLoadingConnections] = useState(true)
+  const [igPostType, setIgPostType] = useState<'post' | 'story'>('post')
   
   // Update editable fields when postData changes
   useEffect(() => {
@@ -152,7 +153,8 @@ export function SchedulePostModal({
             post_data: updatedPostData,
             platforms: selectedPlatforms,
             scheduled_time: new Date().toISOString(),
-            timezone: userTimezone
+            timezone: userTimezone,
+            instagram_post_type: selectedPlatforms.includes('instagram') ? igPostType : undefined
           })
         })
         
@@ -188,7 +190,8 @@ export function SchedulePostModal({
             post_data: updatedPostData,
             platforms: selectedPlatforms,
             scheduled_time: scheduleDateTime.toISOString(),
-            timezone: userTimezone
+            timezone: userTimezone,
+            instagram_post_type: selectedPlatforms.includes('instagram') ? igPostType : undefined
           })
         })
         
@@ -364,6 +367,30 @@ export function SchedulePostModal({
               </div>
             )}
           </div>
+
+          {/* Instagram Post Type */}
+          {selectedPlatforms.includes('instagram') && (
+            <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4">
+              <h4 className="font-semibold text-gray-800 dark:text-white mb-3">Instagram Format</h4>
+              <div className="flex gap-3">
+                <button onClick={() => setIgPostType('post')}
+                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition flex items-center justify-center gap-2 text-sm ${
+                    igPostType === 'post' ? 'bg-pink-600 text-white' : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500'
+                  }`}>
+                  📸 Feed Post
+                </button>
+                <button onClick={() => setIgPostType('story')}
+                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition flex items-center justify-center gap-2 text-sm ${
+                    igPostType === 'story' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white' : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500'
+                  }`}>
+                  ⏳ Story
+                </button>
+              </div>
+              {igPostType === 'story' && (
+                <p className="text-xs text-gray-400 mt-1.5">Stories disappear after 24h. Caption won't be included — image only.</p>
+              )}
+            </div>
+          )}
 
           {/* Edit Post Content */}
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-xl p-4 space-y-4">

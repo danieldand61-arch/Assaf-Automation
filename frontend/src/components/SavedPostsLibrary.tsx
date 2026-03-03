@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
-import { Archive, Calendar, Trash2, RefreshCw } from 'lucide-react'
+import { Archive, Calendar, Trash2, RefreshCw, Send } from 'lucide-react'
 import { SchedulePostModal } from './SchedulePostModal'
+import { PostToSocial } from './PostToSocial'
 
 const PLATFORM_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   facebook:        { bg: '#1877F215', text: '#1877F2', label: 'Facebook' },
@@ -38,6 +39,7 @@ export function SavedPostsLibrary() {
   const [loading, setLoading] = useState(true)
   const [selectedPost, setSelectedPost] = useState<SavedPost | null>(null)
   const [isScheduling, setIsScheduling] = useState(false)
+  const [isPublishing, setIsPublishing] = useState(false)
 
   useEffect(() => { if (session) fetchPosts() }, [session])
 
@@ -103,7 +105,7 @@ export function SavedPostsLibrary() {
           return (
             <div key={post.id}
               className="group bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-gray-200 dark:hover:border-gray-600 transition cursor-pointer"
-              onClick={() => { setSelectedPost(post); setIsScheduling(true) }}
+              onClick={() => setSelectedPost(post)}
             >
               {/* Thumbnail */}
               {post.image_url && (
@@ -154,6 +156,10 @@ export function SavedPostsLibrary() {
                 <div className="flex items-center justify-between pt-1.5 border-t border-gray-100 dark:border-gray-700">
                   <span className="text-[10px] text-gray-400">{new Date(post.saved_at).toLocaleDateString()}</span>
                   <div className="flex gap-1.5">
+                    <button onClick={e => { e.stopPropagation(); setSelectedPost(post); setIsPublishing(true) }}
+                      className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition">
+                      <Send size={10} /> Publish
+                    </button>
                     <button onClick={e => { e.stopPropagation(); setSelectedPost(post); setIsScheduling(true) }}
                       className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 transition">
                       <Calendar size={10} /> Schedule
@@ -170,12 +176,22 @@ export function SavedPostsLibrary() {
         })}
       </div>
 
-      {selectedPost && (
+      {selectedPost && isScheduling && (
         <SchedulePostModal
-          isOpen={isScheduling}
+          isOpen
           onClose={() => { setIsScheduling(false); setSelectedPost(null) }}
           postData={{ text: selectedPost.text, hashtags: selectedPost.hashtags, cta: selectedPost.call_to_action, imageUrl: selectedPost.image_url }}
           platforms={selectedPost.platforms.length > 0 ? selectedPost.platforms : []}
+        />
+      )}
+      {selectedPost && isPublishing && (
+        <PostToSocial
+          isOpen
+          onClose={() => { setIsPublishing(false); setSelectedPost(null) }}
+          prefilledData={{
+            text: `${selectedPost.text}${selectedPost.hashtags?.length ? '\n\n' + selectedPost.hashtags.map(t => `#${t}`).join(' ') : ''}${selectedPost.call_to_action ? '\n\n' + selectedPost.call_to_action : ''}`,
+            imageUrl: selectedPost.image_url
+          }}
         />
       )}
     </div>

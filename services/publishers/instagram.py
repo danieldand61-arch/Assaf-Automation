@@ -116,3 +116,76 @@ async def publish_to_instagram(connection: Dict[str, Any], content: str, image_u
     except Exception as e:
         logger.error(f"❌ Instagram publishing error: {str(e)}")
         raise
+
+
+async def publish_story_to_instagram(connection: Dict[str, Any], image_url: str) -> Dict[str, Any]:
+    """
+    Publish an image as Instagram Story.
+    Accepts a public image URL (already uploaded to storage).
+    """
+    try:
+        access_token = connection.get("access_token")
+        instagram_account_id = connection.get("platform_user_id")
+
+        if not access_token or not instagram_account_id:
+            raise Exception("Missing access token or account ID")
+        if not image_url:
+            raise Exception("Instagram Stories require an image URL")
+
+        logger.info(f"📸 Publishing Story to Instagram account: {instagram_account_id}")
+
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            container_response = await client.post(
+                f"https://graph.facebook.com/v19.0/{instagram_account_id}/media",
+                params={
+                    "image_url": image_url,
+                    "media_type": "STORIES",
+                    "access_token": access_token,
+                }
+            )
+
+            if container_response.status_code != 200:
+                raise Exception(f"Instagram Story container error: {container_response.text}")
+
+            container_id = container_response.json().get("id")
+            if not container_id:
+                raise Exception("Instagram API returned no container ID for Story")
+
+            for attempt in range(20):
+                status_resp = await client.get(
+                    f"https://graph.facebook.com/v19.0/{container_id}",
+                    params={"fields": "status_code", "access_token": access_token}
+                )
+                status_code = status_resp.json().get("status_code")
+                logger.info(f"🔄 Story container status (attempt {attempt+1}): {status_code}")
+                if status_code == "FINISHED":
+                    break
+                if status_code == "ERROR":
+                    raise Exception(f"Instagram Story processing failed: {status_resp.json()}")
+                await asyncio.sleep(3)
+            else:
+                raise Exception("Instagram Story container not ready after 60s")
+
+            publish_response = await client.post(
+                f"https://graph.facebook.com/v19.0/{instagram_account_id}/media_publish",
+                params={
+                    "creation_id": container_id,
+                    "access_token": access_token
+                }
+            )
+
+            if publish_response.status_code != 200:
+                raise Exception(f"Instagram Story publish failed: {publish_response.text}")
+
+            post_id = publish_response.json().get("id")
+            logger.info(f"✅ Published Story to Instagram: {post_id}")
+
+            return {
+                "success": True,
+                "post_id": post_id,
+                "post_url": f"https://www.instagram.com/stories/{instagram_account_id}/{post_id}/"
+            }
+
+    except Exception as e:
+        logger.error(f"❌ Instagram Story publishing error: {str(e)}")
+        raise
