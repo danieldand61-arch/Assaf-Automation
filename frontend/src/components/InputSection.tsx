@@ -186,7 +186,8 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
     const isImage = file.type.match(/^image\/(jpeg|png|webp|gif)$/)
     const isVideo = file.type.match(/^video\/(mp4|quicktime|webm|mov)$/)
     if (!isImage && !isVideo) { alert('Upload JPG, PNG, WebP, GIF, MP4, MOV, or WebM'); return }
-    if (file.size > 50 * 1024 * 1024) { alert('File must be under 50 MB'); return }
+    const maxMB = isVideo ? 20 : 10
+    if (file.size > maxMB * 1024 * 1024) { alert(`File must be under ${maxMB} MB`); return }
     const reader = new FileReader()
     reader.onload = (e) => { const url = e.target?.result as string; setMediaPreview(url); setMediaIsVideo(!!isVideo); set('media_file', url) }
     reader.readAsDataURL(file)

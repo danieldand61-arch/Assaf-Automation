@@ -37,6 +37,17 @@ function CharBar({ current, max }: { current: number; max: number }) {
   )
 }
 
+function isVideoUrl(url?: string) {
+  if (!url) return false
+  if (url.startsWith('data:video/')) return true
+  return /\.(mp4|webm|mov)(\?|$)/i.test(url)
+}
+
+function MediaElement({ url, className, style }: { url: string; className?: string; style?: React.CSSProperties }) {
+  if (isVideoUrl(url)) return <video src={url} className={className} style={style} controls muted playsInline />
+  return <img src={url} alt="" className={className} style={style} />
+}
+
 function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImage }: { v: any; img: any; brandHandle: string; isExpanded: boolean; onToggle: () => void; onEditImage?: () => void }) {
   const TEXT_CLAMP = 120
   const needsTruncate = v.text.length > TEXT_CLAMP
@@ -51,15 +62,16 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImag
         <div className="flex-1" />
         <MoreHorizontal size={14} className="text-gray-500" />
       </div>
-      {/* IG Image 4:5 */}
       {img?.url && !img.url.includes('placehold.co') ? (
         <div className="group/img relative w-full bg-black/5 dark:bg-black/30 cursor-pointer" style={{ aspectRatio: '4/5' }} onClick={onEditImage}>
-          <img src={img.url} alt="" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
-              <Edit3 size={12} /> Edit Image
-            </span>
-          </div>
+          <MediaElement url={img.url} className="w-full h-full object-cover" />
+          {!isVideoUrl(img.url) && (
+            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
+                <Edit3 size={12} /> Edit Image
+              </span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="w-full flex items-center justify-center bg-gray-100 dark:bg-gray-700/40" style={{ aspectRatio: '4/5' }}>
@@ -126,15 +138,16 @@ function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImage
           <p className="text-[11px] text-blue-500 mt-1">{v.hashtags.map((t: string) => `#${t}`).join(' ')}</p>
         )}
       </div>
-      {/* FB Image — full width, no crop, like real FB feed */}
       {img?.url && !img.url.includes('placehold.co') ? (
         <div className="group/img relative w-full bg-black/5 dark:bg-black/20 cursor-pointer" onClick={onEditImage}>
-          <img src={img.url} alt="" className="w-full object-contain" />
-          <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
-              <Edit3 size={12} /> Edit Image
-            </span>
-          </div>
+          <MediaElement url={img.url} className="w-full object-contain" />
+          {!isVideoUrl(img.url) && (
+            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
+                <Edit3 size={12} /> Edit Image
+              </span>
+            </div>
+          )}
         </div>
       ) : (
         <div className="w-full h-[200px] flex items-center justify-center bg-gray-100 dark:bg-gray-700/40">
@@ -170,12 +183,14 @@ function GenericMockup({ v, img, meta, isExpanded, onToggle, onEditImage }: { v:
       </div>
       {img?.url && !img.url.includes('placehold.co') ? (
         <div className="group/img relative w-full cursor-pointer" onClick={onEditImage}>
-          <img src={img.url} alt="" className="w-full object-contain" />
-          <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
-            <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
-              <Edit3 size={12} /> Edit Image
-            </span>
-          </div>
+          <MediaElement url={img.url} className="w-full object-contain" />
+          {!isVideoUrl(img.url) && (
+            <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
+                <Edit3 size={12} /> Edit Image
+              </span>
+            </div>
+          )}
         </div>
       ) : null}
       <div className="px-3 py-2">
@@ -261,13 +276,14 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
     const zip = new JSZip()
     variations.forEach((v: any, i: number) => {
       zip.file(`post-${i + 1}.txt`, getFullText(v))
-      const img = images[i] || images[0]
+      const img = images[i] || images[0] || (userMedia ? { url: userMedia } : null)
       if (img?.url?.startsWith('data:')) {
         const b64 = img.url.split(',')[1]
         const bin = atob(b64)
         const arr = new Uint8Array(bin.length)
         for (let j = 0; j < bin.length; j++) arr[j] = bin.charCodeAt(j)
-        zip.file(`image-${i + 1}.jpg`, arr, { binary: true })
+        const ext = isVideoUrl(img.url) ? 'mp4' : 'jpg'
+        zip.file(`media-${i + 1}.${ext}`, arr, { binary: true })
       }
     })
     const blob = await zip.generateAsync({ type: 'blob' })

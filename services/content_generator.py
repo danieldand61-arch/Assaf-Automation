@@ -35,23 +35,24 @@ async def generate_posts(
         model = genai.GenerativeModel(model_name)
         logger.info(f" DEBUG: Model object created successfully")
         
-        # Build multimodal content if user provided an image
         content_parts = []
         if user_media_url:
-            logger.info(f"🖼️ User provided image: {user_media_url[:80]}...")
+            logger.info(f"🎬 User provided media: {user_media_url[:80]}...")
             try:
-                import httpx
-                img_resp = httpx.get(user_media_url, timeout=15, follow_redirects=True)
-                if img_resp.status_code == 200:
-                    mime = img_resp.headers.get("content-type", "image/jpeg")
-                    if "/" not in mime:
-                        mime = "image/jpeg"
-                    content_parts.append({"mime_type": mime, "data": img_resp.content})
-                    logger.info(f"✅ Image fetched for vision ({len(img_resp.content)} bytes, {mime})")
+                import base64 as b64mod
+                if user_media_url.startswith('data:'):
+                    header, b64data = user_media_url.split(',', 1)
+                    mime = header.split(':')[1].split(';')[0] if ':' in header else 'image/jpeg'
+                    media_bytes = b64mod.b64decode(b64data)
                 else:
-                    logger.warning(f"⚠️ Could not fetch user image: HTTP {img_resp.status_code}")
+                    import httpx
+                    resp = httpx.get(user_media_url, timeout=30, follow_redirects=True)
+                    media_bytes = resp.content
+                    mime = resp.headers.get("content-type", "image/jpeg")
+                content_parts.append({"mime_type": mime, "data": media_bytes})
+                logger.info(f"✅ Media loaded for vision: {len(media_bytes)} bytes, {mime}")
             except Exception as img_err:
-                logger.warning(f"⚠️ Could not fetch user image: {img_err}")
+                logger.warning(f"⚠️ Could not load user media: {img_err}")
         content_parts.append(prompt)
         
         logger.info(f" DEBUG: Calling generate_content...")
@@ -180,7 +181,7 @@ BRAND:
 - Products: {', '.join(website_data.get('products', []))}
 - Features: {', '.join(website_data.get('key_features', []))}
 
-{"USER IMAGE: The user has provided their own image/visual for this post. Write content that complements and references this image. Describe what you see and craft copy that works WITH the visual, not independently of it." if user_media_url else ""}
+{"USER MEDIA: The user has provided their own image or video for this post. Analyze the visual content — describe what you see and craft copy that works WITH the visual, not independently of it. If it's a video, reference the action/scene/mood." if user_media_url else ""}
 
 REQUIREMENTS:
 - Language: {language_name} (ALL text in {language_name.upper()})
