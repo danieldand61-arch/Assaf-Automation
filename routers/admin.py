@@ -29,6 +29,38 @@ class AddCreditsRequest(BaseModel):
     reason: str = "Manual top-up by admin"
 
 
+class MarginRequest(BaseModel):
+    margin: float
+
+
+@router.get("/margin")
+async def get_margin(user=Depends(get_current_user)):
+    if not is_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    from services.credits_service import MARGIN_MULTIPLIER
+    return {"margin": MARGIN_MULTIPLIER}
+
+
+@router.put("/margin")
+async def set_margin(body: MarginRequest, user=Depends(get_current_user)):
+    if not is_admin(user):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    if not 1.0 <= body.margin <= 5.0:
+        raise HTTPException(status_code=400, detail="Margin must be between 1.0 and 5.0")
+
+    import services.credits_service as cs
+    cs.MARGIN_MULTIPLIER = body.margin
+    cs.CREDITS_PER_1K_INPUT = cs._BASE_PER_1K_INPUT * body.margin
+    cs.CREDITS_PER_1K_OUTPUT = cs._BASE_PER_1K_OUTPUT * body.margin
+    cs.FIXED_CREDITS = {k: round(v * body.margin) for k, v in cs._BASE_FIXED.items()}
+    cs.VIDEO_DUBBING_PER_MIN = round(cs._BASE_DUBBING_PER_MIN * body.margin)
+    cs.VIDEO_GEN_CREDITS = {k: round(v * body.margin) for k, v in cs._BASE_VIDEO_GEN.items()}
+    cs.MIN_CREDITS = {k: round(v * body.margin) for k, v in cs._BASE_MIN.items()}
+
+    logger.info(f"💰 Margin multiplier updated to ×{body.margin} by admin {user.get('user_id', '?')[:8]}")
+    return {"success": True, "margin": body.margin}
+
+
 @router.get("/users-stats")
 async def get_users_stats(user=Depends(get_current_user)):
     """Get all users with their credits usage statistics (Admin only)"""

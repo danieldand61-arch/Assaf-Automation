@@ -1,26 +1,14 @@
 """
-Unified Credits System — ×2 markup, 1 credit = $0.001 sale price.
+Unified Credits System — 1 credit = $0.001 sale price.
+All base costs are at ×1 (real API cost). MARGIN_MULTIPLIER scales everything.
 
-Real API prices (2026):
-  Gemini 3 Flash: $0.50/1M input, $3.00/1M output
-  Gemini image:   ~$0.039/image
-  ElevenLabs dub: $0.24/min
-  Kling AI video: $0.049/sec (no audio), $0.098/sec (with audio)
+Real API prices (2026-03):
+  Gemini 3 Flash:           $0.50/1M input, $3.00/1M output
+  Gemini 3.1 Flash Image:  $60/1M image output tokens → $0.067-$0.101/image (1K-2K)
+  ElevenLabs dub:           $0.24/min
+  Kling AI video:           $0.049/sec (no audio), $0.098/sec (with audio)
 
-Formula: credits = real_cost × 2 / $0.001 = real_cost × 2000
-
-  Service                 | Real cost  | ×2 markup  | Credits
-  1K input tokens         | $0.0005    | $0.001     | 1 cr
-  1K output tokens        | $0.003     | $0.006     | 6 cr
-  Chat (~3K in + 1K out)  | $0.0045    | $0.009     | 10 cr (min)
-  Social Post gen         | $0.012     | $0.024     | 25 cr (min)
-  Text edit / regen       | $0.005     | $0.010     | 10 cr (min)
-  Google Ads gen          | $0.019     | $0.038     | 40 cr (min)
-  1 Image (Gemini 2.5)    | $0.039     | $0.078     | 80 cr
-  Design analysis         | $0.005     | $0.010     | 10 cr (min)
-  Video dubbing / min     | $0.24      | $0.48      | 500 cr/min
-  Kling 5s video          | $0.25      | $0.50      | 500 cr
-  Kling 10s video         | $0.49      | $0.98      | 1000 cr
+Formula: credits = real_cost × MARGIN_MULTIPLIER / $0.001
 
 Packages: 10K cr = $10, 50K cr = $45, 200K cr = $160
 """
@@ -29,39 +17,51 @@ from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 
-# ─── Proportional pricing (×2 markup, 1 cr = $0.001) ──────────────────
-# Gemini 3 Flash: $0.50/1M input = $0.0005/1K → ×2 = $0.001/1K = 1 cr/1K
-# Gemini 3 Flash: $3.00/1M output = $0.003/1K → ×2 = $0.006/1K = 6 cr/1K
-CREDITS_PER_1K_INPUT  = 1.0
-CREDITS_PER_1K_OUTPUT = 6.0
+# ─── MARGIN MULTIPLIER ───────────────────────────────────────────────
+# 1.0 = break-even (we earn nothing)
+# 1.5 = 50% margin
+# 2.0 = 100% margin (standard SaaS)
+MARGIN_MULTIPLIER = 2.0
 
-# Fixed credits per operation
-FIXED_CREDITS = {
-    "image_generation": 120.0,    # Gemini 3 Pro Image Preview
+# ─── Base costs at ×1 (real API price in credits, 1 cr = $0.001) ─────
+# Gemini 3 Flash: $0.50/1M input = $0.0005/1K = 0.5 cr/1K
+# Gemini 3 Flash: $3.00/1M output = $0.003/1K = 3 cr/1K
+_BASE_PER_1K_INPUT  = 0.5
+_BASE_PER_1K_OUTPUT = 3.0
+CREDITS_PER_1K_INPUT  = _BASE_PER_1K_INPUT * MARGIN_MULTIPLIER
+CREDITS_PER_1K_OUTPUT = _BASE_PER_1K_OUTPUT * MARGIN_MULTIPLIER
+
+# Fixed credits per operation (base = real cost in credits)
+_BASE_FIXED = {
+    "image_generation": 101.0,    # Gemini 3.1 Flash Image worst-case 2K: $0.101 = 101 cr
 }
+FIXED_CREDITS = {k: round(v * MARGIN_MULTIPLIER) for k, v in _BASE_FIXED.items()}
 
-# Per-minute rate for video dubbing (ElevenLabs)
-VIDEO_DUBBING_PER_MIN = 500.0     # $0.24/min real → ×2000 = 480 → round 500
+# Per-minute rate for video dubbing (ElevenLabs): $0.24/min = 240 cr base
+_BASE_DUBBING_PER_MIN = 240.0
+VIDEO_DUBBING_PER_MIN = round(_BASE_DUBBING_PER_MIN * MARGIN_MULTIPLIER)
 
-# Kling AI video generation
-VIDEO_GEN_CREDITS = {
-    "5s_no_audio":  500,   # $0.25 → ×2000 = 500
-    "10s_no_audio": 1000,  # $0.49 → ×2000 = 980 → round 1000
-    "5s_audio":     1000,  # $0.49 → ×2000 = 980 → round 1000
-    "10s_audio":    2000,  # $0.98 → ×2000 = 1960 → round 2000
+# Kling AI video generation (base = real cost in credits)
+_BASE_VIDEO_GEN = {
+    "5s_no_audio":  250,   # $0.25
+    "10s_no_audio": 490,   # $0.49
+    "5s_audio":     490,   # $0.49
+    "10s_audio":    980,   # $0.98
 }
+VIDEO_GEN_CREDITS = {k: round(v * MARGIN_MULTIPLIER) for k, v in _BASE_VIDEO_GEN.items()}
 
-# Minimum credits per service type (floor)
-MIN_CREDITS = {
-    "social_posts":     25.0,
-    "gemini_chat":      10.0,
-    "chat":             10.0,
-    "google_ads":       40.0,
-    "image_generation": 120.0,
-    "design_analysis":  10.0,
-    "text_edit":        10.0,
-    "text_regen":       10.0,
+# Minimum credits per service type (base values, then multiplied)
+_BASE_MIN = {
+    "social_posts":     12.0,   # ~$0.012
+    "gemini_chat":       5.0,   # ~$0.005
+    "chat":              5.0,
+    "google_ads":       19.0,   # ~$0.019
+    "image_generation": 101.0,
+    "design_analysis":   5.0,
+    "text_edit":         5.0,
+    "text_regen":        5.0,
 }
+MIN_CREDITS = {k: round(v * MARGIN_MULTIPLIER) for k, v in _BASE_MIN.items()}
 
 
 def calculate_credits(

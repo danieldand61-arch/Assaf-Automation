@@ -27,34 +27,35 @@ def _detect_social_platform(url: str) -> Optional[str]:
 
 
 async def _scrape_social_profile(url: str, platform: str) -> Dict:
-    """Extract brand info from social media profiles via og: meta tags with retry."""
+    """Extract brand info from social media profiles via multiple strategies."""
     parsed = urlparse(url)
     path_parts = [p for p in parsed.path.strip('/').split('/') if p]
     username = path_parts[0] if path_parts else 'brand'
 
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'en-US,en;q=0.9',
-    }
-
-    html = None
-    for attempt in range(3):
-        try:
-            async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
-                resp = await client.get(url, headers=headers)
-                if resp.status_code == 200:
-                    html = resp.text
-                    break
-                logger.warning(f"⚠️ Social scrape attempt {attempt+1}: HTTP {resp.status_code}")
-        except Exception as e:
-            logger.warning(f"⚠️ Social scrape attempt {attempt+1}: {e}")
-        if attempt < 2:
-            await asyncio.sleep(2 * (attempt + 1))
-
     title = username
     description = ''
     logo_url = ''
+
+    # Strategy 1: Try og: meta tags with multiple User-Agents
+    user_agents = [
+        'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    ]
+
+    html = None
+    for ua in user_agents:
+        headers = {'User-Agent': ua, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9'}
+        try:
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                resp = await client.get(url, headers=headers)
+                if resp.status_code == 200 and len(resp.text) > 1000:
+                    html = resp.text
+                    break
+                logger.warning(f"⚠️ Social scrape ({ua[:20]}): HTTP {resp.status_code}, len={len(resp.text)}")
+        except Exception as e:
+            logger.warning(f"⚠️ Social scrape ({ua[:20]}): {e}")
+        await asyncio.sleep(1)
 
     if html:
         soup = BeautifulSoup(html, 'html.parser')
@@ -72,10 +73,31 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
         if og_img and og_img.get('content'):
             logo_url = og_img['content'].strip()
 
+    # Strategy 2: If Instagram and we got nothing useful, try ?__a=1&__d=dis endpoint
+    if platform == 'instagram' and not description:
+        try:
+            api_url = f"https://www.instagram.com/{username}/?__a=1&__d=dis"
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                resp = await client.get(api_url, headers={
+                    'User-Agent': 'Instagram 275.0.0.27.98 Android',
+                    'Accept': 'application/json',
+                })
+                if resp.status_code == 200:
+                    import json
+                    data = resp.json()
+                    user_data = data.get('graphql', {}).get('user', {})
+                    if user_data:
+                        title = user_data.get('full_name') or username
+                        description = user_data.get('biography', '')
+                        logo_url = user_data.get('profile_pic_url_hd') or user_data.get('profile_pic_url', '')
+                        logger.info(f"📱 Instagram API fallback success: @{username}")
+        except Exception as e:
+            logger.warning(f"⚠️ Instagram API fallback failed: {e}")
+
     if not description:
         description = f"@{username} on {platform.capitalize()}"
 
-    logger.info(f"📱 Social profile scraped: {platform} @{username} — {title}")
+    logger.info(f"📱 Social profile scraped: {platform} @{username} — {title[:60]}")
 
     return {
         "url": url,

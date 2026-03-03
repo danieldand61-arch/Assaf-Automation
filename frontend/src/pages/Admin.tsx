@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { getApiUrl } from '../lib/api'
-import { Loader2, Search, ArrowUpDown, Users, DollarSign, Activity, LogOut, Plus, Coins } from 'lucide-react'
+import { Loader2, Search, ArrowUpDown, Users, DollarSign, Activity, LogOut, Plus, Coins, Settings } from 'lucide-react'
 
 interface UserStats {
   user_id: string
@@ -36,6 +36,9 @@ export function Admin() {
   const [creditAmount, setCreditAmount] = useState('')
   const [creditReason, setCreditReason] = useState('')
   const [addingCredits, setAddingCredits] = useState(false)
+  const [margin, setMargin] = useState(2.0)
+  const [savedMargin, setSavedMargin] = useState(2.0)
+  const [savingMargin, setSavingMargin] = useState(false)
 
   // Check admin access
   useEffect(() => {
@@ -48,7 +51,34 @@ export function Admin() {
 
   useEffect(() => {
     loadUsers()
+    loadMargin()
   }, [])
+
+  const loadMargin = async () => {
+    try {
+      const res = await fetch(`${getApiUrl()}/api/admin/margin`, {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` }
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setMargin(data.margin)
+        setSavedMargin(data.margin)
+      }
+    } catch {}
+  }
+
+  const saveMargin = async () => {
+    setSavingMargin(true)
+    try {
+      const res = await fetch(`${getApiUrl()}/api/admin/margin`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ margin })
+      })
+      if (res.ok) setSavedMargin(margin)
+    } catch {}
+    setSavingMargin(false)
+  }
 
   const loadUsers = async () => {
     try {
@@ -198,6 +228,40 @@ export function Admin() {
               </p>
             </div>
           </div>
+        </div>
+
+        {/* Margin Multiplier */}
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 mb-6 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Settings className="w-5 h-5 text-orange-500" />
+            <h3 className="font-semibold text-gray-900 dark:text-white">Margin Multiplier</h3>
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              ×1.0 = break-even · ×1.5 = 50% margin · ×2.0 = 100% margin
+            </span>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-mono text-gray-500 w-8">×1</span>
+            <input
+              type="range" min="1" max="3" step="0.1" value={margin}
+              onChange={e => setMargin(parseFloat(e.target.value))}
+              className="flex-1 h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-orange-500"
+            />
+            <span className="text-sm font-mono text-gray-500 w-8">×3</span>
+            <span className="text-2xl font-bold text-orange-600 dark:text-orange-400 min-w-[80px] text-center">
+              ×{margin.toFixed(1)}
+            </span>
+            <button
+              onClick={saveMargin}
+              disabled={savingMargin || margin === savedMargin}
+              className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 dark:disabled:bg-gray-600 text-white rounded-lg font-medium transition disabled:opacity-50 flex items-center gap-2 text-sm"
+            >
+              {savingMargin && <Loader2 className="w-3 h-3 animate-spin" />}
+              Save
+            </button>
+          </div>
+          {margin < 1.5 && (
+            <p className="text-xs text-red-500 mt-2">⚠️ Margin below ×1.5 may not cover infrastructure costs</p>
+          )}
         </div>
 
         {/* Search and Sort */}
