@@ -131,6 +131,78 @@ async def post_to_instagram(connection: dict, text: str, image_data: Optional[by
         raise
 
 
+async def post_to_instagram_story(connection: dict, image_data: Optional[bytes]) -> dict:
+    """Post an image as Instagram Story via Container API"""
+    try:
+        if not image_data:
+            raise Exception("Instagram Stories require an image")
+
+        access_token = connection["access_token"]
+        instagram_account_id = connection["platform_user_id"]
+
+        import uuid
+        supabase = get_supabase()
+        filename = f"instagram/{uuid.uuid4().hex}.jpg"
+        bucket = "posts"
+        try:
+            supabase.storage.from_(bucket).upload(
+                path=filename, file=image_data,
+                file_options={"content-type": "image/jpeg", "upsert": "true"}
+            )
+        except Exception:
+            bucket = "products"
+            supabase.storage.from_(bucket).upload(
+                path=filename, file=image_data,
+                file_options={"content-type": "image/jpeg", "upsert": "true"}
+            )
+        image_url = supabase.storage.from_(bucket).get_public_url(filename)
+        logger.info(f"   Uploaded image for Instagram Story: {image_url[:80]}...")
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            container_resp = await client.post(
+                f"{FACEBOOK_GRAPH_URL}/{instagram_account_id}/media",
+                params={
+                    "image_url": image_url,
+                    "media_type": "STORIES",
+                    "access_token": access_token,
+                }
+            )
+            if container_resp.status_code != 200:
+                raise Exception(f"Instagram Story container error: {container_resp.text}")
+
+            container_id = container_resp.json().get("id")
+            if not container_id:
+                raise Exception("Instagram API returned no container ID for Story")
+
+            import asyncio
+            for _ in range(10):
+                await asyncio.sleep(2)
+                status_resp = await client.get(
+                    f"{FACEBOOK_GRAPH_URL}/{container_id}",
+                    params={"fields": "status_code", "access_token": access_token}
+                )
+                status = status_resp.json().get("status_code")
+                if status == "FINISHED":
+                    break
+                if status == "ERROR":
+                    raise Exception(f"Instagram Story processing failed: {status_resp.text}")
+
+            publish_resp = await client.post(
+                f"{FACEBOOK_GRAPH_URL}/{instagram_account_id}/media_publish",
+                params={"creation_id": container_id, "access_token": access_token}
+            )
+            if publish_resp.status_code != 200:
+                raise Exception(f"Instagram Story publish error: {publish_resp.text}")
+
+            post_id = publish_resp.json().get("id")
+            logger.info(f"   ✅ Instagram Story published: {post_id}")
+            return {"success": True, "post_id": post_id}
+
+    except Exception as e:
+        logger.error(f"Instagram Story error: {str(e)}")
+        raise
+
+
 async def post_to_linkedin(connection: dict, text: str, image_data: Optional[bytes]) -> dict:
     """Post to LinkedIn with text and optional image"""
     try:
@@ -325,6 +397,7 @@ async def post_to_social_media(
     text: str = Form(...),
     platforms: str = Form(...),  # JSON array as string
     image: Optional[UploadFile] = File(None),
+    instagram_post_type: str = Form("post"),  # "post" or "story"
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -383,7 +456,10 @@ async def post_to_social_media(
                 if platform == "facebook":
                     result = await post_to_facebook(connection.data, text, image_data)
                 elif platform == "instagram":
-                    result = await post_to_instagram(connection.data, text, image_data)
+                    if instagram_post_type == "story":
+                        result = await post_to_instagram_story(connection.data, image_data)
+                    else:
+                        result = await post_to_instagram(connection.data, text, image_data)
                 elif platform == "linkedin":
                     result = await post_to_linkedin(connection.data, text, image_data)
                 elif platform == "twitter":

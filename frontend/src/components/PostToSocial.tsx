@@ -40,6 +40,7 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
   const [errorMessage, setErrorMessage] = useState('')
   const [results, setResults] = useState<{[key: string]: 'success' | 'failed'}>({})
   const [prefilledImageUrl, setPrefilledImageUrl] = useState(prefilledData?.imageUrl || '')
+  const [igPostType, setIgPostType] = useState<'post' | 'story'>('post')
 
   useEffect(() => {
     if (isOpen) {
@@ -191,6 +192,9 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
             formData.append('platforms', JSON.stringify([platform]))
             if (imageToUpload) {
               formData.append('image', imageToUpload)
+            }
+            if (platform === 'instagram') {
+              formData.append('instagram_post_type', igPostType)
             }
 
             const response = await fetch(`${apiUrl}/api/social/post`, {
@@ -377,6 +381,42 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
                 })}
             </div>
           </div>
+
+          {/* Instagram Post Type */}
+          {selectedPlatforms.includes('instagram') && contentType === 'text-image' && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+                Instagram Format
+              </label>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIgPostType('post')}
+                  disabled={uploading}
+                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition flex items-center justify-center gap-2 text-sm ${
+                    igPostType === 'post'
+                      ? 'bg-pink-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  📸 Feed Post
+                </button>
+                <button
+                  onClick={() => setIgPostType('story')}
+                  disabled={uploading}
+                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition flex items-center justify-center gap-2 text-sm ${
+                    igPostType === 'story'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  ⏳ Story
+                </button>
+              </div>
+              {igPostType === 'story' && (
+                <p className="text-xs text-gray-400 mt-1.5">Stories disappear after 24h. Caption won't be included — image only.</p>
+              )}
+            </div>
+          )}
 
           {/* Post Content */}
           {contentType === 'text-image' ? (
