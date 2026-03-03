@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ArrowLeft, Calendar, Send, Download, RefreshCw, Edit3, BookmarkPlus, Check, AlertTriangle, ImageOff, Wand2, Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, ThumbsUp, Globe } from 'lucide-react'
 import { useContentStore } from '../store/contentStore'
 import { useAuth } from '../contexts/AuthContext'
@@ -43,8 +43,24 @@ function isVideoUrl(url?: string) {
   return /\.(mp4|webm|mov)(\?|$)/i.test(url)
 }
 
+function dataUriToBlob(dataUri: string): string {
+  const [header, b64] = dataUri.split(',')
+  const mime = header.match(/:(.*?);/)?.[1] || 'video/mp4'
+  const bin = atob(b64)
+  const arr = new Uint8Array(bin.length)
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
+  return URL.createObjectURL(new Blob([arr], { type: mime }))
+}
+
 function MediaElement({ url, className, style }: { url: string; className?: string; style?: React.CSSProperties }) {
-  if (isVideoUrl(url)) return <video src={url} className={className} style={style} controls autoPlay muted loop playsInline />
+  const blobUrl = useMemo(() => {
+    if (isVideoUrl(url) && url.startsWith('data:')) return dataUriToBlob(url)
+    return null
+  }, [url])
+
+  useEffect(() => { return () => { if (blobUrl) URL.revokeObjectURL(blobUrl) } }, [blobUrl])
+
+  if (isVideoUrl(url)) return <video src={blobUrl || url} className={className} style={style} controls autoPlay muted loop playsInline />
   return <img src={url} alt="" className={className} style={style} />
 }
 

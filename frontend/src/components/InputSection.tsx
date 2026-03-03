@@ -139,8 +139,20 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
 
   const [form, setForm] = useState<GenerateFormData>(loadDraft)
   const [imagePreview, setImagePreview] = useState<string | null>(form.uploaded_image || null)
-  const [mediaPreview, setMediaPreview] = useState<string | null>(form.media_file || null)
   const [mediaIsVideo, setMediaIsVideo] = useState(() => !!form.media_file?.startsWith('data:video/'))
+  const [mediaPreview, setMediaPreview] = useState<string | null>(() => {
+    const mf = form.media_file
+    if (!mf) return null
+    if (mf.startsWith('data:video/')) {
+      const [header, b64] = mf.split(',')
+      const mime = header.match(/:(.*?);/)?.[1] || 'video/mp4'
+      const bin = atob(b64)
+      const arr = new Uint8Array(bin.length)
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i)
+      return URL.createObjectURL(new Blob([arr], { type: mime }))
+    }
+    return mf
+  })
   const [showCustomUrl, setShowCustomUrl] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const mediaRef = useRef<HTMLInputElement>(null)
@@ -188,9 +200,17 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
     if (!isImage && !isVideo) { alert('Upload JPG, PNG, WebP, GIF, MP4, MOV, or WebM'); return }
     const maxMB = isVideo ? 20 : 10
     if (file.size > maxMB * 1024 * 1024) { alert(`File must be under ${maxMB} MB`); return }
-    const reader = new FileReader()
-    reader.onload = (e) => { const url = e.target?.result as string; setMediaPreview(url); setMediaIsVideo(!!isVideo); set('media_file', url) }
-    reader.readAsDataURL(file)
+    if (isVideo) {
+      const blobUrl = URL.createObjectURL(file)
+      setMediaPreview(blobUrl); setMediaIsVideo(true)
+      const reader = new FileReader()
+      reader.onload = (e) => set('media_file', e.target?.result as string)
+      reader.readAsDataURL(file)
+    } else {
+      const reader = new FileReader()
+      reader.onload = (e) => { const url = e.target?.result as string; setMediaPreview(url); setMediaIsVideo(false); set('media_file', url) }
+      reader.readAsDataURL(file)
+    }
   }
 
   const removeImage = () => { setImagePreview(null); set('uploaded_image', null); if (fileRef.current) fileRef.current.value = '' }
