@@ -182,8 +182,6 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
     reader.readAsDataURL(file)
   }
 
-  const [videoPoster, setVideoPoster] = useState<string | null>(null)
-
   const handleMediaFile = (file: File) => {
     const isImage = file.type.match(/^image\/(jpeg|png|webp|gif)$/)
     const isVideo = file.type.match(/^video\/(mp4|quicktime|webm|mov)$/)
@@ -191,28 +189,12 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
     const maxMB = isVideo ? 20 : 10
     if (file.size > maxMB * 1024 * 1024) { alert(`File must be under ${maxMB} MB`); return }
     const reader = new FileReader()
-    reader.onload = (e) => {
-      const url = e.target?.result as string
-      setMediaPreview(url); setMediaIsVideo(!!isVideo); set('media_file', url)
-      if (isVideo) {
-        const vid = document.createElement('video')
-        vid.src = url; vid.muted = true; vid.playsInline = true
-        vid.onloadeddata = () => {
-          vid.currentTime = 0.1
-          vid.onseeked = () => {
-            const c = document.createElement('canvas')
-            c.width = vid.videoWidth; c.height = vid.videoHeight
-            c.getContext('2d')?.drawImage(vid, 0, 0)
-            setVideoPoster(c.toDataURL('image/jpeg', 0.7))
-          }
-        }
-      } else { setVideoPoster(null) }
-    }
+    reader.onload = (e) => { const url = e.target?.result as string; setMediaPreview(url); setMediaIsVideo(!!isVideo); set('media_file', url) }
     reader.readAsDataURL(file)
   }
 
   const removeImage = () => { setImagePreview(null); set('uploaded_image', null); if (fileRef.current) fileRef.current.value = '' }
-  const removeMedia = () => { setMediaPreview(null); setMediaIsVideo(false); setVideoPoster(null); set('media_file', null); if (mediaRef.current) mediaRef.current.value = '' }
+  const removeMedia = () => { setMediaPreview(null); setMediaIsVideo(false); set('media_file', null); if (mediaRef.current) mediaRef.current.value = '' }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -356,11 +338,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                     {mediaPreview ? (
                       <div className="relative inline-block">
                         {mediaIsVideo ? (
-                          videoPoster
-                            ? <img src={videoPoster} alt="video" className="w-20 h-20 object-cover rounded-lg border dark:border-gray-600" />
-                            : <div className="w-20 h-20 flex items-center justify-center rounded-lg border dark:border-gray-600 bg-gray-100 dark:bg-gray-700">
-                                <span className="text-[10px] font-bold text-gray-500">VIDEO</span>
-                              </div>
+                          <video src={mediaPreview!} className="w-20 h-20 object-cover rounded-lg border dark:border-gray-600" autoPlay muted loop playsInline />
                         ) : (
                           <img src={mediaPreview} alt="media" className="w-20 h-20 object-cover rounded-lg border dark:border-gray-600" />
                         )}
