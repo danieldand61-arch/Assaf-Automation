@@ -42,7 +42,7 @@ async def generate_images(
         return [_get_placeholder_image(size_info) for _ in variations]
     
     genai.configure(api_key=api_key)
-    model_name = 'gemini-3-pro-image-preview'
+    model_name = 'gemini-3.1-flash-image-preview'
     
     logger.info(f"🔍 Using model: {model_name}")
     
