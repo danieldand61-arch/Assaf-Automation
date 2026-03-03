@@ -28,7 +28,7 @@ async def generate_posts(
         user_media_url=user_media_url
     )
     
-    model_name = 'gemini-3-pro-preview'
+    model_name = 'gemini-3-flash-preview'
     logger.info(f" DEBUG: Using model: {model_name}")
     
     try:
