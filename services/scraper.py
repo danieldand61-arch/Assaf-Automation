@@ -1,18 +1,103 @@
 import httpx
 from bs4 import BeautifulSoup
-from typing import Dict, List
+from typing import Dict, List, Optional
 import re
 from urllib.parse import urljoin, urlparse
 import colorthief
 import io
 import base64
 import logging
+import asyncio
 
 logger = logging.getLogger(__name__)
+
+SOCIAL_DOMAINS = {
+    'instagram.com': 'instagram',
+    'www.instagram.com': 'instagram',
+    'facebook.com': 'facebook',
+    'www.facebook.com': 'facebook',
+    'tiktok.com': 'tiktok',
+    'www.tiktok.com': 'tiktok',
+}
+
+
+def _detect_social_platform(url: str) -> Optional[str]:
+    host = urlparse(url).hostname or ''
+    return SOCIAL_DOMAINS.get(host.lower())
+
+
+async def _scrape_social_profile(url: str, platform: str) -> Dict:
+    """Extract brand info from social media profiles via og: meta tags with retry."""
+    parsed = urlparse(url)
+    path_parts = [p for p in parsed.path.strip('/').split('/') if p]
+    username = path_parts[0] if path_parts else 'brand'
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+        'Accept': 'text/html,application/xhtml+xml',
+        'Accept-Language': 'en-US,en;q=0.9',
+    }
+
+    html = None
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+                resp = await client.get(url, headers=headers)
+                if resp.status_code == 200:
+                    html = resp.text
+                    break
+                logger.warning(f"⚠️ Social scrape attempt {attempt+1}: HTTP {resp.status_code}")
+        except Exception as e:
+            logger.warning(f"⚠️ Social scrape attempt {attempt+1}: {e}")
+        if attempt < 2:
+            await asyncio.sleep(2 * (attempt + 1))
+
+    title = username
+    description = ''
+    logo_url = ''
+
+    if html:
+        soup = BeautifulSoup(html, 'html.parser')
+        og_title = soup.find('meta', attrs={'property': 'og:title'})
+        og_desc = soup.find('meta', attrs={'property': 'og:description'})
+        og_img = soup.find('meta', attrs={'property': 'og:image'})
+        meta_desc = soup.find('meta', attrs={'name': 'description'})
+
+        if og_title and og_title.get('content'):
+            title = og_title['content'].strip()
+        if og_desc and og_desc.get('content'):
+            description = og_desc['content'].strip()
+        elif meta_desc and meta_desc.get('content'):
+            description = meta_desc['content'].strip()
+        if og_img and og_img.get('content'):
+            logo_url = og_img['content'].strip()
+
+    if not description:
+        description = f"@{username} on {platform.capitalize()}"
+
+    logger.info(f"📱 Social profile scraped: {platform} @{username} — {title}")
+
+    return {
+        "url": url,
+        "title": title,
+        "description": description,
+        "content": description,
+        "colors": [],
+        "logo_url": logo_url,
+        "brand_voice": "casual",
+        "products": [],
+        "key_features": [],
+        "industry": f"{platform.capitalize()} profile",
+    }
 
 
 async def scrape_website(url: str) -> Dict:
     """Analyzes website and extracts brand information"""
+
+    social = _detect_social_platform(url)
+    if social:
+        logger.info(f"📱 Detected {social} URL, using social scraper")
+        return await _scrape_social_profile(url, social)
     
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
