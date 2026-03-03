@@ -44,7 +44,7 @@ function isVideoUrl(url?: string) {
 }
 
 function MediaElement({ url, className, style }: { url: string; className?: string; style?: React.CSSProperties }) {
-  if (isVideoUrl(url)) return <video src={url} className={className} style={style} controls muted playsInline />
+  if (isVideoUrl(url)) return <video src={url} className={className} style={style} controls muted playsInline preload="auto" />
   return <img src={url} alt="" className={className} style={style} />
 }
 
