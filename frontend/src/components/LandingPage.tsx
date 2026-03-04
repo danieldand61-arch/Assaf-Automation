@@ -619,6 +619,12 @@ export function LandingPage() {
             <ArrowRight size={20} />
           </button>
         </div>
+
+        {/* Footer */}
+        <div style={{ marginTop: 80, paddingTop: 32, borderTop: '1px solid rgba(255,255,255,0.08)', textAlign: 'center', display: 'flex', justifyContent: 'center', gap: 24 }}>
+          <a href="/privacy" style={{ color: JoyoTheme.textSecondary, fontSize: 14, textDecoration: 'none' }}>Privacy Policy</a>
+          <a href="/terms" style={{ color: JoyoTheme.textSecondary, fontSize: 14, textDecoration: 'none' }}>Terms of Service</a>
+        </div>
       </div>
     </div>
   )
