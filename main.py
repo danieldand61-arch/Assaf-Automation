@@ -438,7 +438,16 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
     except Exception as e:
         logger.error(f"❌ Error during content generation: {str(e)}")
         logger.exception("Full traceback:")
-        raise HTTPException(status_code=500, detail=str(e))
+        msg = str(e).lower()
+        if '429' in str(e) or 'rate limit' in msg or 'resource has been exhausted' in msg:
+            raise HTTPException(status_code=429, detail="AI service is temporarily overloaded. Please wait a moment and try again.")
+        if 'timeout' in msg or 'timed out' in msg:
+            raise HTTPException(status_code=504, detail="Generation took too long. Please try again.")
+        if 'quota' in msg or 'billing' in msg:
+            raise HTTPException(status_code=402, detail="AI service quota reached. Please contact support.")
+        if 'blocked' in msg or 'safety' in msg:
+            raise HTTPException(status_code=400, detail="Content was blocked by AI safety filters. Try adjusting your prompt.")
+        raise HTTPException(status_code=500, detail="Something went wrong during generation. Please try again.")
 
 
 @app.on_event("startup")

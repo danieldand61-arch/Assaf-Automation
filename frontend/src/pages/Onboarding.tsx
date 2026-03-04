@@ -365,7 +365,16 @@ export function Onboarding() {
 
             {/* Error */}
             {error && (
-              <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">{error}</div>
+              <div className="mt-6 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
+                <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-red-500 text-lg">!</span>
+                </div>
+                <div className="flex-1">
+                  <p className="font-semibold text-red-800 dark:text-red-300 text-sm">Something went wrong</p>
+                  <p className="text-red-600 dark:text-red-400 text-sm mt-0.5">{error}</p>
+                </div>
+                <button onClick={() => setError('')} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+              </div>
             )}
 
             {/* Navigation */}

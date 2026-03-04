@@ -51,7 +51,27 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
         return {"brand_kit": brand_kit}
     except Exception as e:
         logger.error(f"❌ Failed to analyze URL {url}: {e}", exc_info=True)
-        raise HTTPException(status_code=422, detail=f"Could not analyze website: {str(e)}")
+        msg = _friendly_scrape_error(str(e), url)
+        raise HTTPException(status_code=422, detail=msg)
+
+
+def _friendly_scrape_error(error: str, url: str) -> str:
+    err_lower = error.lower()
+    if '429' in error or 'rate limit' in err_lower or 'too many' in err_lower:
+        return "Too many requests to this platform. Please wait a minute and try again."
+    if 'timeout' in err_lower or 'timed out' in err_lower:
+        return "The website took too long to respond. Please check the URL and try again."
+    if 'connect' in err_lower or 'dns' in err_lower or 'resolve' in err_lower:
+        return "Could not connect to this website. Please check the URL is correct."
+    if '403' in error or 'forbidden' in err_lower:
+        return "This website blocked our analysis. You can fill in the details manually."
+    if '404' in error or 'not found' in err_lower:
+        return "Page not found. Please check the URL is correct."
+    if 'too little content' in err_lower:
+        return "This page doesn't have enough content to analyze. Try a different URL or fill in manually."
+    if 'instagram' in err_lower or 'instagram.com' in url:
+        return "Instagram is limiting requests right now. Please try again in a few minutes, or fill in your details manually."
+    return "Could not analyze this website. Please check the URL or fill in the details manually."
 
 
 async def _ai_extract_business_info(data: dict) -> dict:
@@ -63,16 +83,27 @@ async def _ai_extract_business_info(data: dict) -> dict:
         content = data.get("content", "")[:3000]
         title = data.get("title", "")
         desc = data.get("description", "")
+        url = data.get("url", "")
+        industry_hint = data.get("industry", "")
 
-        prompt = f"""Analyze this website and return a JSON object with exactly these keys:
+        is_social = industry_hint.endswith("profile")
+        social_instruction = ""
+        if is_social:
+            social_instruction = f"""This is a social media profile URL: {url}
+The bio/description below is from the profile. Use it to understand what this BUSINESS does — do NOT describe the social platform itself.
+Extract the actual business behind this profile (their real products, services, industry).
+If the bio says "Coffee shop in NYC" — the industry is "Coffee & Beverages", NOT "Social Media".\n"""
+
+        prompt = f"""{social_instruction}Analyze this {"social media profile" if is_social else "website"} and return a JSON object with exactly these keys:
 - "business_name": the company/brand name (string)
 - "industry": the industry or niche (string, e.g. "Coffee & Beverages", "SaaS", "Fashion")
 - "description": one-sentence description of what the business does (string)
 - "products": list of up to 8 main products or services they offer (array of short strings)
 - "key_features": list of up to 6 key selling points or features (array of short strings)
 
-Website title: {title}
-Meta description: {desc}
+URL: {url}
+Profile/Website title: {title}
+Bio/Description: {desc}
 Page content:
 {content}
 

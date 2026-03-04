@@ -24,6 +24,25 @@ import { getJoyoTheme, animations } from '../styles/joyo-theme'
 import { getApiUrl } from '../lib/api'
 
 type TabType = 'dashboard' | 'social' | 'ads' | 'chat' | 'analyst' | 'advisor' | 'media' | 'video' | 'videogen' | 'library' | 'calendar' | 'integrations' | 'settings'
+
+function _friendlyGenerateError(msg: string): string {
+  const m = msg.toLowerCase()
+  if (m.includes('429') || m.includes('rate limit') || m.includes('too many'))
+    return 'AI service is temporarily overloaded. Please wait a moment and try again.'
+  if (m.includes('timeout') || m.includes('timed out'))
+    return 'Generation took too long. Please try again with a shorter prompt or fewer variations.'
+  if (m.includes('quota') || m.includes('billing'))
+    return 'AI service quota reached. Please contact support.'
+  if (m.includes('credit') || m.includes('balance'))
+    return 'Not enough credits. Please top up your balance.'
+  if (m.includes('could not analyze') || m.includes('scrape'))
+    return 'Could not analyze the website. Please check the URL and try again.'
+  if (m.includes('blocked') || m.includes('safety'))
+    return 'Content was blocked by AI safety filters. Try adjusting your prompt.'
+  if (m.includes('failed to fetch') || m.includes('networkerror'))
+    return 'Network error. Please check your connection and try again.'
+  return msg
+}
 type SocialScreen = 'form' | 'generating' | 'results'
 
 /* ── Platform display info for loading screen ─────────────────── */
@@ -62,12 +81,13 @@ export function MainWorkspace() {
   const [socialScreen, setSocialScreen] = useState<SocialScreen>('form')
   const [progress, setProgress] = useState(0)
   const [platformStatus, setPlatformStatus] = useState<Record<string, 'pending' | 'done'>>({})
+  const [generateError, setGenerateError] = useState('')
   const savedFormRef = useRef<GenerateFormData | null>(null)
 
   const JoyoTheme = getJoyoTheme(theme)
 
   const handleGenerate = async (data: GenerateFormData) => {
-    if (!session) { alert('Please sign in to generate content'); return }
+    if (!session) { setGenerateError('Please sign in to generate content'); return }
 
     // Save form for "Back" button
     savedFormRef.current = data
@@ -138,7 +158,9 @@ export function MainWorkspace() {
 
       if (!response.ok) {
         const errorText = await response.text()
-        throw new Error(`Generation failed: ${response.status} - ${errorText}`)
+        let detail = errorText
+        try { detail = JSON.parse(errorText).detail || errorText } catch {}
+        throw new Error(detail)
       }
 
       const result = await response.json()
@@ -167,7 +189,7 @@ export function MainWorkspace() {
       clearInterval(interval)
       clearInterval(slowTick)
       console.error('Generation error:', error)
-      alert(`Failed to generate content: ${error.message}`)
+      setGenerateError(_friendlyGenerateError(error.message || 'Unknown error'))
       setSocialScreen('form')
     }
   }
@@ -219,7 +241,21 @@ export function MainWorkspace() {
         {/* Social tab stays mounted so generation doesn't reset on tab switch */}
         <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto', display: activeTab === 'social' ? undefined : 'none' }}>
           {socialScreen === 'form' && (
-            <InputSection onGenerate={handleGenerate} savedForm={savedFormRef.current} />
+            <>
+              {generateError && (
+                <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/40 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <span className="text-red-500 text-lg">!</span>
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold text-red-800 dark:text-red-300 text-sm">Generation failed</p>
+                    <p className="text-red-600 dark:text-red-400 text-sm mt-0.5">{generateError}</p>
+                  </div>
+                  <button onClick={() => setGenerateError('')} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
+                </div>
+              )}
+              <InputSection onGenerate={(d) => { setGenerateError(''); handleGenerate(d) }} savedForm={savedFormRef.current} />
+            </>
           )}
           {socialScreen === 'generating' && (
             <GeneratingScreen
