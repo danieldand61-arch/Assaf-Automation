@@ -156,7 +156,7 @@ export function Connections() {
         setGoogleAdsRefreshToken(tempToken)
         setShowGoogleAdsModal(true)
         // Clear URL parameter
-        window.history.replaceState({}, '', '/settings?tab=connections')
+        window.history.replaceState({}, '', '/app?tab=integrations')
       }
     }
   }, [searchParams])

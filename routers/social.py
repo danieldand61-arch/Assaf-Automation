@@ -100,13 +100,13 @@ async def instagram_callback(
     if error:
         logger.error(f"❌ Instagram OAuth error: {error} - {error_description}")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error={error_description or error}"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error={error_description or error}"
         )
     
     if not code or not state:
         logger.error(f"❌ Missing code or state in callback")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Missing authorization code"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Missing authorization code"
         )
     
     account_id = state
@@ -126,7 +126,7 @@ async def instagram_callback(
                 error_text = response.text
                 logger.error(f"❌ Token exchange failed: {error_text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to get access token"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Failed to get access token"
                 )
             
             token_data = response.json()
@@ -135,7 +135,7 @@ async def instagram_callback(
             if not access_token:
                 logger.error(f"❌ No access token in response")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Invalid token response"
                 )
             
             logger.info(f"✅ User Access token received")
@@ -149,7 +149,7 @@ async def instagram_callback(
             if pages_response.status_code != 200:
                 logger.error(f"❌ Failed to get Facebook Pages: {pages_response.text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Could not access Facebook Pages"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Could not access Facebook Pages"
                 )
             
             pages_data = pages_response.json()
@@ -160,7 +160,7 @@ async def instagram_callback(
             if not pages:
                 logger.error(f"❌ No Facebook Pages found. Raw response: {pages_data}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=No Facebook Pages found. Please create a Facebook Page and connect it to your Instagram Business account."
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=No Facebook Pages found. Please create a Facebook Page and connect it to your Instagram Business account."
                 )
             
             instagram_account = None
@@ -194,7 +194,7 @@ async def instagram_callback(
             if not instagram_account:
                 logger.error(f"❌ No Instagram Business Account found across {len(pages)} pages")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=No Instagram Business Account found. Please convert your Instagram account to a Business account and connect it to a Facebook Page."
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=No Instagram Business Account found. Please convert your Instagram account to a Business account and connect it to a Facebook Page."
                 )
             
             instagram_user_id = instagram_account.get("id")
@@ -253,7 +253,7 @@ async def instagram_callback(
         logger.error(f"❌ Instagram OAuth callback error: {str(e)}")
         logger.exception("Full traceback:")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Connection failed"
         )
 
 
@@ -313,13 +313,13 @@ async def facebook_callback(
     if error:
         logger.error(f"❌ Facebook OAuth error: {error} - {error_description}")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error={error_description or error}"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error={error_description or error}"
         )
     
     if not code or not state:
         logger.error(f"❌ Missing code or state in callback")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Missing authorization code"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Missing authorization code"
         )
     
     account_id = state
@@ -339,7 +339,7 @@ async def facebook_callback(
                 error_text = response.text
                 logger.error(f"❌ Token exchange failed: {error_text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to get access token"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Failed to get access token"
                 )
             
             token_data = response.json()
@@ -348,7 +348,7 @@ async def facebook_callback(
             if not access_token:
                 logger.error(f"❌ No access token in response")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Invalid token response"
                 )
             
             logger.info(f"✅ User Access token received")
@@ -362,7 +362,7 @@ async def facebook_callback(
             if pages_response.status_code != 200:
                 logger.error(f"❌ Failed to get Facebook Pages: {pages_response.text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Could not access Facebook Pages"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Could not access Facebook Pages"
                 )
             
             pages_data = pages_response.json()
@@ -371,7 +371,7 @@ async def facebook_callback(
             if not pages:
                 logger.error(f"❌ No Facebook Pages found")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=No Facebook Pages found. Please create a Facebook Page first."
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=No Facebook Pages found. Please create a Facebook Page first."
                 )
             
             # Use the first page (or we can later add page selection)
@@ -432,7 +432,7 @@ async def facebook_callback(
         logger.error(f"❌ Facebook OAuth callback error: {str(e)}")
         logger.exception("Full traceback:")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Connection failed"
         )
 
 
@@ -497,13 +497,13 @@ async def linkedin_callback(
     if error:
         logger.error(f"❌ LinkedIn OAuth error: {error} - {error_description}")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error={error_description or error}"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error={error_description or error}"
         )
     
     if not code or not state:
         logger.error(f"❌ Missing code or state in callback")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Missing authorization code"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Missing authorization code"
         )
     
     account_id = state
@@ -531,7 +531,7 @@ async def linkedin_callback(
                 error_text = response.text
                 logger.error(f"❌ Token exchange failed: {error_text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to get access token"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Failed to get access token"
                 )
             
             token_data = response.json()
@@ -542,7 +542,7 @@ async def linkedin_callback(
             if not access_token:
                 logger.error(f"❌ No access token in response")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Invalid token response"
                 )
             
             logger.info(f"✅ Access token received")
@@ -556,7 +556,7 @@ async def linkedin_callback(
             if profile_response.status_code != 200:
                 logger.error(f"❌ Failed to get profile: {profile_response.text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Could not access LinkedIn profile"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Could not access LinkedIn profile"
                 )
             
             profile_data = profile_response.json()
@@ -601,7 +601,7 @@ async def linkedin_callback(
             if not result.data:
                 logger.error(f"❌ Failed to save connection")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to save connection"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Failed to save connection"
                 )
             
             logger.info(f"✅ LinkedIn connection saved successfully")
@@ -614,7 +614,7 @@ async def linkedin_callback(
         logger.error(f"❌ LinkedIn OAuth callback error: {str(e)}")
         logger.exception("Full traceback:")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Connection failed"
         )
 
 
@@ -690,13 +690,13 @@ async def twitter_callback(
     if error:
         logger.error(f"❌ Twitter OAuth error: {error} - {error_description}")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error={error_description or error}"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error={error_description or error}"
         )
     
     if not code or not state:
         logger.error(f"❌ Missing code or state in callback")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Missing authorization code"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Missing authorization code"
         )
     
     # Extract account_id and code_verifier from state
@@ -705,7 +705,7 @@ async def twitter_callback(
     except ValueError:
         logger.error(f"❌ Invalid state format")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid state"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Invalid state"
         )
     
     redirect_uri = f"{BACKEND_URL}/api/social/twitter/callback"
@@ -738,7 +738,7 @@ async def twitter_callback(
                 error_text = response.text
                 logger.error(f"❌ Token exchange failed: {error_text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to get access token"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Failed to get access token"
                 )
             
             token_data = response.json()
@@ -749,7 +749,7 @@ async def twitter_callback(
             if not access_token:
                 logger.error(f"❌ No access token in response")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Invalid token response"
                 )
             
             logger.info(f"✅ Access token received")
@@ -763,7 +763,7 @@ async def twitter_callback(
             if profile_response.status_code != 200:
                 logger.error(f"❌ Failed to get profile: {profile_response.text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Could not access Twitter profile"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Could not access Twitter profile"
                 )
             
             profile_data = profile_response.json()
@@ -801,7 +801,7 @@ async def twitter_callback(
             if not result.data:
                 logger.error(f"❌ Failed to save connection")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to save connection"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Failed to save connection"
                 )
             
             logger.info(f"✅ Twitter connection saved successfully")
@@ -814,7 +814,7 @@ async def twitter_callback(
         logger.error(f"❌ Twitter OAuth callback error: {str(e)}")
         logger.exception("Full traceback:")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Connection failed"
         )
 
 
@@ -874,13 +874,13 @@ async def tiktok_callback(
     if error:
         logger.error(f"❌ TikTok OAuth error: {error} - {error_description}")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error={error_description or error}"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error={error_description or error}"
         )
     
     if not code or not state:
         logger.error(f"❌ Missing code or state in callback")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Missing authorization code"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Missing authorization code"
         )
     
     account_id = state
@@ -908,7 +908,7 @@ async def tiktok_callback(
                 error_text = response.text
                 logger.error(f"❌ Token exchange failed: {error_text}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to get access token"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Failed to get access token"
                 )
             
             token_data = response.json()
@@ -924,7 +924,7 @@ async def tiktok_callback(
                 logger.error(f"❌ No access token in response")
                 logger.error(f"   Full response: {token_data}")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Invalid token response"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Invalid token response"
                 )
             
             logger.info(f"✅ Access token received")
@@ -980,7 +980,7 @@ async def tiktok_callback(
             if not result.data:
                 logger.error(f"❌ Failed to save connection")
                 return RedirectResponse(
-                    url=f"{FRONTEND_URL}/settings?tab=social&error=Failed to save connection"
+                    url=f"{FRONTEND_URL}/app?tab=integrations&error=Failed to save connection"
                 )
             
             logger.info(f"✅ TikTok connection saved successfully")
@@ -993,7 +993,7 @@ async def tiktok_callback(
         logger.error(f"❌ TikTok OAuth callback error: {str(e)}")
         logger.exception("Full traceback:")
         return RedirectResponse(
-            url=f"{FRONTEND_URL}/settings?tab=social&error=Connection failed"
+            url=f"{FRONTEND_URL}/app?tab=integrations&error=Connection failed"
         )
 
 
@@ -1122,10 +1122,10 @@ async def meta_ads_callback(
     """Handle Meta Ads OAuth callback — save token & discover ad accounts."""
     if error:
         logger.error(f"❌ Meta Ads OAuth error: {error} - {error_description}")
-        return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error={error_description or error}")
+        return RedirectResponse(url=f"{FRONTEND_URL}/app?tab=integrations&error={error_description or error}")
 
     if not code or not state:
-        return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error=Missing authorization code")
+        return RedirectResponse(url=f"{FRONTEND_URL}/app?tab=integrations&error=Missing authorization code")
 
     account_id = state
     redirect_uri = f"{BACKEND_URL}/api/social/meta-ads/callback"
@@ -1136,12 +1136,12 @@ async def meta_ads_callback(
             resp = await client.get(token_url)
             if resp.status_code != 200:
                 logger.error(f"❌ Meta Ads token exchange failed: {resp.text}")
-                return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error=Token exchange failed")
+                return RedirectResponse(url=f"{FRONTEND_URL}/app?tab=integrations&error=Token exchange failed")
 
             token_data = resp.json()
             access_token = token_data.get("access_token")
             if not access_token:
-                return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error=No access token")
+                return RedirectResponse(url=f"{FRONTEND_URL}/app?tab=integrations&error=No access token")
 
             # Discover ad accounts
             ad_accounts_resp = await client.get(
@@ -1178,7 +1178,7 @@ async def meta_ads_callback(
 
     except Exception as e:
         logger.error(f"❌ Meta Ads OAuth error: {e}", exc_info=True)
-        return RedirectResponse(url=f"{FRONTEND_URL}/settings?tab=integrations&error={str(e)[:100]}")
+        return RedirectResponse(url=f"{FRONTEND_URL}/app?tab=integrations&error={str(e)[:100]}")
 
 
 @router.get("/meta-ads/ad-accounts")

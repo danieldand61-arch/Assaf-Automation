@@ -50,13 +50,12 @@ async def google_ads_oauth_authorize(user = Depends(get_current_user)):
         logger.info(f"🔐 Starting OAuth flow for user {user['user_id']}")
         
         client_id = os.getenv("GOOGLE_ADS_CLIENT_ID")
-        frontend_url = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
-        redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{frontend_url}/auth/google-ads/callback")
+        backend_url = os.getenv("BACKEND_URL", "https://assaf-automation-production.up.railway.app")
+        redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{backend_url}/api/google-ads/oauth/callback")
         
         if not client_id:
             raise HTTPException(status_code=500, detail="Google Ads OAuth not configured")
         
-        # Build OAuth URL
         oauth_url = (
             "https://accounts.google.com/o/oauth2/auth"
             f"?client_id={client_id}"
@@ -65,7 +64,7 @@ async def google_ads_oauth_authorize(user = Depends(get_current_user)):
             "&response_type=code"
             "&access_type=offline"
             "&prompt=consent"
-            f"&state={user['user_id']}"  # Pass user ID for callback
+            f"&state={user['user_id']}"
         )
         
         logger.info(f"✅ OAuth URL generated")
@@ -94,13 +93,13 @@ async def google_ads_oauth_callback(
         
         client_id = os.getenv("GOOGLE_ADS_CLIENT_ID")
         client_secret = os.getenv("GOOGLE_ADS_CLIENT_SECRET")
+        backend_url = os.getenv("BACKEND_URL", "https://assaf-automation-production.up.railway.app")
         frontend_url = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
-        redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{frontend_url}/auth/google-ads/callback")
+        redirect_uri = os.getenv("GOOGLE_ADS_REDIRECT_URI", f"{backend_url}/api/google-ads/oauth/callback")
         
         if not client_id or not client_secret:
             raise HTTPException(status_code=500, detail="Google Ads OAuth not configured")
         
-        # Exchange authorization code for tokens
         async with httpx.AsyncClient() as client:
             token_response = await client.post(
                 "https://oauth2.googleapis.com/token",
@@ -115,21 +114,23 @@ async def google_ads_oauth_callback(
         
         if token_response.status_code != 200:
             logger.error(f"❌ Token exchange failed: {token_response.text}")
-            raise HTTPException(status_code=400, detail="Failed to exchange code for token")
+            return RedirectResponse(
+                url=f"{frontend_url}/auth/google-ads/callback?error=token_exchange_failed"
+            )
         
         tokens = token_response.json()
         refresh_token = tokens.get("refresh_token")
         
         if not refresh_token:
             logger.error("❌ No refresh token in response")
-            raise HTTPException(status_code=400, detail="No refresh token received. Try again.")
+            return RedirectResponse(
+                url=f"{frontend_url}/auth/google-ads/callback?error=no_refresh_token"
+            )
         
         logger.info(f"✅ Refresh token obtained")
         
-        # Redirect to frontend with token (will be saved after customer_id input)
-        frontend_url = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
         return RedirectResponse(
-            url=f"{frontend_url}/settings?tab=connections&google_ads_token={refresh_token}&success=google_ads_oauth"
+            url=f"{frontend_url}/auth/google-ads/callback?google_ads_token={refresh_token}"
         )
         
     except HTTPException:
@@ -138,7 +139,7 @@ async def google_ads_oauth_callback(
         logger.error(f"❌ OAuth callback error: {str(e)}")
         frontend_url = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
         return RedirectResponse(
-            url=f"{frontend_url}/settings?tab=connections&error=oauth_failed"
+            url=f"{frontend_url}/auth/google-ads/callback?error=oauth_failed"
         )
 
 

@@ -11,15 +11,12 @@ export function GoogleAdsCallback() {
     const error = searchParams.get('error')
 
     if (error) {
-      navigate('/settings?tab=connections&error=' + error)
+      navigate('/app?tab=integrations&error=' + error)
     } else if (token) {
-      // Store token temporarily in sessionStorage
       sessionStorage.setItem('google_ads_temp_token', token)
-      // Redirect to settings with success flag
-      navigate('/settings?tab=connections&google_ads_oauth=true')
+      navigate('/app?tab=integrations&google_ads_oauth=true')
     } else {
-      // No token, something went wrong
-      navigate('/settings?tab=connections&error=no_token')
+      navigate('/app?tab=integrations&error=no_token')
     }
   }, [navigate, searchParams])
 
