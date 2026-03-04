@@ -13,7 +13,6 @@ export function AdminLogin() {
     e.preventDefault()
     
     if (password === ADMIN_PASSWORD) {
-      // Store admin access in sessionStorage
       sessionStorage.setItem('admin_access', 'true')
       navigate('/admin/dashboard')
     } else {
@@ -26,14 +25,12 @@ export function AdminLogin() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-900 via-blue-900 to-gray-900">
       <div className="max-w-md w-full mx-4">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8">
-          {/* Icon */}
           <div className="flex justify-center mb-6">
             <div className="w-20 h-20 bg-gradient-to-br from-purple-600 to-blue-600 rounded-full flex items-center justify-center">
               <Shield className="w-10 h-10 text-white" />
             </div>
           </div>
 
-          {/* Title */}
           <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-2">
             Admin Access
           </h1>
@@ -41,7 +38,6 @@ export function AdminLogin() {
             Enter admin password to continue
           </p>
 
-          {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -76,7 +72,6 @@ export function AdminLogin() {
             </button>
           </form>
 
-          {/* Back Link */}
           <button
             onClick={() => navigate('/')}
             className="w-full mt-4 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition"

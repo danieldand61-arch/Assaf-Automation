@@ -593,7 +593,7 @@ async def get_translation_status(job_id: str, current_user: dict = Depends(get_c
     }
 
 @router.get("/jobs")
-async def list_translation_jobs():
+async def list_translation_jobs(current_user: dict = Depends(get_current_user)):
     """
     List all translation jobs
     """
@@ -656,7 +656,6 @@ async def download_dubbed_video(dubbing_id: str, language: str):
             # ElevenLabs endpoint for getting dubbed file
             url = f"{ELEVENLABS_API_URL}/dubbing/{dubbing_id}/audio/{elevenlabs_lang}"
             logger.info(f"🔍 Downloading from: {url}")
-            logger.info(f"🔑 Using API key: {api_key[:10]}...{api_key[-4:]}")
             
             response = await http_client.get(url, headers=headers)
             
@@ -723,7 +722,7 @@ async def download_dubbed_video(dubbing_id: str, language: str):
         raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
 
 @router.delete("/job/{job_id}")
-async def cancel_translation_job(job_id: str):
+async def cancel_translation_job(job_id: str, current_user: dict = Depends(get_current_user)):
     """
     Cancel a translation job
     """

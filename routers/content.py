@@ -33,7 +33,7 @@ async def get_optional_user(request: Request) -> Optional[dict]:
         if not auth.startswith("Bearer "):
             return None
         from middleware.auth import get_current_user as _get
-        return await _get(request)
+        return await _get(auth)
     except Exception:
         return None
 

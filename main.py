@@ -32,7 +32,7 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # CORS must be FIRST!
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now (we'll restrict later)
+    allow_origins=[o.strip() for o in os.getenv("CORS_ORIGINS", "*").split(",") if o.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -270,21 +270,14 @@ async def log_requests(request: Request, call_next):
 
 # Configure Google AI
 api_key = os.getenv("GOOGLE_AI_API_KEY")
-logger.info(f"🔍 DEBUG: Checking API key...")
-logger.info(f"🔍 DEBUG: API key exists: {api_key is not None}")
 if api_key:
-    logger.info(f"🔍 DEBUG: API key length: {len(api_key)}")
-    logger.info(f"🔍 DEBUG: API key starts with: {api_key[:10]}...")
-    logger.info(f"🔍 DEBUG: API key ends with: ...{api_key[-5:]}")
     try:
         genai.configure(api_key=api_key)
         logger.info("✅ Google AI configured successfully")
     except Exception as e:
-        logger.error(f"❌ Failed to configure Google AI: {str(e)}")
-        logger.exception("Full traceback:")
+        logger.error(f"❌ Failed to configure Google AI: {e}")
 else:
     logger.error("❌ GOOGLE_AI_API_KEY not found in environment variables!")
-    logger.info("🔍 DEBUG: Available env vars: " + ", ".join([k for k in os.environ.keys() if 'KEY' in k or 'API' in k]))
 
 
 @app.get("/")

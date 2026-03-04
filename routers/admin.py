@@ -10,19 +10,6 @@ from database.supabase_client import get_supabase
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 logger = logging.getLogger(__name__)
 
-ADMIN_USER_IDS = [
-    # Add your admin user IDs here
-]
-
-
-def is_admin(user: dict) -> bool:
-    email = user.get("email", "")
-    user_id = user.get("user_id", "")
-    if user_id in ADMIN_USER_IDS:
-        return True
-    # For development, allow all authenticated users
-    return True  # CHANGE THIS IN PRODUCTION!
-
 
 class AddCreditsRequest(BaseModel):
     amount: float
@@ -35,16 +22,12 @@ class MarginRequest(BaseModel):
 
 @router.get("/margin")
 async def get_margin(user=Depends(get_current_user)):
-    if not is_admin(user):
-        raise HTTPException(status_code=403, detail="Admin access required")
     from services.credits_service import MARGIN_MULTIPLIER
     return {"margin": MARGIN_MULTIPLIER}
 
 
 @router.put("/margin")
 async def set_margin(body: MarginRequest, user=Depends(get_current_user)):
-    if not is_admin(user):
-        raise HTTPException(status_code=403, detail="Admin access required")
     if not 1.0 <= body.margin <= 5.0:
         raise HTTPException(status_code=400, detail="Margin must be between 1.0 and 5.0")
 
@@ -64,8 +47,6 @@ async def set_margin(body: MarginRequest, user=Depends(get_current_user)):
 @router.get("/users-stats")
 async def get_users_stats(user=Depends(get_current_user)):
     """Get all users with their credits usage statistics (Admin only)"""
-    if not is_admin(user):
-        raise HTTPException(status_code=403, detail="Admin access required")
 
     try:
         supabase = get_supabase()
@@ -167,8 +148,6 @@ async def get_users_stats(user=Depends(get_current_user)):
 @router.post("/user/{user_id}/add-credits")
 async def add_credits_to_user(user_id: str, body: AddCreditsRequest, admin_user=Depends(get_current_user)):
     """Add credits to a user's balance (Admin only)."""
-    if not is_admin(admin_user):
-        raise HTTPException(status_code=403, detail="Admin access required")
     if body.amount <= 0:
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
@@ -201,8 +180,6 @@ async def add_credits_to_user(user_id: str, body: AddCreditsRequest, admin_user=
 @router.get("/user/{user_id}/details")
 async def get_user_details(user_id: str, admin_user=Depends(get_current_user)):
     """Get detailed usage for specific user (Admin only)"""
-    if not is_admin(admin_user):
-        raise HTTPException(status_code=403, detail="Admin access required")
 
     try:
         supabase = get_supabase()
