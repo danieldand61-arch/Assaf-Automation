@@ -82,6 +82,7 @@ export function MainWorkspace() {
   const [progress, setProgress] = useState(0)
   const [platformStatus, setPlatformStatus] = useState<Record<string, 'pending' | 'done'>>({})
   const [generateError, setGenerateError] = useState('')
+  const [saveResults, setSaveResults] = useState<Record<number, boolean>>({})
   const savedFormRef = useRef<GenerateFormData | null>(null)
 
   const JoyoTheme = getJoyoTheme(theme)
@@ -100,6 +101,7 @@ export function MainWorkspace() {
     setSocialScreen('generating')
     setGeneratedContent(null)
     setProgress(0)
+    setSaveResults({})
 
     // Init platform statuses
     const statuses: Record<string, 'pending' | 'done'> = {}
@@ -171,17 +173,22 @@ export function MainWorkspace() {
 
       setGeneratedContent({ ...result, request_params: data, user_media: data.media_file || null })
 
-      // Auto-save all variations to library
+      // Auto-save all variations to library (track real completion)
       if (session && result.variations?.length) {
         const mediaUrl = data.media_file || ''
-        result.variations.forEach((v: any, i: number) => {
+        const savePromises = result.variations.map((v: any, i: number) => {
           const img = result.images?.[i] || result.images?.[0]
           const imageUrl = img?.url || mediaUrl
-          fetch(`${apiUrl}/api/saved-posts/save`, {
+          return fetch(`${apiUrl}/api/saved-posts/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
             body: JSON.stringify({ text: v.text, hashtags: v.hashtags || [], call_to_action: v.call_to_action || '', image_url: imageUrl, platforms: data.platforms })
-          }).catch(() => {})
+          }).then(r => ({ idx: i, ok: r.ok })).catch(() => ({ idx: i, ok: false }))
+        })
+        Promise.allSettled(savePromises).then(results => {
+          const saved: Record<number, boolean> = {}
+          results.forEach(r => { if (r.status === 'fulfilled' && r.value.ok) saved[r.value.idx] = true })
+          setSaveResults(saved)
         })
       }
 
@@ -267,7 +274,7 @@ export function MainWorkspace() {
             />
           )}
           {socialScreen === 'results' && generatedContent && (
-            <PreviewSection onReset={handleReset} onBack={handleBackToForm} />
+            <PreviewSection onReset={handleReset} onBack={handleBackToForm} autoSaveResults={saveResults} />
           )}
         </div>
 

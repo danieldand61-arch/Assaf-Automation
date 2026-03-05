@@ -233,9 +233,10 @@ interface PreviewSectionProps {
   onReset: () => void
   onBack?: () => void
   content?: any
+  autoSaveResults?: Record<number, boolean>
 }
 
-export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps) {
+export function PreviewSection({ onReset, onBack, content, autoSaveResults }: PreviewSectionProps) {
   const { generatedContent: globalContent, updateVariation, updateImage } = useContentStore()
   const generatedContent = content || globalContent
   const { session } = useAuth()
@@ -246,13 +247,16 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
   const [schedulingIdx, setSchedulingIdx] = useState<number | null>(null)
   const [savingIdx, setSavingIdx] = useState<number | null>(null)
   const [publishedStatus, setPublishedStatus] = useState<Record<number, string>>({})
-  const [savedToLibrary, setSavedToLibrary] = useState<Record<number, boolean>>(() => {
-    const init: Record<number, boolean> = {}
-    const vars = (content || globalContent)?.variations
-    if (vars?.length) vars.forEach((_: any, i: number) => { init[i] = true })
-    return init
-  })
+  const [savedToLibrary, setSavedToLibrary] = useState<Record<number, boolean>>({})
+  const [savingInProgress, setSavingInProgress] = useState(true)
   const [regeneratingIdx, setRegeneratingIdx] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (autoSaveResults && Object.keys(autoSaveResults).length > 0) {
+      setSavedToLibrary(prev => ({ ...prev, ...autoSaveResults }))
+      setSavingInProgress(false)
+    }
+  }, [autoSaveResults])
   const [expandedIdx, setExpandedIdx] = useState<Record<number, boolean>>({})
 
   const userMedia: string | null = generatedContent?.user_media || null
@@ -311,11 +315,11 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
     setSavingIdx(idx)
     try {
       const v = variations[idx]
-      const img = images[idx] || images[0]
+      const img = images[idx] || images[0] || (userMedia ? { url: userMedia } : null)
       const res = await fetch(`${getApiUrl()}/api/saved-posts/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ text: v.text, hashtags: v.hashtags, call_to_action: v.call_to_action, image_url: img?.url, platforms })
+        body: JSON.stringify({ text: v.text, hashtags: v.hashtags, call_to_action: v.call_to_action, image_url: img?.url || '', platforms })
       })
       if (!res.ok) throw new Error('Save failed')
       setSavedToLibrary(prev => ({ ...prev, [idx]: true }))
@@ -502,11 +506,11 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
                       >
                         <Edit3 size={11} /> Edit
                       </button>
-                      <button onClick={() => handleSave(idx)} disabled={savingIdx === idx || savedToLibrary[idx]}
+                      <button onClick={() => handleSave(idx)} disabled={savingIdx === idx || savedToLibrary[idx] || (savingInProgress && !savedToLibrary[idx])}
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-100 transition disabled:opacity-50"
                       >
                         {savedToLibrary[idx] ? <Check size={11} /> : <BookmarkPlus size={11} />}
-                        {savingIdx === idx ? '...' : savedToLibrary[idx] ? 'Saved' : 'Save'}
+                        {savingIdx === idx || (savingInProgress && !savedToLibrary[idx]) ? 'Saving...' : savedToLibrary[idx] ? 'Saved' : 'Save'}
                       </button>
                       <div className="flex-1" />
                       <button onClick={() => setSchedulingIdx(idx)}
