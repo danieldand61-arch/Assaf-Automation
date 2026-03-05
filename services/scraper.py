@@ -94,8 +94,24 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
         except Exception as e:
             logger.warning(f"⚠️ Instagram API fallback failed: {e}")
 
-    if not description:
-        description = f"@{username} on {platform.capitalize()}"
+    # Strategy 3: Google search for cached profile info
+    if not description or _is_generic_description(description, username, platform):
+        google_desc = await _google_search_profile(username, platform)
+        if google_desc:
+            description = google_desc
+            logger.info(f"🔍 Google search fallback success: @{username}")
+
+    # Strategy 4: Gemini Vision — analyze recent post images
+    vision_analysis = ''
+    if not description or _is_generic_description(description, username, platform):
+        vision_analysis = await _vision_analyze_recent_posts(username, platform, html)
+        if vision_analysis:
+            logger.info(f"👁️ Vision analysis of posts success: @{username}")
+
+    if not description or _is_generic_description(description, username, platform):
+        description = vision_analysis or f"@{username} on {platform.capitalize()}"
+
+    combined_content = "\n".join(filter(None, [description, vision_analysis]))
 
     logger.info(f"📱 Social profile scraped: {platform} @{username} — {title[:60]}")
 
@@ -103,7 +119,7 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
         "url": url,
         "title": title,
         "description": description,
-        "content": description,
+        "content": combined_content or description,
         "colors": [],
         "logo_url": logo_url,
         "brand_voice": "casual",
@@ -111,6 +127,192 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
         "key_features": [],
         "industry": f"{platform.capitalize()} profile",
     }
+
+
+def _is_generic_description(desc: str, username: str, platform: str) -> bool:
+    """Check if description is just a generic Instagram/social login page text."""
+    if not desc:
+        return True
+    low = desc.lower()
+    generic_markers = [
+        'login', 'log in', 'sign up', 'sign in', 'create an account',
+        'see photos and videos from', 'instagram', 'see instagram photos',
+        f'@{username} on {platform}',
+    ]
+    return any(m in low for m in generic_markers) and len(desc) < 200
+
+
+async def _google_search_profile(username: str, platform: str) -> str:
+    """Search Google for cached social profile info (bio, description)."""
+    try:
+        query = f"site:{platform}.com {username}"
+        search_url = f"https://www.google.com/search?q={query}&hl=en"
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(search_url, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9',
+            })
+            if resp.status_code != 200:
+                return ''
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            # Google shows profile snippets in search results
+            snippets = []
+            for div in soup.find_all(['div', 'span'], class_=re.compile(r'VwiC3b|IsZvec|aCOpRe|s3v9rd')):
+                text = div.get_text(strip=True)
+                if text and len(text) > 20 and 'login' not in text.lower() and 'sign up' not in text.lower():
+                    snippets.append(text)
+            if snippets:
+                return ' '.join(snippets[:3])[:500]
+    except Exception as e:
+        logger.warning(f"⚠️ Google search fallback failed: {e}")
+    return ''
+
+
+async def _get_post_urls_from_html(html: str, username: str) -> List[str]:
+    """Extract Instagram post URLs from scraped HTML (shared_data / links)."""
+    urls = []
+    if not html:
+        return urls
+    # Instagram sometimes embeds post shortcodes in the HTML
+    shortcodes = re.findall(r'/p/([A-Za-z0-9_-]{6,})', html)
+    seen = set()
+    for sc in shortcodes:
+        if sc not in seen:
+            seen.add(sc)
+            urls.append(f"https://www.instagram.com/p/{sc}/")
+    return urls[:6]
+
+
+async def _get_post_urls_from_google(username: str, platform: str) -> List[str]:
+    """Find recent post URLs via Google search."""
+    try:
+        query = f"site:{platform}.com/p/ {username}"
+        search_url = f"https://www.google.com/search?q={query}&hl=en&num=6"
+        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+            resp = await client.get(search_url, headers={
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'Accept-Language': 'en-US,en;q=0.9',
+            })
+            if resp.status_code != 200:
+                return []
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        urls = []
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+            match = re.search(rf'https?://(?:www\.)?{platform}\.com/p/[A-Za-z0-9_-]+', href)
+            if match and match.group() not in urls:
+                urls.append(match.group() + '/')
+        return urls[:6]
+    except Exception as e:
+        logger.warning(f"⚠️ Google post search failed: {e}")
+        return []
+
+
+async def _fetch_post_image_and_caption(post_url: str) -> Optional[Dict]:
+    """Fetch og:image and og:description from an Instagram post URL."""
+    try:
+        async with httpx.AsyncClient(timeout=12.0, follow_redirects=True) as client:
+            resp = await client.get(post_url, headers={
+                'User-Agent': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+                'Accept': 'text/html',
+            })
+            if resp.status_code != 200 or len(resp.text) < 500:
+                return None
+        soup = BeautifulSoup(resp.text, 'html.parser')
+        og_img = soup.find('meta', attrs={'property': 'og:image'})
+        og_desc = soup.find('meta', attrs={'property': 'og:description'})
+        image_url = og_img['content'].strip() if og_img and og_img.get('content') else ''
+        caption = og_desc['content'].strip() if og_desc and og_desc.get('content') else ''
+        if not image_url:
+            return None
+        return {"image_url": image_url, "caption": caption}
+    except Exception as e:
+        logger.warning(f"⚠️ Post fetch failed {post_url}: {e}")
+        return None
+
+
+async def _vision_analyze_recent_posts(username: str, platform: str, html: str = None) -> str:
+    """Fetch recent post images + captions and analyze with Gemini Vision."""
+    try:
+        import google.generativeai as genai
+        import os
+
+        api_key = os.getenv("GOOGLE_AI_API_KEY")
+        if not api_key:
+            return ''
+
+        # Step 1: Find post URLs
+        post_urls = await _get_post_urls_from_html(html, username)
+        if len(post_urls) < 3:
+            google_urls = await _get_post_urls_from_google(username, platform)
+            seen = set(post_urls)
+            for u in google_urls:
+                if u not in seen:
+                    post_urls.append(u)
+                    seen.add(u)
+        post_urls = post_urls[:6]
+
+        if not post_urls:
+            logger.info(f"👁️ No post URLs found for @{username}")
+            return ''
+
+        # Step 2: Fetch og:image + caption from each post (parallel)
+        tasks = [_fetch_post_image_and_caption(u) for u in post_urls]
+        results = await asyncio.gather(*tasks)
+        posts = [r for r in results if r]
+
+        if not posts:
+            logger.info(f"👁️ No post images fetched for @{username}")
+            return ''
+
+        # Step 3: Download up to 3 images
+        image_parts = []
+        captions = []
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            for post in posts[:3]:
+                try:
+                    resp = await client.get(post["image_url"])
+                    if resp.status_code == 200 and len(resp.content) > 1000:
+                        ct = resp.headers.get('content-type', 'image/jpeg').split(';')[0].strip()
+                        if ct not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
+                            ct = 'image/jpeg'
+                        image_parts.append({"mime_type": ct, "data": resp.content})
+                        if post.get("caption"):
+                            captions.append(post["caption"])
+                except Exception:
+                    pass
+
+        if not image_parts:
+            return ''
+
+        logger.info(f"👁️ Analyzing {len(image_parts)} post images for @{username}")
+
+        # Step 4: Send to Gemini Vision
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+
+        captions_text = "\n".join(f"- {c}" for c in captions) if captions else "No captions available."
+
+        prompt = f"""These are {len(image_parts)} recent post images from @{username} on {platform.capitalize()}.
+Post captions:
+{captions_text}
+
+Based on the images and captions, determine:
+1. What kind of business/brand is this?
+2. What products or services do they offer?
+3. What industry are they in?
+
+Provide a concise 2-3 sentence description of the business. If you truly cannot determine anything, respond with just "UNKNOWN"."""
+
+        content_parts = [prompt] + image_parts
+        response = model.generate_content(content_parts)
+        text = response.text.strip()
+        if text.upper() == 'UNKNOWN' or len(text) < 10:
+            return ''
+        return text
+    except Exception as e:
+        logger.warning(f"⚠️ Vision post analysis failed: {e}")
+        return ''
 
 
 async def scrape_website(url: str) -> Dict:

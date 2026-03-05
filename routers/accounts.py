@@ -89,22 +89,24 @@ async def _ai_extract_business_info(data: dict) -> dict:
         is_social = industry_hint.endswith("profile")
         social_instruction = ""
         if is_social:
+            low_data = not desc or len(desc) < 30 or 'login' in desc.lower() or 'sign up' in desc.lower()
             social_instruction = f"""This is a social media profile URL: {url}
 The bio/description below is from the profile. Use it to understand what this BUSINESS does — do NOT describe the social platform itself.
 Extract the actual business behind this profile (their real products, services, industry).
-If the bio says "Coffee shop in NYC" — the industry is "Coffee & Beverages", NOT "Social Media".\n"""
+If the bio says "Coffee shop in NYC" — the industry is "Coffee & Beverages", NOT "Social Media".
+{"IMPORTANT: The scraped bio/description is very limited or missing. Use ALL available clues: the username/handle, any visual analysis text, Google search snippets, and your knowledge to infer the most likely business type. The content field may contain vision-based image analysis — use it. Make your best educated guess rather than saying 'Undetermined' or 'General Business'." if low_data else ""}\n"""
 
         prompt = f"""{social_instruction}Analyze this {"social media profile" if is_social else "website"} and return a JSON object with exactly these keys:
 - "business_name": the company/brand name (string)
-- "industry": the industry or niche (string, e.g. "Coffee & Beverages", "SaaS", "Fashion")
-- "description": one-sentence description of what the business does (string)
+- "industry": the industry or niche (string, e.g. "Coffee & Beverages", "SaaS", "Fashion"). NEVER return "Undetermined" or "General Business" — always make your best guess.
+- "description": one-sentence description of what the business does (string). NEVER say "could not determine" — infer from all available clues.
 - "products": list of up to 8 main products or services they offer (array of short strings)
 - "key_features": list of up to 6 key selling points or features (array of short strings)
 
 URL: {url}
 Profile/Website title: {title}
 Bio/Description: {desc}
-Page content:
+Page content (may include image analysis and Google search snippets):
 {content}
 
 Return ONLY valid JSON, no markdown fences."""
