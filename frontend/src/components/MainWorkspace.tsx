@@ -173,12 +173,14 @@ export function MainWorkspace() {
 
       // Auto-save all variations to library
       if (session && result.variations?.length) {
+        const mediaUrl = data.media_file || ''
         result.variations.forEach((v: any, i: number) => {
           const img = result.images?.[i] || result.images?.[0]
+          const imageUrl = img?.url || mediaUrl
           fetch(`${apiUrl}/api/saved-posts/save`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-            body: JSON.stringify({ text: v.text, hashtags: v.hashtags || [], call_to_action: v.call_to_action || '', image_url: img?.url || '', platforms: data.platforms })
+            body: JSON.stringify({ text: v.text, hashtags: v.hashtags || [], call_to_action: v.call_to_action || '', image_url: imageUrl, platforms: data.platforms })
           }).catch(() => {})
         })
       }

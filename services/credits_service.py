@@ -201,7 +201,7 @@ async def get_user_usage_stats(user_id: str) -> dict:
         return {}
 
 
-async def ensure_user_credits_exist(user_id: str, initial_credits: float = 500.0):
+async def ensure_user_credits_exist(user_id: str, initial_credits: float = 3000.0):
     """
     Ensure user has a credits record (create if doesn't exist)
     """

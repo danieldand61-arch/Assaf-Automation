@@ -278,11 +278,11 @@ export function PreviewSection({ onReset, onBack, content }: PreviewSectionProps
     if (!session || savedToLibrary[idx]) return
     try {
       const v = variations[idx]
-      const img = images[idx] || images[0]
+      const img = images[idx] || images[0] || (userMedia ? { url: userMedia } : null)
       await fetch(`${getApiUrl()}/api/saved-posts/save`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ text: v.text, hashtags: v.hashtags, call_to_action: v.call_to_action, image_url: img?.url, platforms })
+        body: JSON.stringify({ text: v.text, hashtags: v.hashtags, call_to_action: v.call_to_action, image_url: img?.url || '', platforms })
       })
       setSavedToLibrary(prev => ({ ...prev, [idx]: true }))
     } catch { /* silent */ }

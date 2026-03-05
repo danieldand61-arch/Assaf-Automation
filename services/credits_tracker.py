@@ -142,8 +142,8 @@ class CreditsTracker:
                 }
             
             from services.credits_service import ensure_user_credits_exist
-            await ensure_user_credits_exist(self.user_id, initial_credits=500.0)
-            return {"total_purchased": 500.0, "used": 0, "remaining": 500.0}
+            await ensure_user_credits_exist(self.user_id, initial_credits=3000.0)
+            return {"total_purchased": 3000.0, "used": 0, "remaining": 3000.0}
                 
         except Exception as e:
             logger.error(f"Failed to get user balance: {e}")

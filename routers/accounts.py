@@ -294,7 +294,7 @@ async def create_account(request: CreateAccountRequest, user = Depends(get_curre
             logger.info(f"✅ Account created: {request.name} by {user['email']}")
             
             from services.credits_service import ensure_user_credits_exist
-            await ensure_user_credits_exist(user_id, initial_credits=500.0)
+            await ensure_user_credits_exist(user_id, initial_credits=3000.0)
             
             return {"success": True, "account": response.data[0]}
             

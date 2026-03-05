@@ -6,12 +6,52 @@ from typing import Optional, List
 from pydantic import BaseModel
 import logging
 import hashlib
-from datetime import datetime
+import base64
+import uuid
+from datetime import datetime, timedelta
 from middleware.auth import get_current_user
 from database.supabase_client import get_supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/saved-posts", tags=["saved-posts"])
+
+
+def _upload_base64_to_storage(data_url: str) -> tuple[str, bool]:
+    """Upload base64 data URL to Supabase Storage. Returns (public_url, is_video)."""
+    try:
+        header, b64data = data_url.split(",", 1)
+        mime = header.split(":")[1].split(";")[0] if ":" in header else "image/jpeg"
+        is_video = mime.startswith("video/")
+        ext = "mp4" if is_video else "jpg"
+        if "png" in mime:
+            ext = "png"
+        elif "webp" in mime:
+            ext = "webp"
+
+        file_bytes = base64.b64decode(b64data)
+        if len(file_bytes) < 100:
+            return data_url, False
+
+        supabase = get_supabase()
+        filename = f"library/{uuid.uuid4().hex}.{ext}"
+        bucket = "posts"
+        try:
+            supabase.storage.from_(bucket).upload(
+                path=filename, file=file_bytes,
+                file_options={"content-type": mime, "upsert": "true"}
+            )
+        except Exception:
+            bucket = "products"
+            supabase.storage.from_(bucket).upload(
+                path=filename, file=file_bytes,
+                file_options={"content-type": mime, "upsert": "true"}
+            )
+        public_url = supabase.storage.from_(bucket).get_public_url(filename)
+        logger.info(f"✅ Uploaded media to storage: {filename} ({len(file_bytes)} bytes, video={is_video})")
+        return public_url, is_video
+    except Exception as e:
+        logger.warning(f"⚠️ Failed to upload base64 to storage: {e}")
+        return data_url, False
 
 
 class SavePostRequest(BaseModel):
@@ -70,20 +110,28 @@ async def save_post(
                 "duplicate": True
             }
 
+        image_url = post.image_url or ''
+        is_video = False
+        if image_url.startswith("data:"):
+            image_url, is_video = _upload_base64_to_storage(image_url)
+
         post_data = {
             "account_id": active_account_id,
             "user_id": current_user["user_id"],
             "text": post.text,
             "hashtags": post.hashtags,
             "call_to_action": post.call_to_action,
-            "image_url": post.image_url,
+            "image_url": image_url,
             "title": post.title,
             "notes": post.notes,
             "source_url": post.source_url,
             "platforms": post.platforms,
             "text_hash": text_hash,
-            "saved_at": datetime.utcnow().isoformat()
+            "saved_at": datetime.utcnow().isoformat(),
+            "is_video": is_video,
         }
+        if is_video:
+            post_data["expires_at"] = (datetime.utcnow() + timedelta(days=7)).isoformat()
         
         result = supabase.table("saved_posts").insert(post_data).execute()
         
@@ -127,7 +175,17 @@ async def get_saved_posts(
         if not active_account_id:
             raise HTTPException(status_code=400, detail="No active account found")
         
-        # Get saved posts
+        # Clean up expired video posts
+        try:
+            supabase.table("saved_posts")\
+                .delete()\
+                .eq("account_id", active_account_id)\
+                .eq("is_video", True)\
+                .lt("expires_at", datetime.utcnow().isoformat())\
+                .execute()
+        except Exception:
+            pass
+
         result = supabase.table("saved_posts")\
             .select("*")\
             .eq("account_id", active_account_id)\
