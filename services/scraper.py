@@ -602,14 +602,15 @@ async def _vision_analyze_recent_posts(username: str, platform: str, html: str =
                         for j, iu in enumerate(img_urls[:3]):
                             try:
                                 r = await client.get(iu, timeout=8.0)
-                                if r.status_code == 200 and len(r.content) > 2000:
-                                    ct = r.headers.get('content-type', 'image/jpeg').split(';')[0].strip()
-                                    if ct not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
+                                ct = r.headers.get('content-type', 'image/jpeg').split(';')[0].strip()
+                                logger.info(f"    gimg[{j}]: HTTP {r.status_code}, {len(r.content)} bytes, ct={ct}")
+                                if r.status_code == 200 and len(r.content) > 1000:
+                                    if not ct.startswith('image/'):
                                         ct = 'image/jpeg'
                                     image_parts.append({"mime_type": ct, "data": r.content})
-                                    logger.info(f"    gimg[{j}]: ✅ {len(r.content)} bytes")
-                            except Exception:
-                                pass
+                                    logger.info(f"    gimg[{j}]: ✅ added")
+                            except Exception as e:
+                                logger.info(f"    gimg[{j}]: ❌ {e}")
             except Exception as e:
                 logger.info(f"    Google Image Search failed: {e}")
 
@@ -675,49 +676,74 @@ async def _playwright_screenshot_and_analyze(username: str) -> str:
             else:
                 logger.info(f"  Using Playwright bundled Chromium")
             browser = await p.chromium.launch(**launch_args)
+            # Use Googlebot UA — Instagram serves full HTML to bots, redirects regular browsers to login
             context = await browser.new_context(
-                viewport={'width': 1280, 'height': 900},
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                viewport={'width': 1280, 'height': 1200},
+                user_agent='Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
                 locale='en-US',
             )
             page = await context.new_page()
 
             url = f"https://www.instagram.com/{username}/"
-            logger.info(f"  Opening {url} in headless browser...")
+            logger.info(f"  Opening {url} in headless browser (Googlebot UA)...")
             try:
-                await page.goto(url, wait_until='networkidle', timeout=20000)
+                await page.goto(url, wait_until='networkidle', timeout=25000)
             except Exception:
-                await page.goto(url, wait_until='domcontentloaded', timeout=15000)
-
-            await asyncio.sleep(2)
-
-            # Dismiss login popup if present
-            for sel in ['button:has-text("Not Now")', 'button:has-text("Decline")', '[aria-label="Close"]', 'button:has-text("Accept")']:
                 try:
-                    btn = page.locator(sel).first
-                    if await btn.is_visible(timeout=1000):
-                        await btn.click()
-                        await asyncio.sleep(0.5)
+                    await page.goto(url, wait_until='load', timeout=15000)
                 except Exception:
                     pass
 
-            # Screenshot 1: profile header area
-            logger.info(f"  Taking screenshot of profile header...")
-            ss1 = await page.screenshot(type='jpeg', quality=80)
+            await asyncio.sleep(3)
+
+            # Check if we landed on login page
+            current_url = page.url
+            page_title = await page.title()
+            logger.info(f"  Current URL: {current_url}")
+            logger.info(f"  Page title: {page_title}")
+
+            is_login = 'login' in current_url.lower() or 'login' in page_title.lower()
+            if is_login:
+                logger.info(f"  ⚠️ Redirected to login page, retrying with different approach...")
+                # Try going directly — sometimes the page still renders profile content behind the login modal
+                await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+                await asyncio.sleep(2)
+                # Try dismissing login modal
+                for sel in ['button:has-text("Not Now")', '[aria-label="Close"]', 'button:has-text("Decline")', 'button:has-text("Accept All")']:
+                    try:
+                        btn = page.locator(sel).first
+                        if await btn.is_visible(timeout=1500):
+                            await btn.click()
+                            await asyncio.sleep(0.5)
+                            logger.info(f"  Dismissed: {sel}")
+                    except Exception:
+                        pass
+
+            # Screenshot 1: full viewport (profile + top posts)
+            logger.info(f"  Taking screenshot 1 (profile header)...")
+            ss1 = await page.screenshot(type='jpeg', quality=85, full_page=False)
             if len(ss1) > 5000:
                 screenshots.append(ss1)
                 logger.info(f"    Screenshot 1: {len(ss1)} bytes")
 
             # Scroll down to show posts grid
-            await page.evaluate('window.scrollBy(0, 600)')
-            await asyncio.sleep(1.5)
+            await page.evaluate('window.scrollBy(0, 800)')
+            await asyncio.sleep(2)
 
             # Screenshot 2: posts grid
-            logger.info(f"  Taking screenshot of posts grid...")
-            ss2 = await page.screenshot(type='jpeg', quality=80)
+            logger.info(f"  Taking screenshot 2 (posts grid)...")
+            ss2 = await page.screenshot(type='jpeg', quality=85, full_page=False)
             if len(ss2) > 5000:
                 screenshots.append(ss2)
                 logger.info(f"    Screenshot 2: {len(ss2)} bytes")
+
+            # Screenshot 3: scroll more for more posts
+            await page.evaluate('window.scrollBy(0, 800)')
+            await asyncio.sleep(1)
+            ss3 = await page.screenshot(type='jpeg', quality=85, full_page=False)
+            if len(ss3) > 5000:
+                screenshots.append(ss3)
+                logger.info(f"    Screenshot 3: {len(ss3)} bytes")
 
             await browser.close()
 
@@ -729,17 +755,18 @@ async def _playwright_screenshot_and_analyze(username: str) -> str:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-2.5-flash")
 
-        prompt = f"""These are screenshots of the Instagram profile @{username}.
-The first screenshot shows the profile header (name, bio, profile picture, follower count).
-The second screenshot shows the posts grid with recent post thumbnails.
+        prompt = f"""These are {len(screenshots)} screenshots of the Instagram profile @{username}.
+The screenshots may show: profile header (name, bio, avatar, follower count), posts grid with thumbnails, or a login page with profile content partially visible behind it.
 
-Based on what you see:
+IMPORTANT: Even if there's a login popup/overlay, look at ANY visible content behind it — profile picture, name, bio text, post thumbnails in the background.
+
+Based on everything visible:
 1. What is this person/brand/business about?
 2. What products, services, or content do they offer?
 3. What industry or niche are they in?
-4. Read any visible bio text and post captions.
+4. Read any visible bio text, name, and describe visible post thumbnails.
 
-Provide a concise 2-3 sentence description of the business/brand. If it's a personal account, describe what content they create. If you truly cannot determine anything, respond with just "UNKNOWN"."""
+Provide a concise 2-3 sentence description. Make your best guess based on visual clues. Only respond "UNKNOWN" if the screenshots are completely blank or unreadable."""
 
         content_parts = [prompt] + [{"mime_type": "image/jpeg", "data": ss} for ss in screenshots]
         response = model.generate_content(content_parts)
