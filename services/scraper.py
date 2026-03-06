@@ -666,86 +666,74 @@ async def _playwright_screenshot_and_analyze(username: str) -> str:
         import shutil
 
         screenshots = []
+        browser = None
         async with async_playwright() as p:
-            # Find system Chromium (installed via Nix) or fall back to Playwright's bundled one
-            chromium_path = shutil.which('chromium') or shutil.which('chromium-browser') or shutil.which('google-chrome')
-            launch_args = {'headless': True, 'args': ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']}
-            if chromium_path:
-                launch_args['executable_path'] = chromium_path
-                logger.info(f"  Using system Chromium: {chromium_path}")
-            else:
-                logger.info(f"  Using Playwright bundled Chromium")
-            browser = await p.chromium.launch(**launch_args)
-            # Use Googlebot UA — Instagram serves full HTML to bots, redirects regular browsers to login
-            context = await browser.new_context(
-                viewport={'width': 1280, 'height': 1200},
-                user_agent='Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-                locale='en-US',
-            )
-            page = await context.new_page()
-
-            url = f"https://www.instagram.com/{username}/"
-            logger.info(f"  Opening {url} in headless browser (Googlebot UA)...")
             try:
-                await page.goto(url, wait_until='networkidle', timeout=25000)
-            except Exception:
+                chromium_path = shutil.which('chromium') or shutil.which('chromium-browser') or shutil.which('google-chrome')
+                chrome_args = [
+                    '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+                    '--disable-gpu', '--single-process', '--no-zygote',
+                    '--disable-extensions', '--disable-background-networking',
+                    '--disable-default-apps', '--disable-sync', '--no-first-run',
+                ]
+                launch_kwargs = {'headless': True, 'args': chrome_args}
+                if chromium_path:
+                    launch_kwargs['executable_path'] = chromium_path
+                    logger.info(f"  Using system Chromium: {chromium_path}")
+                browser = await p.chromium.launch(**launch_kwargs)
+                context = await browser.new_context(
+                    viewport={'width': 1280, 'height': 1200},
+                    user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
+                    locale='en-US',
+                    java_script_enabled=True,
+                )
+                page = await context.new_page()
+
+                url = f"https://www.instagram.com/{username}/"
+                logger.info(f"  Opening {url} in headless browser...")
                 try:
-                    await page.goto(url, wait_until='load', timeout=15000)
-                except Exception:
-                    pass
+                    await page.goto(url, wait_until='domcontentloaded', timeout=20000)
+                except Exception as nav_err:
+                    logger.info(f"  Navigation warning: {nav_err}")
 
-            await asyncio.sleep(3)
+                await asyncio.sleep(3)
 
-            # Check if we landed on login page
-            current_url = page.url
-            page_title = await page.title()
-            logger.info(f"  Current URL: {current_url}")
-            logger.info(f"  Page title: {page_title}")
+                current_url = page.url
+                logger.info(f"  Current URL: {current_url}")
 
-            is_login = 'login' in current_url.lower() or 'login' in page_title.lower()
-            if is_login:
-                logger.info(f"  ⚠️ Redirected to login page, retrying with different approach...")
-                # Try going directly — sometimes the page still renders profile content behind the login modal
-                await page.goto(url, wait_until='domcontentloaded', timeout=15000)
-                await asyncio.sleep(2)
-                # Try dismissing login modal
-                for sel in ['button:has-text("Not Now")', '[aria-label="Close"]', 'button:has-text("Decline")', 'button:has-text("Accept All")']:
+                # Dismiss any popups/modals
+                for sel in ['button:has-text("Not Now")', 'button:has-text("Not now")', '[aria-label="Close"]', 'button:has-text("Decline")', 'button:has-text("Accept")', 'button:has-text("Allow")']:
                     try:
                         btn = page.locator(sel).first
-                        if await btn.is_visible(timeout=1500):
+                        if await btn.is_visible(timeout=1000):
                             await btn.click()
-                            await asyncio.sleep(0.5)
-                            logger.info(f"  Dismissed: {sel}")
+                            await asyncio.sleep(0.3)
+                            logger.info(f"  Dismissed popup: {sel}")
                     except Exception:
                         pass
 
-            # Screenshot 1: full viewport (profile + top posts)
-            logger.info(f"  Taking screenshot 1 (profile header)...")
-            ss1 = await page.screenshot(type='jpeg', quality=85, full_page=False)
-            if len(ss1) > 5000:
-                screenshots.append(ss1)
-                logger.info(f"    Screenshot 1: {len(ss1)} bytes")
+                # Take screenshots
+                for i, scroll_y in enumerate([0, 600, 1200]):
+                    try:
+                        if scroll_y > 0:
+                            await page.evaluate(f'window.scrollTo(0, {scroll_y})')
+                            await asyncio.sleep(1.5)
+                        ss = await page.screenshot(type='jpeg', quality=80, full_page=False)
+                        if len(ss) > 5000:
+                            screenshots.append(ss)
+                            logger.info(f"    Screenshot {i+1} (scroll={scroll_y}): {len(ss)} bytes")
+                    except Exception as ss_err:
+                        logger.info(f"    Screenshot {i+1} failed: {ss_err}")
+                        break
 
-            # Scroll down to show posts grid
-            await page.evaluate('window.scrollBy(0, 800)')
-            await asyncio.sleep(2)
-
-            # Screenshot 2: posts grid
-            logger.info(f"  Taking screenshot 2 (posts grid)...")
-            ss2 = await page.screenshot(type='jpeg', quality=85, full_page=False)
-            if len(ss2) > 5000:
-                screenshots.append(ss2)
-                logger.info(f"    Screenshot 2: {len(ss2)} bytes")
-
-            # Screenshot 3: scroll more for more posts
-            await page.evaluate('window.scrollBy(0, 800)')
-            await asyncio.sleep(1)
-            ss3 = await page.screenshot(type='jpeg', quality=85, full_page=False)
-            if len(ss3) > 5000:
-                screenshots.append(ss3)
-                logger.info(f"    Screenshot 3: {len(ss3)} bytes")
-
-            await browser.close()
+            except Exception as browser_err:
+                logger.warning(f"  ❌ Browser error: {browser_err}")
+            finally:
+                if browser:
+                    try:
+                        await browser.close()
+                    except Exception:
+                        pass
 
         if not screenshots:
             logger.info(f"  ❌ No screenshots captured")
