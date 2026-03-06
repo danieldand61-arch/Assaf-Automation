@@ -243,6 +243,17 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     else:
         logger.info(f"── STRATEGY 4: SKIPPED (no images and have good description) ──")
 
+    # ── Strategy 5: Playwright screenshot + Gemini Vision ──
+    if not vision_analysis and platform == 'instagram':
+        logger.info(f"── STRATEGY 5: Playwright headless browser screenshot ──")
+        logger.info(f"  Reason: all prior strategies failed to get post images")
+        pw_result = await _playwright_screenshot_and_analyze(username)
+        if pw_result:
+            vision_analysis = pw_result
+            logger.info(f"  ✅ Playwright+Vision result: '{vision_analysis[:150]}...'")
+        else:
+            logger.info(f"  ❌ Playwright analysis returned nothing")
+
     if not description or _is_generic_description(description, username, platform):
         description = vision_analysis or f"@{username} on {platform.capitalize()}"
         logger.info(f"  Final fallback description: '{description[:80]}'")
@@ -638,6 +649,107 @@ Provide a concise 2-3 sentence description of the business. If you truly cannot 
         return text
     except Exception as e:
         logger.warning(f"  ❌ Vision analysis failed: {e}")
+        return ''
+
+
+async def _playwright_screenshot_and_analyze(username: str) -> str:
+    """Take screenshots of Instagram profile with headless browser, send to Gemini Vision."""
+    try:
+        import google.generativeai as genai
+        import os
+
+        api_key = os.getenv("GOOGLE_AI_API_KEY")
+        if not api_key:
+            logger.warning(f"  ❌ GOOGLE_AI_API_KEY not set")
+            return ''
+
+        from playwright.async_api import async_playwright
+
+        screenshots = []
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(
+                headless=True,
+                args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+            )
+            context = await browser.new_context(
+                viewport={'width': 1280, 'height': 900},
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                locale='en-US',
+            )
+            page = await context.new_page()
+
+            url = f"https://www.instagram.com/{username}/"
+            logger.info(f"  Opening {url} in headless browser...")
+            try:
+                await page.goto(url, wait_until='networkidle', timeout=20000)
+            except Exception:
+                await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+
+            await asyncio.sleep(2)
+
+            # Dismiss login popup if present
+            for sel in ['button:has-text("Not Now")', 'button:has-text("Decline")', '[aria-label="Close"]', 'button:has-text("Accept")']:
+                try:
+                    btn = page.locator(sel).first
+                    if await btn.is_visible(timeout=1000):
+                        await btn.click()
+                        await asyncio.sleep(0.5)
+                except Exception:
+                    pass
+
+            # Screenshot 1: profile header area
+            logger.info(f"  Taking screenshot of profile header...")
+            ss1 = await page.screenshot(type='jpeg', quality=80)
+            if len(ss1) > 5000:
+                screenshots.append(ss1)
+                logger.info(f"    Screenshot 1: {len(ss1)} bytes")
+
+            # Scroll down to show posts grid
+            await page.evaluate('window.scrollBy(0, 600)')
+            await asyncio.sleep(1.5)
+
+            # Screenshot 2: posts grid
+            logger.info(f"  Taking screenshot of posts grid...")
+            ss2 = await page.screenshot(type='jpeg', quality=80)
+            if len(ss2) > 5000:
+                screenshots.append(ss2)
+                logger.info(f"    Screenshot 2: {len(ss2)} bytes")
+
+            await browser.close()
+
+        if not screenshots:
+            logger.info(f"  ❌ No screenshots captured")
+            return ''
+
+        logger.info(f"  Sending {len(screenshots)} screenshots to Gemini Vision...")
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+
+        prompt = f"""These are screenshots of the Instagram profile @{username}.
+The first screenshot shows the profile header (name, bio, profile picture, follower count).
+The second screenshot shows the posts grid with recent post thumbnails.
+
+Based on what you see:
+1. What is this person/brand/business about?
+2. What products, services, or content do they offer?
+3. What industry or niche are they in?
+4. Read any visible bio text and post captions.
+
+Provide a concise 2-3 sentence description of the business/brand. If it's a personal account, describe what content they create. If you truly cannot determine anything, respond with just "UNKNOWN"."""
+
+        content_parts = [prompt] + [{"mime_type": "image/jpeg", "data": ss} for ss in screenshots]
+        response = model.generate_content(content_parts)
+        text = response.text.strip()
+        logger.info(f"    Gemini response: '{text[:200]}'")
+
+        if text.upper() == 'UNKNOWN' or len(text) < 10:
+            return ''
+        return text
+    except ImportError:
+        logger.warning(f"  ❌ Playwright not installed, skipping Strategy 5")
+        return ''
+    except Exception as e:
+        logger.warning(f"  ❌ Playwright screenshot failed: {e}")
         return ''
 
 
