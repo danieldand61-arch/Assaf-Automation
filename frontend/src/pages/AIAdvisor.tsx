@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Loader2, Sparkles, AlertTriangle, Trash2, Plus, MessageSquare, ChevronLeft, ChevronRight, BarChart3, Rocket, Target, Palette, Zap } from 'lucide-react'
+import { Send, Loader2, Sparkles, AlertTriangle, Trash2, Plus, MessageSquare, ChevronLeft, ChevronRight, BarChart3, Rocket, Target, Palette, Zap, ImagePlus, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
 import { getApiUrl } from '../lib/api'
 
-interface Message { role: 'user' | 'assistant'; content: string }
+interface Message { role: 'user' | 'assistant'; content: string; image?: string }
 interface ChatItem { id: string; title: string; created_at: string; updated_at: string; message_count?: number }
 
 const QUICK_ACTIONS = [
@@ -51,8 +51,10 @@ export default function AIAdvisor() {
   const [loadingChats, setLoadingChats] = useState(true)
   const [hasAds, setHasAds] = useState<boolean | null>(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [attachedImage, setAttachedImage] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const headers = session ? { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' } : {}
 
@@ -114,17 +116,46 @@ export default function AIAdvisor() {
     } catch { /* silent */ }
   }
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/')) return
+    if (file.size > 10 * 1024 * 1024) { alert('Image must be under 10MB'); return }
+    const reader = new FileReader()
+    reader.onload = () => setAttachedImage(reader.result as string)
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of Array.from(items)) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (!file) continue
+        const reader = new FileReader()
+        reader.onload = () => setAttachedImage(reader.result as string)
+        reader.readAsDataURL(file)
+        break
+      }
+    }
+  }
+
   const sendMessage = async (text: string) => {
-    if (!text.trim() || loading || !session) return
-    setMessages(prev => [...prev, { role: 'user', content: text.trim() }])
+    if ((!text.trim() && !attachedImage) || loading || !session) return
+    const imageToSend = attachedImage
+    setMessages(prev => [...prev, { role: 'user', content: text.trim() || '(screenshot)', image: imageToSend || undefined }])
     setInput('')
+    setAttachedImage(null)
     setLoading(true)
     try {
       let cid = activeChatId
       if (!cid) {
         const createRes = await fetch(`${api}/api/chats/create`, {
           method: 'POST', headers: headers as any,
-          body: JSON.stringify({ title: text.slice(0, 50) }),
+          body: JSON.stringify({ title: text.slice(0, 50) || 'Screenshot analysis' }),
         })
         if (!createRes.ok) throw new Error(`Create chat failed: ${createRes.status}`)
         const createData = await createRes.json()
@@ -133,9 +164,11 @@ export default function AIAdvisor() {
         setActiveChatId(cid)
         fetchChats()
       }
+      const body: any = { content: text.trim() || 'Analyze this screenshot', mode: 'advisor' }
+      if (imageToSend) body.image = imageToSend
       const msgRes = await fetch(`${api}/api/chats/${cid}/message`, {
         method: 'POST', headers: headers as any,
-        body: JSON.stringify({ content: text.trim(), mode: 'advisor' }),
+        body: JSON.stringify(body),
       })
       if (!msgRes.ok) throw new Error(`Message failed: ${msgRes.status}`)
       const msgData = await msgRes.json()
@@ -390,10 +423,19 @@ export default function AIAdvisor() {
                   <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
                     {msg.role === 'user' ? (
                       <div style={{
-                        maxWidth: '75%', padding: '12px 16px', borderRadius: '18px 18px 4px 18px',
-                        background: t.accent, color: '#fff', fontSize: 13, lineHeight: 1.65,
-                        direction: rtl ? 'rtl' : undefined, textAlign: rtl ? 'right' : undefined,
-                      }}>{msg.content}</div>
+                        maxWidth: '75%', borderRadius: '18px 18px 4px 18px', overflow: 'hidden',
+                        background: t.accent, color: '#fff',
+                      }}>
+                        {msg.image && (
+                          <img src={msg.image} alt="attachment" style={{ width: '100%', maxHeight: 300, objectFit: 'cover', display: 'block' }} />
+                        )}
+                        {msg.content && msg.content !== '(screenshot)' && (
+                          <div style={{
+                            padding: '12px 16px', fontSize: 13, lineHeight: 1.65,
+                            direction: rtl ? 'rtl' : undefined, textAlign: rtl ? 'right' : undefined,
+                          }}>{msg.content}</div>
+                        )}
+                      </div>
                     ) : (
                       <div style={{
                         maxWidth: '82%', padding: '12px 16px', borderRadius: '18px 18px 18px 4px',
@@ -431,37 +473,73 @@ export default function AIAdvisor() {
             : 'linear-gradient(to top, #F8FAFC 60%, transparent)',
         }}>
           <div style={{
-            maxWidth: 720, margin: '0 auto', display: 'flex', alignItems: 'flex-end', gap: 8,
-            background: isDark ? '#1E2130' : '#FFFFFF', borderRadius: 16, padding: 8,
+            maxWidth: 720, margin: '0 auto',
+            background: isDark ? '#1E2130' : '#FFFFFF', borderRadius: 16,
             border: `1px solid ${isDark ? '#2A2D3E' : '#E5E9F0'}`,
             boxShadow: isDark ? '0 4px 24px rgba(0,0,0,0.3)' : '0 4px 24px rgba(0,0,0,0.06)',
-            transition: 'box-shadow 0.2s',
+            transition: 'box-shadow 0.2s', overflow: 'hidden',
           }}>
-            <textarea
-              ref={textareaRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
-              placeholder="Describe your challenge or ask for an analysis..."
-              rows={1}
-              style={{
-                flex: 1, padding: '10px 12px', borderRadius: 10, fontSize: 13, outline: 'none',
-                background: 'transparent', border: 'none', color: t.text, resize: 'none',
-                lineHeight: 1.5, fontFamily: 'inherit', maxHeight: 120,
+            {/* Image preview */}
+            {attachedImage && (
+              <div style={{ padding: '8px 8px 0', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <img src={attachedImage} alt="attachment" style={{
+                    maxHeight: 120, maxWidth: 200, borderRadius: 10, objectFit: 'cover', display: 'block',
+                    border: `1px solid ${isDark ? '#2A2D3E' : '#E5E9F0'}`,
+                  }} />
+                  <button onClick={() => setAttachedImage(null)} style={{
+                    position: 'absolute', top: -6, right: -6,
+                    width: 20, height: 20, borderRadius: '50%', border: 'none',
+                    background: isDark ? '#374151' : '#E5E7EB', color: t.text,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
+                  }}>
+                    <X size={12} />
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* Input row */}
+            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, padding: 8 }}>
+              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
+              <button onClick={() => fileInputRef.current?.click()} style={{
+                width: 36, height: 36, borderRadius: 10, border: 'none', flexShrink: 0,
+                background: 'transparent', color: t.textMuted, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.15s',
               }}
-            />
-            <button onClick={() => sendMessage(input)} disabled={loading || !input.trim()} style={{
-              width: 40, height: 40, borderRadius: 12, border: 'none', flexShrink: 0,
-              background: t.accent, color: '#fff', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              opacity: loading || !input.trim() ? 0.4 : 1,
-              transition: 'all 0.15s', boxShadow: `0 2px 8px ${t.accent}40`,
-            }}
-              onMouseDown={e => { if (!loading && input.trim()) e.currentTarget.style.transform = 'scale(0.92)' }}
-              onMouseUp={e => (e.currentTarget.style.transform = 'scale(1)')}
-            >
-              <Send size={16} />
-            </button>
+                onMouseEnter={e => { e.currentTarget.style.background = isDark ? '#252838' : '#F0F2F5'; e.currentTarget.style.color = t.accent }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted }}
+                title="Attach screenshot"
+              >
+                <ImagePlus size={18} />
+              </button>
+              <textarea
+                ref={textareaRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
+                onPaste={handlePaste}
+                placeholder="Describe your challenge or ask for an analysis..."
+                rows={1}
+                style={{
+                  flex: 1, padding: '8px 8px', borderRadius: 10, fontSize: 13, outline: 'none',
+                  background: 'transparent', border: 'none', color: t.text, resize: 'none',
+                  lineHeight: 1.5, fontFamily: 'inherit', maxHeight: 120,
+                }}
+              />
+              <button onClick={() => sendMessage(input)} disabled={loading || (!input.trim() && !attachedImage)} style={{
+                width: 40, height: 40, borderRadius: 12, border: 'none', flexShrink: 0,
+                background: t.accent, color: '#fff', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                opacity: loading || (!input.trim() && !attachedImage) ? 0.4 : 1,
+                transition: 'all 0.15s', boxShadow: `0 2px 8px ${t.accent}40`,
+              }}
+                onMouseDown={e => { if (!loading && (input.trim() || attachedImage)) e.currentTarget.style.transform = 'scale(0.92)' }}
+                onMouseUp={e => (e.currentTarget.style.transform = 'scale(1)')}
+              >
+                <Send size={16} />
+              </button>
+            </div>
           </div>
           <p style={{ textAlign: 'center', fontSize: 10, color: t.textMuted, marginTop: 10, fontWeight: 500 }}>
             AI Strategic Advisor provides insights — always verify mission-critical decisions.

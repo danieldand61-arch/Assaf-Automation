@@ -22,6 +22,7 @@ class SendMessageRequest(BaseModel):
     action_type: Optional[str] = None  # 'post_generation', 'video_dubbing', etc.
     action_data: Optional[dict] = None
     mode: Optional[str] = None  # 'advisor' = no function calling, just answer from context
+    image: Optional[str] = None  # base64 data URL for screenshot/image attachments
 
 
 class ChatMessage(BaseModel):
@@ -480,9 +481,24 @@ IMPORTANT:
                 account_id=account_id
             )
             
-            # Send message and handle actions
+            # Build message content (text or multimodal with image)
+            message_content: any = request.content
+            if request.image and request.image.startswith("data:"):
+                try:
+                    import base64 as b64mod
+                    header, b64data = request.image.split(",", 1)
+                    mime = header.split(":")[1].split(";")[0] if ":" in header else "image/jpeg"
+                    image_bytes = b64mod.b64decode(b64data)
+                    message_content = [
+                        request.content,
+                        {"mime_type": mime, "data": image_bytes}
+                    ]
+                    logger.info(f"🖼️ Attached image ({len(image_bytes)} bytes, {mime})")
+                except Exception as img_err:
+                    logger.warning(f"⚠️ Failed to parse attached image: {img_err}")
+
             logger.info(f"📤 Sending message to Gemini: {request.content[:100]}")
-            response = chat_session.send_message(request.content)
+            response = chat_session.send_message(message_content)
             logger.info(f"📥 Received response from Gemini")
             
             # Get text response
