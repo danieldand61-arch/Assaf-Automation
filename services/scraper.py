@@ -93,8 +93,25 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     else:
         logger.warning(f"  ❌ Strategy 1 FAILED: no HTML received from any User-Agent")
 
+    # ── Strategy 1.5: Extract embedded JSON from HTML (bio, posts, images) ──
+    ig_data: Dict = {"bio": "", "full_name": "", "post_urls": [], "post_images": [], "post_captions": [], "profile_pic": ""}
+    if html and platform == 'instagram':
+        logger.info(f"── STRATEGY 1.5: Extract embedded JSON from HTML ({len(html)} bytes) ──")
+        ig_data = _extract_ig_data_from_html(html, username)
+        if ig_data.get("bio"):
+            description = ig_data["bio"]
+            logger.info(f"  ✅ Got bio from embedded JSON: '{description[:80]}'")
+        if ig_data.get("full_name"):
+            title = ig_data["full_name"]
+            logger.info(f"  ✅ Got full_name: '{title}'")
+        if ig_data.get("profile_pic"):
+            logo_url = ig_data["profile_pic"]
+        logger.info(f"  Posts found: {len(ig_data['post_urls'])}, Images: {len(ig_data['post_images'])}, Captions: {len(ig_data['post_captions'])}")
+    elif html:
+        logger.info(f"── STRATEGY 1.5: SKIPPED (not Instagram) ──")
+
     # ── Strategy 2: Instagram JSON API ──
-    if platform == 'instagram' and not description:
+    if platform == 'instagram' and (not description or _is_generic_description(description, username, platform)):
         logger.info(f"── STRATEGY 2: Instagram ?__a=1 JSON API ──")
         try:
             api_url = f"https://www.instagram.com/{username}/?__a=1&__d=dis"
@@ -140,7 +157,7 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     if not description or _is_generic_description(description, username, platform):
         logger.info(f"── STRATEGY 4: Gemini Vision (analyzing recent post images) ──")
         logger.info(f"  Reason: description is {'empty' if not description else 'generic'}")
-        vision_analysis = await _vision_analyze_recent_posts(username, platform, html)
+        vision_analysis = await _vision_analyze_recent_posts(username, platform, html, ig_data)
         if vision_analysis:
             logger.info(f"  ✅ Vision result: '{vision_analysis[:150]}...'")
         else:
@@ -220,19 +237,105 @@ async def _google_search_profile(username: str, platform: str) -> str:
     return ''
 
 
-async def _get_post_urls_from_html(html: str, username: str) -> List[str]:
-    """Extract Instagram post URLs from scraped HTML (shared_data / links)."""
-    urls = []
+def _extract_ig_data_from_html(html: str, username: str) -> Dict:
+    """Extract bio, posts, images from Instagram's embedded JSON in HTML."""
+    result: Dict = {"bio": "", "full_name": "", "post_urls": [], "post_images": [], "post_captions": [], "profile_pic": ""}
     if not html:
-        return urls
-    # Instagram sometimes embeds post shortcodes in the HTML
-    shortcodes = re.findall(r'/p/([A-Za-z0-9_-]{6,})', html)
-    seen = set()
+        return result
+
+    import json as _json
+
+    # Method 1: window._sharedData JSON
+    shared_match = re.search(r'window\._sharedData\s*=\s*({.+?});</script>', html)
+    if shared_match:
+        try:
+            shared = _json.loads(shared_match.group(1))
+            user_data = shared.get("entry_data", {}).get("ProfilePage", [{}])[0].get("graphql", {}).get("user", {})
+            if user_data:
+                result["bio"] = user_data.get("biography", "")
+                result["full_name"] = user_data.get("full_name", "")
+                result["profile_pic"] = user_data.get("profile_pic_url_hd", "") or user_data.get("profile_pic_url", "")
+                edges = user_data.get("edge_owner_to_timeline_media", {}).get("edges", [])
+                for edge in edges[:6]:
+                    node = edge.get("node", {})
+                    sc = node.get("shortcode", "")
+                    if sc:
+                        result["post_urls"].append(f"https://www.instagram.com/p/{sc}/")
+                    img = node.get("display_url", "") or node.get("thumbnail_src", "")
+                    if img:
+                        result["post_images"].append(img)
+                    caption_edges = node.get("edge_media_to_caption", {}).get("edges", [])
+                    cap = caption_edges[0].get("node", {}).get("text", "") if caption_edges else ""
+                    result["post_captions"].append(cap)
+                logger.info(f"    _sharedData: bio='{result['bio'][:60]}', posts={len(result['post_urls'])}, images={len(result['post_images'])}")
+                return result
+        except Exception as e:
+            logger.info(f"    _sharedData parse failed: {e}")
+
+    # Method 2: __additionalDataLoaded or require("relay")
+    additional_matches = re.findall(r'window\.__additionalDataLoaded\([^,]+,\s*({.+?})\);</script>', html)
+    for match_str in additional_matches:
+        try:
+            data = _json.loads(match_str)
+            user_data = data.get("graphql", {}).get("user", {})
+            if not user_data:
+                for key in data:
+                    if isinstance(data[key], dict) and "biography" in str(data[key])[:200]:
+                        user_data = data[key]
+                        break
+            if user_data and isinstance(user_data, dict):
+                result["bio"] = user_data.get("biography", "") or result["bio"]
+                result["full_name"] = user_data.get("full_name", "") or result["full_name"]
+                edges = user_data.get("edge_owner_to_timeline_media", {}).get("edges", [])
+                for edge in edges[:6]:
+                    node = edge.get("node", {})
+                    sc = node.get("shortcode", "")
+                    if sc:
+                        result["post_urls"].append(f"https://www.instagram.com/p/{sc}/")
+                    img = node.get("display_url", "") or node.get("thumbnail_src", "")
+                    if img:
+                        result["post_images"].append(img)
+                    caption_edges = node.get("edge_media_to_caption", {}).get("edges", [])
+                    cap = caption_edges[0].get("node", {}).get("text", "") if caption_edges else ""
+                    result["post_captions"].append(cap)
+                if result["post_urls"]:
+                    logger.info(f"    __additionalData: bio='{result['bio'][:60]}', posts={len(result['post_urls'])}")
+                    return result
+        except Exception:
+            pass
+
+    # Method 3: Regex fallback — find display_url and shortcodes in raw HTML/JSON
+    display_urls = re.findall(r'"display_url"\s*:\s*"(https?://[^"]+)"', html)
+    shortcodes = re.findall(r'"shortcode"\s*:\s*"([A-Za-z0-9_-]{6,})"', html)
+    captions = re.findall(r'"text"\s*:\s*"([^"]{10,200})"', html)
+
+    seen_sc = set()
     for sc in shortcodes:
-        if sc not in seen:
-            seen.add(sc)
-            urls.append(f"https://www.instagram.com/p/{sc}/")
-    return urls[:6]
+        if sc not in seen_sc:
+            seen_sc.add(sc)
+            result["post_urls"].append(f"https://www.instagram.com/p/{sc}/")
+
+    for du in display_urls[:6]:
+        clean = du.replace("\\u0026", "&").replace("\\/", "/")
+        result["post_images"].append(clean)
+
+    # Filter captions: skip generic/short ones
+    for cap in captions[:6]:
+        decoded = cap.encode().decode('unicode_escape', errors='ignore')
+        if len(decoded) > 10 and 'login' not in decoded.lower():
+            result["post_captions"].append(decoded)
+
+    # Bio from meta description fallback
+    bio_match = re.search(r'"biography"\s*:\s*"([^"]*)"', html)
+    if bio_match:
+        result["bio"] = bio_match.group(1).encode().decode('unicode_escape', errors='ignore')
+
+    name_match = re.search(r'"full_name"\s*:\s*"([^"]*)"', html)
+    if name_match:
+        result["full_name"] = name_match.group(1).encode().decode('unicode_escape', errors='ignore')
+
+    logger.info(f"    Regex fallback: bio='{result['bio'][:60]}', shortcodes={len(result['post_urls'])}, display_urls={len(result['post_images'])}, captions={len(result['post_captions'])}")
+    return result
 
 
 async def _get_post_urls_from_google(username: str, platform: str) -> List[str]:
@@ -283,7 +386,7 @@ async def _fetch_post_image_and_caption(post_url: str) -> Optional[Dict]:
         return None
 
 
-async def _vision_analyze_recent_posts(username: str, platform: str, html: str = None) -> str:
+async def _vision_analyze_recent_posts(username: str, platform: str, html: str = None, ig_data: Dict = None) -> str:
     """Fetch recent post images + captions and analyze with Gemini Vision."""
     try:
         import google.generativeai as genai
@@ -294,68 +397,80 @@ async def _vision_analyze_recent_posts(username: str, platform: str, html: str =
             logger.warning(f"  ❌ GOOGLE_AI_API_KEY not set, skipping vision")
             return ''
 
-        # Step 1: Find post URLs
-        logger.info(f"  Step 1: Finding post URLs...")
-        post_urls = await _get_post_urls_from_html(html, username)
-        logger.info(f"    From HTML shortcodes: {len(post_urls)} posts found")
-        for u in post_urls[:3]:
-            logger.info(f"      {u}")
-
-        if len(post_urls) < 3:
-            logger.info(f"    Not enough from HTML, trying Google...")
-            google_urls = await _get_post_urls_from_google(username, platform)
-            logger.info(f"    From Google: {len(google_urls)} posts found")
-            seen = set(post_urls)
-            for u in google_urls:
-                if u not in seen:
-                    post_urls.append(u)
-                    seen.add(u)
-        post_urls = post_urls[:6]
-        logger.info(f"    Total post URLs: {len(post_urls)}")
-
-        if not post_urls:
-            logger.info(f"  ❌ No post URLs found, cannot do vision analysis")
-            return ''
-
-        # Step 2: Fetch og:image + caption from each post
-        logger.info(f"  Step 2: Fetching og:image + captions from {len(post_urls)} posts...")
-        tasks = [_fetch_post_image_and_caption(u) for u in post_urls]
-        results = await asyncio.gather(*tasks)
-        posts = [r for r in results if r]
-        logger.info(f"    Successfully fetched: {len(posts)}/{len(post_urls)} posts")
-        for i, p in enumerate(posts[:3]):
-            logger.info(f"      post[{i}]: image={'yes' if p.get('image_url') else 'no'}, caption='{(p.get('caption',''))[:60]}'")
-
-        if not posts:
-            logger.info(f"  ❌ No post images could be fetched")
-            return ''
-
-        # Step 3: Download up to 3 images
-        logger.info(f"  Step 3: Downloading up to 3 post images...")
         image_parts = []
         captions = []
-        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            for j, post in enumerate(posts[:3]):
-                try:
-                    resp = await client.get(post["image_url"])
-                    if resp.status_code == 200 and len(resp.content) > 1000:
-                        ct = resp.headers.get('content-type', 'image/jpeg').split(';')[0].strip()
-                        if ct not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
-                            ct = 'image/jpeg'
-                        image_parts.append({"mime_type": ct, "data": resp.content})
-                        if post.get("caption"):
-                            captions.append(post["caption"])
-                        logger.info(f"    image[{j}]: ✅ downloaded {len(resp.content)} bytes ({ct})")
-                    else:
-                        logger.info(f"    image[{j}]: ⚠️ HTTP {resp.status_code}, size={len(resp.content)}")
-                except Exception as e:
-                    logger.info(f"    image[{j}]: ❌ download failed: {e}")
+
+        # Priority: use pre-extracted images from ig_data (embedded JSON)
+        if ig_data and ig_data.get("post_images"):
+            logger.info(f"  Using {len(ig_data['post_images'])} images from embedded HTML JSON (Strategy 1.5)")
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                for j, img_url in enumerate(ig_data["post_images"][:3]):
+                    try:
+                        resp = await client.get(img_url)
+                        if resp.status_code == 200 and len(resp.content) > 1000:
+                            ct = resp.headers.get('content-type', 'image/jpeg').split(';')[0].strip()
+                            if ct not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
+                                ct = 'image/jpeg'
+                            image_parts.append({"mime_type": ct, "data": resp.content})
+                            logger.info(f"    image[{j}]: ✅ downloaded {len(resp.content)} bytes ({ct})")
+                        else:
+                            logger.info(f"    image[{j}]: ⚠️ HTTP {resp.status_code}, size={len(resp.content)}")
+                    except Exception as e:
+                        logger.info(f"    image[{j}]: ❌ download failed: {e}")
+            captions = [c for c in (ig_data.get("post_captions") or [])[:3] if c]
+            logger.info(f"    Captions from embedded data: {len(captions)}")
+
+        # Fallback: find posts via shortcodes in HTML + Google
+        if not image_parts:
+            logger.info(f"  No embedded images, trying shortcode/Google fallback...")
+
+            post_urls: List[str] = []
+            shortcodes = re.findall(r'/p/([A-Za-z0-9_-]{6,})', html or '')
+            seen = set()
+            for sc in shortcodes:
+                if sc not in seen:
+                    seen.add(sc)
+                    post_urls.append(f"https://www.instagram.com/p/{sc}/")
+            logger.info(f"    From HTML shortcodes: {len(post_urls)}")
+
+            if len(post_urls) < 3:
+                google_urls = await _get_post_urls_from_google(username, platform)
+                logger.info(f"    From Google: {len(google_urls)}")
+                for u in google_urls:
+                    if u not in seen:
+                        post_urls.append(u)
+                        seen.add(u)
+            post_urls = post_urls[:6]
+
+            if post_urls:
+                logger.info(f"    Fetching og:image from {len(post_urls)} post URLs...")
+                tasks = [_fetch_post_image_and_caption(u) for u in post_urls]
+                results = await asyncio.gather(*tasks)
+                posts = [r for r in results if r]
+                logger.info(f"    Got {len(posts)}/{len(post_urls)} posts with images")
+
+                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                    for j, post in enumerate(posts[:3]):
+                        try:
+                            resp = await client.get(post["image_url"])
+                            if resp.status_code == 200 and len(resp.content) > 1000:
+                                ct = resp.headers.get('content-type', 'image/jpeg').split(';')[0].strip()
+                                if ct not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
+                                    ct = 'image/jpeg'
+                                image_parts.append({"mime_type": ct, "data": resp.content})
+                                if post.get("caption"):
+                                    captions.append(post["caption"])
+                                logger.info(f"    image[{j}]: ✅ downloaded {len(resp.content)} bytes")
+                            else:
+                                logger.info(f"    image[{j}]: ⚠️ HTTP {resp.status_code}")
+                        except Exception as e:
+                            logger.info(f"    image[{j}]: ❌ {e}")
 
         if not image_parts:
-            logger.info(f"  ❌ No images downloaded successfully")
+            logger.info(f"  ❌ No images available for vision analysis")
             return ''
 
-        logger.info(f"  Step 4: Sending {len(image_parts)} images + {len(captions)} captions to Gemini Vision...")
+        logger.info(f"  Sending {len(image_parts)} images + {len(captions)} captions to Gemini Vision...")
 
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-2.5-flash")
