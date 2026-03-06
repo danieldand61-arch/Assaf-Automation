@@ -1,8 +1,8 @@
 [phases.setup]
-nixPkgs = ["python311", "gcc", "libffi", "libjpeg", "zlib", "freetype", "libwebp", "openssl", "chromium", "nss", "at-spi2-atk", "cups", "libdrm", "mesa", "pango", "cairo", "alsa-lib", "libxkbcommon", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXrandr", "dbus", "gtk3", "glib"]
+nixPkgs = ["python311", "gcc", "libffi", "libjpeg", "zlib", "freetype", "libwebp", "openssl", "chromium"]
 
 [phases.install]
-cmds = ["python -m venv --copies /opt/venv", ". /opt/venv/bin/activate && pip install --upgrade pip", ". /opt/venv/bin/activate && pip install -r requirements.txt", ". /opt/venv/bin/activate && playwright install chromium"]
+cmds = ["python -m venv --copies /opt/venv", ". /opt/venv/bin/activate && pip install --upgrade pip", ". /opt/venv/bin/activate && pip install -r requirements.txt"]
 
 [start]
 cmd = ". /opt/venv/bin/activate && uvicorn main:app --host 0.0.0.0 --port ${PORT:-8080}"

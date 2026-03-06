@@ -228,13 +228,11 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     else:
         logger.info(f"── STRATEGY 3: SKIPPED (have good description: '{description[:60]}...') ──")
 
-    # ── Strategy 4: Gemini Vision on recent posts ──
+    # ── Strategy 4: Gemini Vision on recent posts (always try for Instagram) ──
     vision_analysis = ''
     has_images = bool(ig_data.get("post_images"))
-    need_vision = not description or _is_generic_description(description, username, platform) or has_images
-    if need_vision:
+    if platform == 'instagram' or has_images or not description or _is_generic_description(description, username, platform):
         logger.info(f"── STRATEGY 4: Gemini Vision (analyzing recent post images) ──")
-        logger.info(f"  Reason: {'have images to analyze' if has_images else 'description is ' + ('empty' if not description else 'generic')}")
         vision_analysis = await _vision_analyze_recent_posts(username, platform, html, ig_data)
         if vision_analysis:
             logger.info(f"  ✅ Vision result: '{vision_analysis[:150]}...'")
@@ -664,13 +662,19 @@ async def _playwright_screenshot_and_analyze(username: str) -> str:
             return ''
 
         from playwright.async_api import async_playwright
+        import shutil
 
         screenshots = []
         async with async_playwright() as p:
-            browser = await p.chromium.launch(
-                headless=True,
-                args=['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-            )
+            # Find system Chromium (installed via Nix) or fall back to Playwright's bundled one
+            chromium_path = shutil.which('chromium') or shutil.which('chromium-browser') or shutil.which('google-chrome')
+            launch_args = {'headless': True, 'args': ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu']}
+            if chromium_path:
+                launch_args['executable_path'] = chromium_path
+                logger.info(f"  Using system Chromium: {chromium_path}")
+            else:
+                logger.info(f"  Using Playwright bundled Chromium")
+            browser = await p.chromium.launch(**launch_args)
             context = await browser.new_context(
                 viewport={'width': 1280, 'height': 900},
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
