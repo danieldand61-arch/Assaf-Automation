@@ -50,6 +50,7 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     ]
 
     html = None
+    got_429 = False
     for idx, ua in enumerate(user_agents):
         ua_label = ['Googlebot', 'FacebookBot', 'Chrome'][idx]
         headers = {'User-Agent': ua, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9'}
@@ -61,11 +62,52 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
                     html = resp.text
                     logger.info(f"  ✅ Got HTML with {ua_label}")
                     break
+                elif resp.status_code == 429:
+                    got_429 = True
+                    logger.info(f"  ⚠️ Rate limited (429), will retry after delay")
                 else:
                     logger.info(f"  ⏭️ Skipped (status={resp.status_code}, too short={len(resp.text) <= 1000})")
         except Exception as e:
             logger.warning(f"  ❌ [{ua_label}] failed: {e}")
         await asyncio.sleep(1)
+
+    # Fallback: try Google Cache or Wayback Machine when Instagram blocks us
+    if not html and got_429 and platform == 'instagram':
+        logger.info(f"  🔄 Instagram blocked (429). Trying Google Cache...")
+        try:
+            cache_url = f"https://webcache.googleusercontent.com/search?q=cache:instagram.com/{username}"
+            async with httpx.AsyncClient(timeout=12.0, follow_redirects=True) as client:
+                resp = await client.get(cache_url, headers={
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                })
+                logger.info(f"  [GoogleCache] HTTP {resp.status_code}, body={len(resp.text)} bytes")
+                if resp.status_code == 200 and len(resp.text) > 1000:
+                    html = resp.text
+                    logger.info(f"  ✅ Got HTML from Google Cache")
+        except Exception as e:
+            logger.info(f"  ❌ Google Cache failed: {e}")
+
+    if not html and got_429 and platform == 'instagram':
+        logger.info(f"  🔄 Trying Wayback Machine...")
+        try:
+            wb_api = f"https://archive.org/wayback/available?url=instagram.com/{username}"
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                wb_resp = await client.get(wb_api)
+                if wb_resp.status_code == 200:
+                    wb_data = wb_resp.json()
+                    snapshot = wb_data.get("archived_snapshots", {}).get("closest", {})
+                    if snapshot.get("available") and snapshot.get("url"):
+                        snap_url = snapshot["url"]
+                        logger.info(f"  Wayback snapshot found: {snap_url}")
+                        resp = await client.get(snap_url, headers={'User-Agent': 'Mozilla/5.0'})
+                        if resp.status_code == 200 and len(resp.text) > 1000:
+                            html = resp.text
+                            logger.info(f"  ✅ Got HTML from Wayback ({len(html)} bytes)")
+                    else:
+                        logger.info(f"  ❌ No Wayback snapshot available")
+        except Exception as e:
+            logger.info(f"  ❌ Wayback failed: {e}")
 
     if html:
         soup = BeautifulSoup(html, 'html.parser')
@@ -252,31 +294,56 @@ def _is_generic_description(desc: str, username: str, platform: str) -> bool:
 
 async def _google_search_profile(username: str, platform: str) -> str:
     """Search Google for cached social profile info (bio, description)."""
+    queries = [
+        f"site:{platform}.com {username}",
+        f'"{username}" {platform} bio',
+        f'instagram.com/{username}',
+    ]
+    google_headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+    }
+    all_snippets: List[str] = []
     try:
-        query = f"site:{platform}.com {username}"
-        search_url = f"https://www.google.com/search?q={query}&hl=en"
-        logger.info(f"  Google query: '{query}'")
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-            resp = await client.get(search_url, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                'Accept-Language': 'en-US,en;q=0.9',
-            })
-            logger.info(f"  Google HTTP {resp.status_code}, body={len(resp.text)} bytes")
-            if resp.status_code != 200:
-                return ''
-            soup = BeautifulSoup(resp.text, 'html.parser')
-            snippets = []
-            for div in soup.find_all(['div', 'span'], class_=re.compile(r'VwiC3b|IsZvec|aCOpRe|s3v9rd')):
-                text = div.get_text(strip=True)
-                if text and len(text) > 20 and 'login' not in text.lower() and 'sign up' not in text.lower():
-                    snippets.append(text)
-            logger.info(f"  Google snippets found: {len(snippets)}")
-            for i, s in enumerate(snippets[:3]):
-                logger.info(f"    snippet[{i}]: '{s[:100]}'")
-            if snippets:
-                return ' '.join(snippets[:3])[:500]
+            for query in queries:
+                if all_snippets:
+                    break
+                search_url = f"https://www.google.com/search?q={query}&hl=en&num=10"
+                logger.info(f"  Google query: '{query}'")
+                resp = await client.get(search_url, headers=google_headers)
+                logger.info(f"  Google HTTP {resp.status_code}, body={len(resp.text)} bytes")
+                if resp.status_code != 200:
+                    continue
+                soup = BeautifulSoup(resp.text, 'html.parser')
+                # Broad selector: all text blocks in search results
+                for el in soup.find_all(['div', 'span']):
+                    cls = ' '.join(el.get('class', []))
+                    # Google snippet classes (various versions)
+                    if re.search(r'VwiC3b|IsZvec|aCOpRe|s3v9rd|BNeawe|yDYNvb|lEBKkf', cls):
+                        text = el.get_text(strip=True)
+                        if text and len(text) > 15:
+                            low = text.lower()
+                            if any(skip in low for skip in ['login', 'sign up', 'create an account', 'see photos and videos']):
+                                continue
+                            if text not in all_snippets:
+                                all_snippets.append(text)
+
+                # Also extract meta descriptions from result links
+                for cite in soup.find_all('span', class_=re.compile(r'VuuXrf|qLRx3b|hgKElc')):
+                    text = cite.get_text(strip=True)
+                    if text and len(text) > 20 and text not in all_snippets:
+                        all_snippets.append(text)
+
+                logger.info(f"  Snippets found: {len(all_snippets)}")
+                for i, s in enumerate(all_snippets[:3]):
+                    logger.info(f"    snippet[{i}]: '{s[:120]}'")
+                await asyncio.sleep(0.5)
     except Exception as e:
         logger.warning(f"  ❌ Google search failed: {e}")
+
+    if all_snippets:
+        return ' '.join(all_snippets[:4])[:600]
     return ''
 
 
@@ -508,6 +575,34 @@ async def _vision_analyze_recent_posts(username: str, platform: str, html: str =
                                 logger.info(f"    image[{j}]: ⚠️ HTTP {resp.status_code}")
                         except Exception as e:
                             logger.info(f"    image[{j}]: ❌ {e}")
+
+        # Last resort: Google Image Search for profile-related images
+        if not image_parts:
+            logger.info(f"  Trying Google Image Search for @{username}...")
+            try:
+                gimg_url = f"https://www.google.com/search?q=instagram.com/{username}+posts&tbm=isch&hl=en"
+                async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                    resp = await client.get(gimg_url, headers={
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    })
+                    if resp.status_code == 200:
+                        img_urls = re.findall(r'\["(https?://[^"]+\.(?:jpg|jpeg|png|webp)(?:\?[^"]*)?)"', resp.text)
+                        # Filter out tiny Google UI images
+                        img_urls = [u for u in img_urls if 'gstatic.com' not in u and 'google.com' not in u][:5]
+                        logger.info(f"    Google Images found: {len(img_urls)} candidate URLs")
+                        for j, iu in enumerate(img_urls[:3]):
+                            try:
+                                r = await client.get(iu, timeout=8.0)
+                                if r.status_code == 200 and len(r.content) > 2000:
+                                    ct = r.headers.get('content-type', 'image/jpeg').split(';')[0].strip()
+                                    if ct not in ('image/jpeg', 'image/png', 'image/webp', 'image/gif'):
+                                        ct = 'image/jpeg'
+                                    image_parts.append({"mime_type": ct, "data": r.content})
+                                    logger.info(f"    gimg[{j}]: ✅ {len(r.content)} bytes")
+                            except Exception:
+                                pass
+            except Exception as e:
+                logger.info(f"    Google Image Search failed: {e}")
 
         if not image_parts:
             logger.info(f"  ❌ No images available for vision analysis")
