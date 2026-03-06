@@ -81,10 +81,17 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
 
         if og_title and og_title.get('content'):
             title = og_title['content'].strip()
-        if og_desc and og_desc.get('content'):
-            description = og_desc['content'].strip()
-        elif meta_desc and meta_desc.get('content'):
-            description = meta_desc['content'].strip()
+        # Prefer meta description over og:description — it often has the real bio in quotes
+        meta_desc_text = meta_desc['content'].strip() if meta_desc and meta_desc.get('content') else ''
+        og_desc_text = og_desc['content'].strip() if og_desc and og_desc.get('content') else ''
+        raw_desc = meta_desc_text or og_desc_text
+        # Extract quoted bio: '... on Instagram: "The place where everyone are happy"'
+        bio_quote = re.search(r':\s*["\u201c](.{3,}?)["\u201d]\s*$', raw_desc)
+        if bio_quote:
+            description = bio_quote.group(1).strip()
+            logger.info(f"  ✅ Extracted bio from quotes: '{description[:80]}'")
+        else:
+            description = raw_desc
         if og_img and og_img.get('content'):
             logo_url = og_img['content'].strip()
 
@@ -110,34 +117,61 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     elif html:
         logger.info(f"── STRATEGY 1.5: SKIPPED (not Instagram) ──")
 
-    # ── Strategy 2: Instagram JSON API ──
-    if platform == 'instagram' and (not description or _is_generic_description(description, username, platform)):
-        logger.info(f"── STRATEGY 2: Instagram ?__a=1 JSON API ──")
+    # ── Strategy 2: Instagram web_profile_info API ──
+    if platform == 'instagram' and (not ig_data.get("post_images") or not description or _is_generic_description(description, username, platform)):
+        logger.info(f"── STRATEGY 2: Instagram web_profile_info API ──")
         try:
-            api_url = f"https://www.instagram.com/{username}/?__a=1&__d=dis"
+            api_url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={username}"
             async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
                 resp = await client.get(api_url, headers={
-                    'User-Agent': 'Instagram 275.0.0.27.98 Android',
-                    'Accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    'X-IG-App-ID': '936619743392459',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': '*/*',
+                    'Referer': f'https://www.instagram.com/{username}/',
+                    'X-ASBD-ID': '129477',
                 })
                 logger.info(f"  HTTP {resp.status_code}, body={len(resp.text)} bytes")
-                if resp.status_code == 200:
-                    import json
+                if resp.status_code == 200 and resp.text.strip().startswith('{'):
                     data = resp.json()
-                    user_data = data.get('graphql', {}).get('user', {})
+                    user_data = data.get('data', {}).get('user', {})
                     if user_data:
-                        title = user_data.get('full_name') or username
-                        description = user_data.get('biography', '')
-                        logo_url = user_data.get('profile_pic_url_hd') or user_data.get('profile_pic_url', '')
-                        logger.info(f"  ✅ Got data: name='{title}', bio='{description[:80]}', avatar={'yes' if logo_url else 'no'}")
+                        bio = user_data.get('biography', '')
+                        fname = user_data.get('full_name', '')
+                        if bio and (not description or _is_generic_description(description, username, platform)):
+                            description = bio
+                            logger.info(f"  ✅ Got bio: '{bio[:80]}'")
+                        if fname:
+                            title = fname
+                            logger.info(f"  ✅ Got name: '{fname}'")
+                        pic = user_data.get('profile_pic_url_hd') or user_data.get('profile_pic_url', '')
+                        if pic:
+                            logo_url = pic
+                        # Extract posts
+                        edges = user_data.get('edge_owner_to_timeline_media', {}).get('edges', [])
+                        if edges and not ig_data.get("post_images"):
+                            for edge in edges[:6]:
+                                node = edge.get('node', {})
+                                sc = node.get('shortcode', '')
+                                if sc:
+                                    ig_data["post_urls"].append(f"https://www.instagram.com/p/{sc}/")
+                                img = node.get('display_url', '') or node.get('thumbnail_src', '')
+                                if img:
+                                    ig_data["post_images"].append(img)
+                                cap_edges = node.get('edge_media_to_caption', {}).get('edges', [])
+                                cap = cap_edges[0].get('node', {}).get('text', '') if cap_edges else ''
+                                ig_data["post_captions"].append(cap)
+                            logger.info(f"  ✅ Got {len(ig_data['post_images'])} post images, {len([c for c in ig_data['post_captions'] if c])} captions")
+                        elif edges:
+                            logger.info(f"  ℹ️ API has {len(edges)} posts but already have images from Strategy 1.5")
                     else:
-                        logger.info(f"  ⚠️ JSON parsed but no graphql.user data found")
+                        logger.info(f"  ⚠️ JSON parsed but no data.user found")
                 else:
-                    logger.info(f"  ⚠️ Non-200 response, skipping")
+                    logger.info(f"  ⚠️ Non-200 or non-JSON response, skipping")
         except Exception as e:
             logger.warning(f"  ❌ Strategy 2 FAILED: {e}")
-    elif platform == 'instagram' and description:
-        logger.info(f"── STRATEGY 2: SKIPPED (already have description from Strategy 1) ──")
+    elif platform == 'instagram':
+        logger.info(f"── STRATEGY 2: SKIPPED (have description + images) ──")
 
     # ── Strategy 3: Google Search ──
     if not description or _is_generic_description(description, username, platform):
@@ -154,16 +188,18 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
 
     # ── Strategy 4: Gemini Vision on recent posts ──
     vision_analysis = ''
-    if not description or _is_generic_description(description, username, platform):
+    has_images = bool(ig_data.get("post_images"))
+    need_vision = not description or _is_generic_description(description, username, platform) or has_images
+    if need_vision:
         logger.info(f"── STRATEGY 4: Gemini Vision (analyzing recent post images) ──")
-        logger.info(f"  Reason: description is {'empty' if not description else 'generic'}")
+        logger.info(f"  Reason: {'have images to analyze' if has_images else 'description is ' + ('empty' if not description else 'generic')}")
         vision_analysis = await _vision_analyze_recent_posts(username, platform, html, ig_data)
         if vision_analysis:
             logger.info(f"  ✅ Vision result: '{vision_analysis[:150]}...'")
         else:
             logger.info(f"  ❌ Vision analysis returned nothing")
     else:
-        logger.info(f"── STRATEGY 4: SKIPPED (have good description) ──")
+        logger.info(f"── STRATEGY 4: SKIPPED (no images and have good description) ──")
 
     if not description or _is_generic_description(description, username, platform):
         description = vision_analysis or f"@{username} on {platform.capitalize()}"
@@ -199,12 +235,19 @@ def _is_generic_description(desc: str, username: str, platform: str) -> bool:
     if not desc:
         return True
     low = desc.lower()
+    # If it has quoted bio text like: on Instagram: "actual bio here" — not generic
+    if re.search(r':\s*["\u201c].{5,}["\u201d]', desc):
+        return False
     generic_markers = [
         'login', 'log in', 'sign up', 'sign in', 'create an account',
-        'see photos and videos from', 'instagram', 'see instagram photos',
-        f'@{username} on {platform}',
+        'see photos and videos from', 'see instagram photos',
     ]
-    return any(m in low for m in generic_markers) and len(desc) < 200
+    if any(m in low for m in generic_markers):
+        return True
+    # "N Followers, N Following, N Posts" without any extra info
+    if re.match(r'^\d+\s+followers?,\s*\d+\s+following,\s*\d+\s+posts?\s*$', low.strip(' -.')):
+        return True
+    return False
 
 
 async def _google_search_profile(username: str, platform: str) -> str:
