@@ -32,11 +32,17 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     path_parts = [p for p in parsed.path.strip('/').split('/') if p]
     username = path_parts[0] if path_parts else 'brand'
 
+    logger.info(f"{'='*60}")
+    logger.info(f"📱 SOCIAL PROFILE SCRAPE START: @{username} on {platform}")
+    logger.info(f"📱 URL: {url}")
+    logger.info(f"{'='*60}")
+
     title = username
     description = ''
     logo_url = ''
 
-    # Strategy 1: Try og: meta tags with multiple User-Agents
+    # ── Strategy 1: OG Meta Tags ──
+    logger.info(f"── STRATEGY 1: OG Meta Tags (trying 3 User-Agents) ──")
     user_agents = [
         'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
         'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
@@ -44,17 +50,21 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     ]
 
     html = None
-    for ua in user_agents:
+    for idx, ua in enumerate(user_agents):
+        ua_label = ['Googlebot', 'FacebookBot', 'Chrome'][idx]
         headers = {'User-Agent': ua, 'Accept': 'text/html,application/xhtml+xml', 'Accept-Language': 'en-US,en;q=0.9'}
         try:
             async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
                 resp = await client.get(url, headers=headers)
+                logger.info(f"  [{ua_label}] HTTP {resp.status_code}, body={len(resp.text)} bytes")
                 if resp.status_code == 200 and len(resp.text) > 1000:
                     html = resp.text
+                    logger.info(f"  ✅ Got HTML with {ua_label}")
                     break
-                logger.warning(f"⚠️ Social scrape ({ua[:20]}): HTTP {resp.status_code}, len={len(resp.text)}")
+                else:
+                    logger.info(f"  ⏭️ Skipped (status={resp.status_code}, too short={len(resp.text) <= 1000})")
         except Exception as e:
-            logger.warning(f"⚠️ Social scrape ({ua[:20]}): {e}")
+            logger.warning(f"  ❌ [{ua_label}] failed: {e}")
         await asyncio.sleep(1)
 
     if html:
@@ -63,6 +73,11 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
         og_desc = soup.find('meta', attrs={'property': 'og:description'})
         og_img = soup.find('meta', attrs={'property': 'og:image'})
         meta_desc = soup.find('meta', attrs={'name': 'description'})
+
+        logger.info(f"  og:title = {og_title['content'][:80] if og_title and og_title.get('content') else '(empty)'}")
+        logger.info(f"  og:description = {og_desc['content'][:120] if og_desc and og_desc.get('content') else '(empty)'}")
+        logger.info(f"  meta description = {meta_desc['content'][:120] if meta_desc and meta_desc.get('content') else '(empty)'}")
+        logger.info(f"  og:image = {'found' if og_img and og_img.get('content') else '(empty)'}")
 
         if og_title and og_title.get('content'):
             title = og_title['content'].strip()
@@ -73,8 +88,14 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
         if og_img and og_img.get('content'):
             logo_url = og_img['content'].strip()
 
-    # Strategy 2: If Instagram and we got nothing useful, try ?__a=1&__d=dis endpoint
+        is_generic = _is_generic_description(description, username, platform) if description else True
+        logger.info(f"  RESULT: title='{title[:60]}', desc='{description[:80]}...', generic={is_generic}")
+    else:
+        logger.warning(f"  ❌ Strategy 1 FAILED: no HTML received from any User-Agent")
+
+    # ── Strategy 2: Instagram JSON API ──
     if platform == 'instagram' and not description:
+        logger.info(f"── STRATEGY 2: Instagram ?__a=1 JSON API ──")
         try:
             api_url = f"https://www.instagram.com/{username}/?__a=1&__d=dis"
             async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
@@ -82,6 +103,7 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
                     'User-Agent': 'Instagram 275.0.0.27.98 Android',
                     'Accept': 'application/json',
                 })
+                logger.info(f"  HTTP {resp.status_code}, body={len(resp.text)} bytes")
                 if resp.status_code == 200:
                     import json
                     data = resp.json()
@@ -90,30 +112,56 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
                         title = user_data.get('full_name') or username
                         description = user_data.get('biography', '')
                         logo_url = user_data.get('profile_pic_url_hd') or user_data.get('profile_pic_url', '')
-                        logger.info(f"📱 Instagram API fallback success: @{username}")
+                        logger.info(f"  ✅ Got data: name='{title}', bio='{description[:80]}', avatar={'yes' if logo_url else 'no'}")
+                    else:
+                        logger.info(f"  ⚠️ JSON parsed but no graphql.user data found")
+                else:
+                    logger.info(f"  ⚠️ Non-200 response, skipping")
         except Exception as e:
-            logger.warning(f"⚠️ Instagram API fallback failed: {e}")
+            logger.warning(f"  ❌ Strategy 2 FAILED: {e}")
+    elif platform == 'instagram' and description:
+        logger.info(f"── STRATEGY 2: SKIPPED (already have description from Strategy 1) ──")
 
-    # Strategy 3: Google search for cached profile info
+    # ── Strategy 3: Google Search ──
     if not description or _is_generic_description(description, username, platform):
+        logger.info(f"── STRATEGY 3: Google Search for cached profile info ──")
+        logger.info(f"  Reason: description is {'empty' if not description else 'generic (login/signup text)'}")
         google_desc = await _google_search_profile(username, platform)
         if google_desc:
             description = google_desc
-            logger.info(f"🔍 Google search fallback success: @{username}")
+            logger.info(f"  ✅ Google found: '{description[:120]}...'")
+        else:
+            logger.info(f"  ❌ Google returned nothing useful")
+    else:
+        logger.info(f"── STRATEGY 3: SKIPPED (have good description: '{description[:60]}...') ──")
 
-    # Strategy 4: Gemini Vision — analyze recent post images
+    # ── Strategy 4: Gemini Vision on recent posts ──
     vision_analysis = ''
     if not description or _is_generic_description(description, username, platform):
+        logger.info(f"── STRATEGY 4: Gemini Vision (analyzing recent post images) ──")
+        logger.info(f"  Reason: description is {'empty' if not description else 'generic'}")
         vision_analysis = await _vision_analyze_recent_posts(username, platform, html)
         if vision_analysis:
-            logger.info(f"👁️ Vision analysis of posts success: @{username}")
+            logger.info(f"  ✅ Vision result: '{vision_analysis[:150]}...'")
+        else:
+            logger.info(f"  ❌ Vision analysis returned nothing")
+    else:
+        logger.info(f"── STRATEGY 4: SKIPPED (have good description) ──")
 
     if not description or _is_generic_description(description, username, platform):
         description = vision_analysis or f"@{username} on {platform.capitalize()}"
+        logger.info(f"  Final fallback description: '{description[:80]}'")
 
     combined_content = "\n".join(filter(None, [description, vision_analysis]))
 
-    logger.info(f"📱 Social profile scraped: {platform} @{username} — {title[:60]}")
+    logger.info(f"{'='*60}")
+    logger.info(f"📱 SOCIAL PROFILE SCRAPE COMPLETE: @{username}")
+    logger.info(f"  title: {title[:60]}")
+    logger.info(f"  description: {description[:120]}")
+    logger.info(f"  logo_url: {'yes' if logo_url else 'no'}")
+    logger.info(f"  vision_analysis: {'yes' if vision_analysis else 'no'}")
+    logger.info(f"  combined_content length: {len(combined_content)} chars")
+    logger.info(f"{'='*60}")
 
     return {
         "url": url,
@@ -147,24 +195,28 @@ async def _google_search_profile(username: str, platform: str) -> str:
     try:
         query = f"site:{platform}.com {username}"
         search_url = f"https://www.google.com/search?q={query}&hl=en"
+        logger.info(f"  Google query: '{query}'")
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
             resp = await client.get(search_url, headers={
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
                 'Accept-Language': 'en-US,en;q=0.9',
             })
+            logger.info(f"  Google HTTP {resp.status_code}, body={len(resp.text)} bytes")
             if resp.status_code != 200:
                 return ''
             soup = BeautifulSoup(resp.text, 'html.parser')
-            # Google shows profile snippets in search results
             snippets = []
             for div in soup.find_all(['div', 'span'], class_=re.compile(r'VwiC3b|IsZvec|aCOpRe|s3v9rd')):
                 text = div.get_text(strip=True)
                 if text and len(text) > 20 and 'login' not in text.lower() and 'sign up' not in text.lower():
                     snippets.append(text)
+            logger.info(f"  Google snippets found: {len(snippets)}")
+            for i, s in enumerate(snippets[:3]):
+                logger.info(f"    snippet[{i}]: '{s[:100]}'")
             if snippets:
                 return ' '.join(snippets[:3])[:500]
     except Exception as e:
-        logger.warning(f"⚠️ Google search fallback failed: {e}")
+        logger.warning(f"  ❌ Google search failed: {e}")
     return ''
 
 
@@ -239,37 +291,51 @@ async def _vision_analyze_recent_posts(username: str, platform: str, html: str =
 
         api_key = os.getenv("GOOGLE_AI_API_KEY")
         if not api_key:
+            logger.warning(f"  ❌ GOOGLE_AI_API_KEY not set, skipping vision")
             return ''
 
         # Step 1: Find post URLs
+        logger.info(f"  Step 1: Finding post URLs...")
         post_urls = await _get_post_urls_from_html(html, username)
+        logger.info(f"    From HTML shortcodes: {len(post_urls)} posts found")
+        for u in post_urls[:3]:
+            logger.info(f"      {u}")
+
         if len(post_urls) < 3:
+            logger.info(f"    Not enough from HTML, trying Google...")
             google_urls = await _get_post_urls_from_google(username, platform)
+            logger.info(f"    From Google: {len(google_urls)} posts found")
             seen = set(post_urls)
             for u in google_urls:
                 if u not in seen:
                     post_urls.append(u)
                     seen.add(u)
         post_urls = post_urls[:6]
+        logger.info(f"    Total post URLs: {len(post_urls)}")
 
         if not post_urls:
-            logger.info(f"👁️ No post URLs found for @{username}")
+            logger.info(f"  ❌ No post URLs found, cannot do vision analysis")
             return ''
 
-        # Step 2: Fetch og:image + caption from each post (parallel)
+        # Step 2: Fetch og:image + caption from each post
+        logger.info(f"  Step 2: Fetching og:image + captions from {len(post_urls)} posts...")
         tasks = [_fetch_post_image_and_caption(u) for u in post_urls]
         results = await asyncio.gather(*tasks)
         posts = [r for r in results if r]
+        logger.info(f"    Successfully fetched: {len(posts)}/{len(post_urls)} posts")
+        for i, p in enumerate(posts[:3]):
+            logger.info(f"      post[{i}]: image={'yes' if p.get('image_url') else 'no'}, caption='{(p.get('caption',''))[:60]}'")
 
         if not posts:
-            logger.info(f"👁️ No post images fetched for @{username}")
+            logger.info(f"  ❌ No post images could be fetched")
             return ''
 
         # Step 3: Download up to 3 images
+        logger.info(f"  Step 3: Downloading up to 3 post images...")
         image_parts = []
         captions = []
         async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-            for post in posts[:3]:
+            for j, post in enumerate(posts[:3]):
                 try:
                     resp = await client.get(post["image_url"])
                     if resp.status_code == 200 and len(resp.content) > 1000:
@@ -279,19 +345,23 @@ async def _vision_analyze_recent_posts(username: str, platform: str, html: str =
                         image_parts.append({"mime_type": ct, "data": resp.content})
                         if post.get("caption"):
                             captions.append(post["caption"])
-                except Exception:
-                    pass
+                        logger.info(f"    image[{j}]: ✅ downloaded {len(resp.content)} bytes ({ct})")
+                    else:
+                        logger.info(f"    image[{j}]: ⚠️ HTTP {resp.status_code}, size={len(resp.content)}")
+                except Exception as e:
+                    logger.info(f"    image[{j}]: ❌ download failed: {e}")
 
         if not image_parts:
+            logger.info(f"  ❌ No images downloaded successfully")
             return ''
 
-        logger.info(f"👁️ Analyzing {len(image_parts)} post images for @{username}")
+        logger.info(f"  Step 4: Sending {len(image_parts)} images + {len(captions)} captions to Gemini Vision...")
 
-        # Step 4: Send to Gemini Vision
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-2.5-flash")
 
         captions_text = "\n".join(f"- {c}" for c in captions) if captions else "No captions available."
+        logger.info(f"    Captions sent to AI: {captions_text[:200]}")
 
         prompt = f"""These are {len(image_parts)} recent post images from @{username} on {platform.capitalize()}.
 Post captions:
@@ -307,11 +377,14 @@ Provide a concise 2-3 sentence description of the business. If you truly cannot 
         content_parts = [prompt] + image_parts
         response = model.generate_content(content_parts)
         text = response.text.strip()
+        logger.info(f"    Gemini Vision response: '{text[:200]}'")
         if text.upper() == 'UNKNOWN' or len(text) < 10:
+            logger.info(f"  ❌ Vision returned UNKNOWN or too short")
             return ''
+        logger.info(f"  ✅ Vision analysis complete ({len(text)} chars)")
         return text
     except Exception as e:
-        logger.warning(f"⚠️ Vision post analysis failed: {e}")
+        logger.warning(f"  ❌ Vision analysis failed: {e}")
         return ''
 
 

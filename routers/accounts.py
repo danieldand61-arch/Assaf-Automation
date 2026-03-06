@@ -29,11 +29,28 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
 
     try:
         from services.scraper import scrape_website
-        logger.info(f"🔍 analyze-url called for: {url}")
-        data = await scrape_website(url)
-        logger.info(f"✅ Scrape done — title: {data.get('title', '')[:60]}, colors: {data.get('colors', [])}")
+        logger.info(f"{'='*60}")
+        logger.info(f"🔍 ANALYZE-URL START: {url}")
+        logger.info(f"{'='*60}")
 
+        data = await scrape_website(url)
+        logger.info(f"── SCRAPE RESULTS ──")
+        logger.info(f"  title: '{data.get('title', '')[:80]}'")
+        logger.info(f"  description: '{data.get('description', '')[:120]}'")
+        logger.info(f"  content length: {len(data.get('content', ''))} chars")
+        logger.info(f"  logo_url: {'yes' if data.get('logo_url') else 'no'}")
+        logger.info(f"  colors: {data.get('colors', [])}")
+        logger.info(f"  brand_voice: {data.get('brand_voice', '')}")
+        logger.info(f"  products (scraper): {data.get('products', [])[:3]}")
+        logger.info(f"  industry hint: {data.get('industry', '')}")
+
+        logger.info(f"── AI EXTRACTION (Gemini) ──")
         ai_info = await _ai_extract_business_info(data)
+        logger.info(f"  AI business_name: {ai_info.get('business_name', '(empty)')}")
+        logger.info(f"  AI industry: {ai_info.get('industry', '(empty)')}")
+        logger.info(f"  AI description: {ai_info.get('description', '(empty)')[:100]}")
+        logger.info(f"  AI products: {ai_info.get('products', [])[:4]}")
+        logger.info(f"  AI key_features: {ai_info.get('key_features', [])[:3]}")
 
         brand_kit = {
             "business_name": ai_info.get("business_name") or _extract_business_name(data.get("title", ""), url),
@@ -47,7 +64,20 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
             "website_url": url,
             "content_preview": data.get("content", "")[:500],
         }
-        logger.info(f"✅ Returning brand_kit: name={brand_kit['business_name']}, industry={brand_kit['industry']}, products={brand_kit['products'][:3]}")
+
+        logger.info(f"── FINAL BRAND KIT ──")
+        logger.info(f"  business_name: {brand_kit['business_name']} (source: {'AI' if ai_info.get('business_name') else 'scraper fallback'})")
+        logger.info(f"  industry: {brand_kit['industry']} (source: {'AI' if ai_info.get('industry') else 'keyword fallback'})")
+        logger.info(f"  description: {brand_kit['description'][:100]} (source: {'AI' if ai_info.get('description') else 'scraper'})")
+        logger.info(f"  products: {brand_kit['products'][:3]} (source: {'AI' if ai_info.get('products') else 'scraper'})")
+        logger.info(f"  key_features: {brand_kit['key_features'][:3]} (source: {'AI' if ai_info.get('key_features') else 'scraper'})")
+        logger.info(f"  brand_voice: {brand_kit['brand_voice']}")
+        logger.info(f"  colors: {brand_kit['brand_colors']}")
+        logger.info(f"  logo: {'yes' if brand_kit['logo_url'] else 'no'}")
+        logger.info(f"{'='*60}")
+        logger.info(f"✅ ANALYZE-URL COMPLETE: {url}")
+        logger.info(f"{'='*60}")
+
         return {"brand_kit": brand_kit}
     except Exception as e:
         logger.error(f"❌ Failed to analyze URL {url}: {e}", exc_info=True)
@@ -86,10 +116,13 @@ async def _ai_extract_business_info(data: dict) -> dict:
         url = data.get("url", "")
         industry_hint = data.get("industry", "")
 
+        logger.info(f"  AI input: title='{title[:50]}', desc='{desc[:80]}', content={len(content)} chars, industry_hint='{industry_hint}'")
+
         is_social = industry_hint.endswith("profile")
         social_instruction = ""
         if is_social:
             low_data = not desc or len(desc) < 30 or 'login' in desc.lower() or 'sign up' in desc.lower()
+            logger.info(f"  Social profile mode: is_social=True, low_data={low_data}")
             social_instruction = f"""This is a social media profile URL: {url}
 The bio/description below is from the profile. Use it to understand what this BUSINESS does — do NOT describe the social platform itself.
 Extract the actual business behind this profile (their real products, services, industry).
