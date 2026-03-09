@@ -6,11 +6,12 @@ Real API prices (2026-03):
   Gemini 3 Flash:           $0.50/1M input, $3.00/1M output
   Gemini 3.1 Flash Image:  $60/1M image output tokens → $0.067-$0.101/image (1K-2K)
   ElevenLabs dub:           $0.24/min
-  Kling AI video:           $0.049/sec (no audio), $0.098/sec (with audio)
+  Kling 3.0 via KIE AI:     Std $0.10/s no audio, $0.15/s audio
+                             Pro $0.135/s no audio, $0.20/s audio
 
 Formula: credits = real_cost × MARGIN_MULTIPLIER / $0.001
 
-Packages: 10K cr = $10, 50K cr = $45, 200K cr = $160
+Packages: 50K cr = $29, 100K cr = $49, 200K cr = $89
 """
 import logging
 from database.supabase_client import get_supabase
@@ -41,14 +42,14 @@ FIXED_CREDITS = {k: round(v * MARGIN_MULTIPLIER) for k, v in _BASE_FIXED.items()
 _BASE_DUBBING_PER_MIN = 240.0
 VIDEO_DUBBING_PER_MIN = round(_BASE_DUBBING_PER_MIN * MARGIN_MULTIPLIER)
 
-# Kling 3.0 video generation — per-second pricing (base = real cost in credits)
-# Pro: 54 cr/s no audio, 80 cr/s with audio; Std: 40 cr/s no audio, 60 cr/s with audio
-# These are already API-level credits; we apply MARGIN_MULTIPLIER on top
+# Kling 3.0 via KIE AI — per-second pricing (base = real API cost in credits, 1cr=$0.001)
+# Std no-audio: $0.10/s = 100cr, Std audio: $0.15/s = 150cr
+# Pro no-audio: $0.135/s = 135cr, Pro audio: $0.20/s = 200cr
 _BASE_VIDEO_GEN_PER_SEC = {
-    "pro_no_audio": 54,
-    "pro_audio": 80,
-    "std_no_audio": 40,
-    "std_audio": 60,
+    "std_no_audio": 100,
+    "std_audio": 150,
+    "pro_no_audio": 135,
+    "pro_audio": 200,
 }
 VIDEO_GEN_PER_SEC = {k: round(v * MARGIN_MULTIPLIER) for k, v in _BASE_VIDEO_GEN_PER_SEC.items()}
 

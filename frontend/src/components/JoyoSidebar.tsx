@@ -1,6 +1,6 @@
 import { 
   LayoutDashboard, Send, Megaphone, MessageSquare, Image, Film, 
-  FileText, Calendar, Link2, Settings, Menu,
+  FileText, Calendar, Link2, Settings, Menu, CreditCard,
   Sparkles, BarChart3
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
@@ -23,6 +23,7 @@ const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: bo
   { id: 'advisor',      labelKey: 'navAIAdvisor',       icon: MessageSquare },
   { id: 'library',      labelKey: 'navContentLibrary',  icon: FileText },
   { id: 'calendar',     labelKey: 'navCalendar',        icon: Calendar },
+  { id: 'billing',      labelKey: 'navBilling',          icon: CreditCard },
   { id: 'integrations', labelKey: 'navIntegrations',    icon: Link2 },
   { id: 'settings',     labelKey: 'navSettings',        icon: Settings },
   { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone, disabled: true, badgeKey: 'comingSoon' },

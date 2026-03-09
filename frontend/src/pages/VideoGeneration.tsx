@@ -17,19 +17,20 @@ interface VideoTask {
 
 interface VideoGenerationProps {
   onSendToPostGenerator?: (videoUrl: string) => void
+  onNeedCredits?: () => void
 }
 
 type GenerationMode = 'text' | 'image'
 type Quality = 'pro' | 'std'
 
 const CREDITS_PER_SEC: Record<string, number> = {
-  pro_no_audio: 54,
-  pro_audio: 80,
-  std_no_audio: 40,
-  std_audio: 60,
+  std_no_audio: 200,
+  std_audio: 300,
+  pro_no_audio: 270,
+  pro_audio: 400,
 }
 
-export default function VideoGeneration({ onSendToPostGenerator }: VideoGenerationProps) {
+export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }: VideoGenerationProps) {
   const { session } = useAuth()
   const [mode, setMode] = useState<GenerationMode>('text')
 
@@ -99,7 +100,12 @@ export default function VideoGeneration({ onSendToPostGenerator }: VideoGenerati
       setCurrentTask({ task_id: data.task_id, status: 'IN_PROGRESS', estimated_credits: data.estimated_credits })
       pollStatus(data.task_id)
     } catch (err: any) {
-      setError(err.message)
+      const msg = err.message || ''
+      if ((msg.includes('credit') || msg.includes('402') || msg.includes('balance')) && onNeedCredits) {
+        onNeedCredits()
+      } else {
+        setError(msg)
+      }
       setIsGenerating(false)
     }
   }

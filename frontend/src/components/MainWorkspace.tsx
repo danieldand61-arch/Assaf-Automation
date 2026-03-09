@@ -16,6 +16,7 @@ import { Settings } from '../pages/Settings'
 import AdAnalytics from '../pages/AdAnalytics'
 import AIAdvisor from '../pages/AIAdvisor'
 import { Connections } from '../pages/Connections'
+import Billing from '../pages/Billing'
 import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -23,7 +24,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme, animations } from '../styles/joyo-theme'
 import { getApiUrl } from '../lib/api'
 
-type TabType = 'dashboard' | 'social' | 'ads' | 'chat' | 'analyst' | 'advisor' | 'media' | 'video' | 'videogen' | 'library' | 'calendar' | 'integrations' | 'settings'
+type TabType = 'dashboard' | 'social' | 'ads' | 'chat' | 'analyst' | 'advisor' | 'media' | 'video' | 'videogen' | 'library' | 'calendar' | 'billing' | 'integrations' | 'settings'
 
 function _friendlyGenerateError(msg: string): string {
   const m = msg.toLowerCase()
@@ -55,7 +56,7 @@ export function MainWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const params = new URLSearchParams(window.location.search)
     const tab = params.get('tab')
-    if (tab && ['dashboard','social','ads','chat','analyst','advisor','media','video','videogen','library','calendar','integrations','settings'].includes(tab)) {
+    if (tab && ['dashboard','social','ads','chat','analyst','advisor','media','video','videogen','library','calendar','billing','integrations','settings'].includes(tab)) {
       return tab as TabType
     }
     return 'dashboard'
@@ -65,7 +66,7 @@ export function MainWorkspace() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const tab = params.get('tab')
-    if (tab && tab !== activeTab && ['dashboard','social','ads','chat','analyst','advisor','media','video','videogen','library','calendar','integrations','settings'].includes(tab)) {
+    if (tab && tab !== activeTab && ['dashboard','social','ads','chat','analyst','advisor','media','video','videogen','library','calendar','billing','integrations','settings'].includes(tab)) {
       setActiveTab(tab as TabType)
     }
   }, [])
@@ -83,6 +84,7 @@ export function MainWorkspace() {
   const [platformStatus, setPlatformStatus] = useState<Record<string, 'pending' | 'done'>>({})
   const [generateError, setGenerateError] = useState('')
   const [saveResults, setSaveResults] = useState<Record<number, boolean>>({})
+  const [showCreditsPopup, setShowCreditsPopup] = useState(false)
   const savedFormRef = useRef<GenerateFormData | null>(null)
 
   const JoyoTheme = getJoyoTheme(theme)
@@ -198,7 +200,12 @@ export function MainWorkspace() {
       clearInterval(interval)
       clearInterval(slowTick)
       console.error('Generation error:', error)
-      setGenerateError(_friendlyGenerateError(error.message || 'Unknown error'))
+      const msg = error.message || 'Unknown error'
+      if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('balance') || msg.toLowerCase().includes('402')) {
+        setShowCreditsPopup(true)
+      } else {
+        setGenerateError(_friendlyGenerateError(msg))
+      }
       setSocialScreen('form')
     }
   }
@@ -237,7 +244,7 @@ export function MainWorkspace() {
     chat: 'AI Advisor & Analyst', analyst: 'Analyst', advisor: 'AI Advisor', media: 'Media Studio',
     video: 'Video Dubbing', videogen: 'Video Studio',
     library: 'Content Library', calendar: 'Calendar',
-    integrations: 'Integrations', settings: 'Settings',
+    billing: 'Buy Credits', integrations: 'Integrations', settings: 'Settings',
   }
 
   if (showConnectTools) {
@@ -297,9 +304,10 @@ export function MainWorkspace() {
             {activeTab === 'advisor' && <AIAdvisor />}
             {activeTab === 'media' && <PlaceholderPage title="Media Studio" description="Create, edit, and manage your visual content — templates, batch resize, background removal, and more." />}
             {activeTab === 'video' && <VideoTranslation />}
-            {activeTab === 'videogen' && <VideoGeneration onSendToPostGenerator={handleSendVideoToPostGenerator} />}
+            {activeTab === 'videogen' && <VideoGeneration onSendToPostGenerator={handleSendVideoToPostGenerator} onNeedCredits={() => setShowCreditsPopup(true)} />}
             {activeTab === 'library' && <Library />}
             {activeTab === 'calendar' && <Scheduled />}
+            {activeTab === 'billing' && <Billing />}
             {activeTab === 'integrations' && <Connections />}
             {activeTab === 'settings' && <Settings />}
           </div>
@@ -307,6 +315,37 @@ export function MainWorkspace() {
       </div>
 
       <FloatingChat />
+
+      {/* Out-of-credits popup */}
+      {showCreditsPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setShowCreditsPopup(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 max-w-sm mx-4" onClick={e => e.stopPropagation()}>
+            <div className="text-center">
+              <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
+                <span className="text-2xl">⚡</span>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Out of Credits</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                You don't have enough credits to complete this action. Purchase more credits to continue.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowCreditsPopup(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
+                >
+                  Later
+                </button>
+                <button
+                  onClick={() => { setShowCreditsPopup(false); setActiveTab('billing') }}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white text-sm font-bold hover:from-violet-700 hover:to-blue-700 transition-all shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
+                >
+                  Buy Credits
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

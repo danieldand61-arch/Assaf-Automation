@@ -157,6 +157,17 @@ except Exception as e:
     logger.exception("Full import/registration traceback:")
     logger.warning("⚠️ Video generation features will NOT be available!")
 
+# Try to load billing router (Stripe)
+logger.info("🔄 Attempting to import billing router...")
+try:
+    from routers import billing
+    logger.info("✅ Billing router imported successfully")
+    app.include_router(billing.router)
+    logger.info("✅ Billing router registered")
+except Exception as e:
+    logger.error(f"❌ Billing router failed to load: {str(e)}")
+    logger.warning("⚠️ Billing features will NOT be available!")
+
 # Try to load social connections router
 logger.info("🔄 Attempting to import social connections router...")
 try:

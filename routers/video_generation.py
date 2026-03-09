@@ -18,12 +18,14 @@ logger = logging.getLogger(__name__)
 KIE_API_URL = "https://api.kie.ai"
 KIE_MODEL = "kling-3.0/video"
 
-# KIE AI credits per second (their internal pricing, we apply our margin via credits_service)
-KIE_CREDITS_PER_SEC = {
-    "pro_no_audio": 54,
-    "pro_audio": 80,
-    "std_no_audio": 40,
-    "std_audio": 60,
+# Our sale price per second (real cost × 2 margin, 1 credit = $0.001)
+# Std: $0.10/s base → 200cr/s, $0.15/s audio → 300cr/s
+# Pro: $0.135/s base → 270cr/s, $0.20/s audio → 400cr/s
+OUR_CREDITS_PER_SEC = {
+    "std_no_audio": 200,
+    "std_audio": 300,
+    "pro_no_audio": 270,
+    "pro_audio": 400,
 }
 
 # KIE states → our normalized states
@@ -45,7 +47,7 @@ def get_kling_api_key() -> str:
 
 def _estimate_credits(quality: str, duration: int, sound: bool) -> int:
     key = f"{quality}_{'audio' if sound else 'no_audio'}"
-    per_sec = KIE_CREDITS_PER_SEC.get(key, 54)
+    per_sec = OUR_CREDITS_PER_SEC.get(key, 270)
     return per_sec * duration
 
 

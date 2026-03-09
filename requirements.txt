@@ -27,6 +27,9 @@ elevenlabs==1.9.0
 # Headless browser for social media scraping
 playwright==1.49.1
 
+# Payments
+stripe>=8.0.0
+
 # Rate limiting
 slowapi==0.1.9
 
