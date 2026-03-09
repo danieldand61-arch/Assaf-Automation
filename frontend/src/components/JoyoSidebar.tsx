@@ -18,6 +18,7 @@ interface JoyoSidebarProps {
 const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: boolean; badgeKey?: TranslationKey }[] = [
   { id: 'dashboard',    labelKey: 'navDashboard',       icon: LayoutDashboard },
   { id: 'social',       labelKey: 'navPostGenerator',   icon: Send },
+  { id: 'videogen',     labelKey: 'navVideoStudio',     icon: Film },
   { id: 'analyst',      labelKey: 'navAnalyst',          icon: BarChart3 },
   { id: 'advisor',      labelKey: 'navAIAdvisor',       icon: MessageSquare },
   { id: 'library',      labelKey: 'navContentLibrary',  icon: FileText },
@@ -26,7 +27,6 @@ const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: bo
   { id: 'settings',     labelKey: 'navSettings',        icon: Settings },
   { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone, disabled: true, badgeKey: 'comingSoon' },
   { id: 'media',        labelKey: 'navMediaStudio',     icon: Image, disabled: true, badgeKey: 'comingSoon' },
-  { id: 'videogen',     labelKey: 'navVideoStudio',     icon: Film },
 ]
 
 export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollapse }: JoyoSidebarProps) {

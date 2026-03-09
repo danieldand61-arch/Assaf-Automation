@@ -109,7 +109,9 @@ async def _create_kie_task(input_params: dict, api_key: str, callback_url: str =
 
         code = data.get("code")
         if code and int(code) != 200:
-            raise HTTPException(status_code=500, detail=data.get("msg") or data.get("message") or "Unknown error")
+            msg = data.get("msg") or data.get("message") or "Unknown error"
+            http_code = 402 if int(code) == 402 else 500
+            raise HTTPException(status_code=http_code, detail=msg)
 
         task_id = data.get("data", {}).get("taskId")
         if not task_id:
