@@ -105,13 +105,17 @@ async def _create_kie_task(input_params: dict, api_key: str, callback_url: str =
             raise HTTPException(status_code=500, detail=f"KIE API error: {resp.text}")
 
         data = resp.json()
-        if data.get("code") != 200:
-            raise HTTPException(status_code=500, detail=data.get("msg", "Unknown error"))
+        logger.info(f"KIE API response: {json.dumps(data, default=str)[:500]}")
+
+        code = data.get("code")
+        if code and int(code) != 200:
+            raise HTTPException(status_code=500, detail=data.get("msg") or data.get("message") or "Unknown error")
 
         task_id = data.get("data", {}).get("taskId")
         if not task_id:
-            raise HTTPException(status_code=500, detail="No taskId returned from KIE API")
+            raise HTTPException(status_code=500, detail=f"No taskId in KIE response: {json.dumps(data, default=str)[:200]}")
 
+        logger.info(f"KIE task created: {task_id}")
         return task_id
 
 
