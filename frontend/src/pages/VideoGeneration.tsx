@@ -1,7 +1,6 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Player } from '@remotion/player'
-import { ProductVideo } from '../remotion/ProductVideo'
+import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 
 const API_URL = getApiUrl()
@@ -16,648 +15,396 @@ interface VideoTask {
   estimated_credits?: number
 }
 
-export default function VideoGeneration() {
+interface VideoGenerationProps {
+  onSendToPostGenerator?: (videoUrl: string) => void
+}
+
+type GenerationMode = 'text' | 'image'
+type Quality = 'pro' | 'std'
+
+const CREDITS_PER_SEC: Record<string, number> = {
+  pro_no_audio: 54,
+  pro_audio: 80,
+  std_no_audio: 40,
+  std_audio: 60,
+}
+
+export default function VideoGeneration({ onSendToPostGenerator }: VideoGenerationProps) {
   const { session } = useAuth()
-  const [activeTab, setActiveTab] = useState<'text' | 'image' | 'template'>('text')
-  
-  // Text-to-Video state
-  const [textPrompt, setTextPrompt] = useState('')
-  const [textAspectRatio, setTextAspectRatio] = useState('16:9')
-  const [textDuration, setTextDuration] = useState('5')
-  const [textSound, setTextSound] = useState(false)
-  
-  // Image-to-Video state
-  const [imagePrompt, setImagePrompt] = useState('')
-  const [imageUrls, setImageUrls] = useState<string[]>([''])
-  const [imageDuration, setImageDuration] = useState('5')
-  const [imageSound, setImageSound] = useState(false)
-  
-  // Template Video state
-  const [templateTitle, setTemplateTitle] = useState('iPhone 15 Pro')
-  const [templateDescription, setTemplateDescription] = useState('Titanium design with A17 Pro chip')
-  const [templatePrice, setTemplatePrice] = useState(999)
-  const [templateImageUrl, setTemplateImageUrl] = useState('https://via.placeholder.com/500x500/4A90E2/ffffff?text=Product')
-  
-  // Generation state
+  const [mode, setMode] = useState<GenerationMode>('text')
+
+  const [prompt, setPrompt] = useState('')
+  const [imageUrl, setImageUrl] = useState('')
+  const [aspectRatio, setAspectRatio] = useState('16:9')
+  const [duration, setDuration] = useState(5)
+  const [sound, setSound] = useState(false)
+  const [quality, setQuality] = useState<Quality>('pro')
+
   const [isGenerating, setIsGenerating] = useState(false)
   const [currentTask, setCurrentTask] = useState<VideoTask | null>(null)
   const [error, setError] = useState('')
 
-  const calculateCredits = (duration: string, sound: boolean) => {
-    const base = duration === '5' ? 500 : 1000
-    return sound ? base * 2 : base
-  }
+  const estimatedCredits = CREDITS_PER_SEC[`${quality}_${sound ? 'audio' : 'no_audio'}`] * duration
 
-  const handleTextToVideo = async () => {
-    if (!textPrompt.trim()) {
-      setError('Please enter a prompt')
-      return
-    }
-
-    setIsGenerating(true)
-    setError('')
-    setCurrentTask(null)
-
-    try {
-      const response = await fetch(`${API_URL}/api/video-gen/text-to-video`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify({
-          prompt: textPrompt,
-          aspect_ratio: textAspectRatio,
-          duration: textDuration,
-          sound: textSound
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to generate video')
-      }
-
-      const data = await response.json()
-      
-      setCurrentTask({
-        task_id: data.task_id,
-        status: 'IN_PROGRESS',
-        estimated_credits: data.estimated_credits
-      })
-
-      // Start polling status
-      pollStatus(data.task_id)
-
-    } catch (err: any) {
-      setError(err.message)
-      setIsGenerating(false)
-    }
-  }
-
-  const handleImageToVideo = async () => {
-    if (!imagePrompt.trim()) {
-      setError('Please enter a prompt')
-      return
-    }
-
-    const validUrls = imageUrls.filter(url => url.trim())
-    if (validUrls.length === 0) {
-      setError('Please add at least one image URL')
-      return
-    }
-
-    setIsGenerating(true)
-    setError('')
-    setCurrentTask(null)
-
-    try {
-      const response = await fetch(`${API_URL}/api/video-gen/image-to-video`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session?.access_token}`
-        },
-        body: JSON.stringify({
-          prompt: imagePrompt,
-          image_urls: validUrls,
-          duration: imageDuration,
-          sound: imageSound
-        })
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.detail || 'Failed to generate video')
-      }
-
-      const data = await response.json()
-      
-      setCurrentTask({
-        task_id: data.task_id,
-        status: 'IN_PROGRESS',
-        estimated_credits: data.estimated_credits
-      })
-
-      // Start polling status
-      pollStatus(data.task_id)
-
-    } catch (err: any) {
-      setError(err.message)
-      setIsGenerating(false)
-    }
-  }
-
-  const pollStatus = async (taskId: string) => {
+  const pollStatus = useCallback(async (taskId: string) => {
     const poll = async () => {
       try {
         const response = await fetch(`${API_URL}/api/video-gen/status/${taskId}`, {
-          headers: {
-            'Authorization': `Bearer ${session?.access_token}`
-          }
+          headers: { Authorization: `Bearer ${session?.access_token}` },
         })
-
         if (!response.ok) throw new Error('Failed to get status')
-
         const data = await response.json()
-        
-        setCurrentTask(prev => ({
-          ...prev!,
-          ...data
-        }))
-
+        setCurrentTask(prev => ({ ...prev!, ...data }))
         if (data.status === 'IN_PROGRESS') {
-          setTimeout(poll, 5000) // Poll every 5 seconds
+          setTimeout(poll, 5000)
         } else {
           setIsGenerating(false)
         }
-
       } catch (err: any) {
         setError(`Status check failed: ${err.message}`)
         setIsGenerating(false)
       }
     }
-
     poll()
+  }, [session])
+
+  const handleGenerate = async () => {
+    if (!prompt.trim()) { setError('Please enter a prompt'); return }
+    if (mode === 'image' && !imageUrl.trim()) { setError('Please enter an image URL'); return }
+
+    setIsGenerating(true)
+    setError('')
+    setCurrentTask(null)
+
+    const endpoint = mode === 'text' ? 'text-to-video' : 'image-to-video'
+    const body: any = { prompt, duration, sound, quality, aspect_ratio: aspectRatio }
+    if (mode === 'image') body.image_url = imageUrl
+
+    try {
+      const response = await fetch(`${API_URL}/api/video-gen/${endpoint}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify(body),
+      })
+
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.detail || 'Failed to generate video')
+      }
+
+      const data = await response.json()
+      setCurrentTask({ task_id: data.task_id, status: 'IN_PROGRESS', estimated_credits: data.estimated_credits })
+      pollStatus(data.task_id)
+    } catch (err: any) {
+      setError(err.message)
+      setIsGenerating(false)
+    }
   }
 
-  const addImageUrl = () => {
-    setImageUrls([...imageUrls, ''])
+  const handleDownload = async (url: string) => {
+    try {
+      const res = await fetch(url)
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `video-${Date.now()}.mp4`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch {
+      window.open(url, '_blank')
+    }
   }
 
-  const updateImageUrl = (index: number, value: string) => {
-    const newUrls = [...imageUrls]
-    newUrls[index] = value
-    setImageUrls(newUrls)
-  }
-
-  const removeImageUrl = (index: number) => {
-    setImageUrls(imageUrls.filter((_, i) => i !== index))
-  }
+  const videoReady = currentTask?.status === 'SUCCESS' && currentTask.video_urls?.length
 
   return (
-    <div className="bg-gray-50 dark:bg-gray-900 p-6">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            🎬 AI Video Generation
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Create stunning videos with Kling 2.6 AI - from text or images
-          </p>
+    <div className="max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center">
+            <Film className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Video Studio</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Kling 3.0 AI — Generate UGC & promotional videos</p>
+          </div>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm mb-6">
-          <div className="border-b border-gray-200 dark:border-gray-700">
-            <div className="flex">
-              <button
-                onClick={() => setActiveTab('text')}
-                className={`px-6 py-3 text-sm font-medium transition-colors ${
-                  activeTab === 'text'
-                    ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                📝 Text to Video
-              </button>
-              <button
-                onClick={() => setActiveTab('image')}
-                className={`px-6 py-3 text-sm font-medium transition-colors ${
-                  activeTab === 'image'
-                    ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                🖼️ Image to Video
-              </button>
-              <button
-                onClick={() => setActiveTab('template')}
-                className={`px-6 py-3 text-sm font-medium transition-colors ${
-                  activeTab === 'template'
-                    ? 'border-b-2 border-blue-500 text-blue-600 dark:text-blue-400'
-                    : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
-                }`}
-              >
-                🎨 Video Templates
-              </button>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Left: Controls */}
+        <div className="lg:col-span-2 space-y-5">
+          {/* Mode Toggle */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-1.5 flex">
+            <button
+              onClick={() => setMode('text')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                mode === 'text'
+                  ? 'bg-gradient-to-r from-violet-500 to-blue-600 text-white shadow-lg shadow-violet-200 dark:shadow-violet-900/30'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <Wand2 size={16} /> Text to Video
+            </button>
+            <button
+              onClick={() => setMode('image')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                mode === 'image'
+                  ? 'bg-gradient-to-r from-violet-500 to-blue-600 text-white shadow-lg shadow-violet-200 dark:shadow-violet-900/30'
+                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+              }`}
+            >
+              <ImageIcon size={16} /> Image to Video
+            </button>
+          </div>
+
+          {/* Prompt */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+            <div>
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Prompt</label>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                maxLength={2000}
+                rows={4}
+                placeholder={mode === 'text'
+                  ? 'A person holding a product and talking to camera in a natural UGC style...'
+                  : 'Animate the product — slowly rotate with particles around it...'}
+                className="w-full mt-2 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none resize-none transition"
+              />
+              <div className="text-[11px] text-gray-400 mt-1 text-right">{prompt.length}/2000</div>
             </div>
-          </div>
 
-          <div className="p-6">
-            {/* Text to Video */}
-            {activeTab === 'text' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Prompt (max 1000 characters)
-                  </label>
-                  <textarea
-                    value={textPrompt}
-                    onChange={(e) => setTextPrompt(e.target.value)}
-                    maxLength={1000}
-                    rows={4}
-                    placeholder="Describe your video scene... (e.g., 'A drone shot flying over a neon-lit city at night')"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    {textPrompt.length}/1000 characters
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Aspect Ratio
-                    </label>
-                    <select
-                      value={textAspectRatio}
-                      onChange={(e) => setTextAspectRatio(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="16:9">16:9 (Landscape)</option>
-                      <option value="9:16">9:16 (Portrait)</option>
-                      <option value="1:1">1:1 (Square)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Duration
-                    </label>
-                    <select
-                      value={textDuration}
-                      onChange={(e) => setTextDuration(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="5">5 seconds</option>
-                      <option value="10">10 seconds</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Audio
-                    </label>
-                    <label className="flex items-center h-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={textSound}
-                        onChange={(e) => setTextSound(e.target.checked)}
-                        className="mr-2"
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Include sound (2x cost)</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-blue-900 dark:text-blue-300">
-                      Estimated Cost:
-                    </span>
-                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      {calculateCredits(textDuration, textSound)} credits
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleTextToVideo}
-                  disabled={isGenerating || !textPrompt.trim()}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  {isGenerating ? 'Generating...' : '🎬 Generate Video'}
-                </button>
-              </div>
-            )}
-
-            {/* Image to Video */}
-            {activeTab === 'image' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Prompt (max 1000 characters)
-                  </label>
-                  <textarea
-                    value={imagePrompt}
-                    onChange={(e) => setImagePrompt(e.target.value)}
-                    maxLength={1000}
-                    rows={4}
-                    placeholder="Describe how to animate the image... (e.g., 'Camera slowly pans right while zooming in')"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    {imagePrompt.length}/1000 characters
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Reference Images
-                  </label>
-                  {imageUrls.map((url, index) => (
-                    <div key={index} className="flex gap-2 mb-2">
-                      <input
-                        type="url"
-                        value={url}
-                        onChange={(e) => updateImageUrl(index, e.target.value)}
-                        placeholder="https://example.com/image.jpg"
-                        className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                      />
-                      {imageUrls.length > 1 && (
-                        <button
-                          onClick={() => removeImageUrl(index)}
-                          className="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    onClick={addImageUrl}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    + Add another image
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Duration
-                    </label>
-                    <select
-                      value={imageDuration}
-                      onChange={(e) => setImageDuration(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    >
-                      <option value="5">5 seconds</option>
-                      <option value="10">10 seconds</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Audio
-                    </label>
-                    <label className="flex items-center h-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
-                      <input
-                        type="checkbox"
-                        checked={imageSound}
-                        onChange={(e) => setImageSound(e.target.checked)}
-                        className="mr-2"
-                      />
-                      <span className="text-sm text-gray-700 dark:text-gray-300">Include sound (2x cost)</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-blue-900 dark:text-blue-300">
-                      Estimated Cost:
-                    </span>
-                    <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                      {calculateCredits(imageDuration, imageSound)} credits
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleImageToVideo}
-                  disabled={isGenerating || !imagePrompt.trim()}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  {isGenerating ? 'Generating...' : '🎬 Generate Video'}
-                </button>
-              </div>
-            )}
-
-            {/* Video Templates */}
-            {activeTab === 'template' && (
-              <div className="space-y-6">
-                {/* Live Preview */}
-                <div className="bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden">
-                  <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 px-4 pt-4 mb-2">
-                    Live Preview
-                  </h3>
-                  <div className="flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
-                    <Player
-                      component={ProductVideo}
-                      inputProps={{
-                        title: templateTitle,
-                        description: templateDescription,
-                        price: templatePrice,
-                        imageUrl: templateImageUrl
-                      }}
-                      durationInFrames={150}
-                      fps={30}
-                      compositionWidth={1920}
-                      compositionHeight={1080}
-                      style={{
-                        width: '100%',
-                        maxWidth: '800px',
-                      }}
-                      controls
-                    />
-                  </div>
-                </div>
-
-                {/* Form */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Product Title
-                    </label>
-                    <input
-                      type="text"
-                      value={templateTitle}
-                      onChange={(e) => setTemplateTitle(e.target.value)}
-                      placeholder="e.g., iPhone 15 Pro"
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Price ($)
-                    </label>
-                    <input
-                      type="number"
-                      value={templatePrice}
-                      onChange={(e) => setTemplatePrice(Number(e.target.value))}
-                      placeholder="999"
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Description
-                  </label>
-                  <textarea
-                    value={templateDescription}
-                    onChange={(e) => setTemplateDescription(e.target.value)}
-                    rows={3}
-                    placeholder="Amazing product description that highlights key features"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Product Image URL
-                  </label>
-                  <input
-                    type="url"
-                    value={templateImageUrl}
-                    onChange={(e) => setTemplateImageUrl(e.target.value)}
-                    placeholder="https://example.com/product-image.jpg"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    You can use placeholder: https://via.placeholder.com/500x500
-                  </p>
-                </div>
-
-                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <span className="text-sm font-medium text-green-900 dark:text-green-300">
-                        💡 Live Preview Active
-                      </span>
-                      <p className="text-xs text-green-700 dark:text-green-400 mt-1">
-                        Changes update in real-time. Press play to see the animation!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  disabled
-                  className="w-full bg-gray-400 cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium"
-                >
-                  🎬 Render Full Video (Coming Soon - requires backend setup)
-                </button>
-
-                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <h4 className="font-medium text-blue-900 dark:text-blue-300 mb-2">
-                    🚀 Template Features:
-                  </h4>
-                  <ul className="text-sm text-blue-800 dark:text-blue-400 space-y-1">
-                    <li>• Professional animations (fade in, slide, spring effects)</li>
-                    <li>• 100% customizable (title, description, price, image)</li>
-                    <li>• Instant preview - see changes in real-time</li>
-                    <li>• Perfect for e-commerce product videos</li>
-                    <li>• Export to MP4 (backend integration required)</li>
-                  </ul>
-                </div>
+            {mode === 'image' && (
+              <div>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Image URL</label>
+                <input
+                  type="url"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://example.com/product.jpg"
+                  className="w-full mt-2 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition"
+                />
               </div>
             )}
           </div>
-        </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
-            <p className="text-red-900 dark:text-red-300">{error}</p>
-          </div>
-        )}
+          {/* Settings */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Settings</h3>
 
-        {/* Current Task Status */}
-        {currentTask && (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Video Generation Status
-            </h3>
+            {/* Quality */}
+            <div className="flex gap-2">
+              {(['pro', 'std'] as const).map(q => (
+                <button
+                  key={q}
+                  onClick={() => setQuality(q)}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                    quality === q
+                      ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300'
+                      : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'
+                  }`}
+                >
+                  {q === 'pro' ? 'Pro Quality' : 'Standard'}
+                </button>
+              ))}
+            </div>
 
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Task ID:</span>
-                <code className="text-sm bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded">
-                  {currentTask.task_id}
-                </code>
-              </div>
-
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Status:</span>
-                <span className={`font-medium ${
-                  currentTask.status === 'SUCCESS' ? 'text-green-600 dark:text-green-400' :
-                  currentTask.status === 'FAILED' ? 'text-red-600 dark:text-red-400' :
-                  'text-blue-600 dark:text-blue-400'
-                }`}>
-                  {currentTask.status}
+            {/* Duration Slider */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300">
+                  <Clock size={14} /> Duration
                 </span>
+                <span className="text-sm font-bold text-gray-900 dark:text-white">{duration}s</span>
               </div>
+              <input
+                type="range"
+                min={3}
+                max={15}
+                value={duration}
+                onChange={(e) => setDuration(Number(e.target.value))}
+                className="w-full accent-violet-500"
+              />
+              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
+                <span>3s</span><span>15s</span>
+              </div>
+            </div>
 
-              {currentTask.consumed_credits && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Credits Used:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {currentTask.consumed_credits}
-                  </span>
-                </div>
-              )}
-
-              {currentTask.error_message && (
-                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded p-3">
-                  <p className="text-sm text-red-900 dark:text-red-300">
-                    {currentTask.error_message}
-                  </p>
-                </div>
-              )}
-
-              {currentTask.status === 'IN_PROGRESS' && (
-                <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                  <span className="text-sm">Video is being generated... This may take 1-2 minutes.</span>
-                </div>
-              )}
-
-              {currentTask.video_urls && currentTask.video_urls.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                    Generated Videos:
-                  </h4>
-                  {currentTask.video_urls.map((url, index) => (
-                    <div key={index} className="mb-3">
-                      <video
-                        src={url}
-                        controls
-                        className="w-full rounded-lg"
-                      />
-                      <a
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block mt-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        🔗 Open in new tab
-                      </a>
-                    </div>
+            {/* Aspect Ratio */}
+            {mode === 'text' && (
+              <div>
+                <span className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300 mb-2">
+                  <Maximize size={14} /> Aspect Ratio
+                </span>
+                <div className="flex gap-2">
+                  {['16:9', '9:16', '1:1'].map(ar => (
+                    <button
+                      key={ar}
+                      onClick={() => setAspectRatio(ar)}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-all ${
+                        aspectRatio === ar
+                          ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300'
+                          : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'
+                      }`}
+                    >
+                      {ar}
+                    </button>
                   ))}
                 </div>
-              )}
-            </div>
-          </div>
-        )}
+              </div>
+            )}
 
-        {/* Info Box */}
-        <div className="mt-6 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-6">
-          <h3 className="font-semibold text-purple-900 dark:text-purple-300 mb-3">
-            💡 Tips for Best Results
-          </h3>
-          <ul className="space-y-2 text-sm text-purple-800 dark:text-purple-400">
-            <li>• Be specific and descriptive in your prompts</li>
-            <li>• Mention camera movements (pan, zoom, tilt) for dynamic videos</li>
-            <li>• Include lighting and mood descriptions (e.g., "golden hour", "neon lights")</li>
-            <li>• For image-to-video: describe how the image should animate</li>
-            <li>• Audio generation works best with ambient scenes</li>
-          </ul>
+            {/* Sound Toggle */}
+            <button
+              onClick={() => setSound(!sound)}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
+                sound
+                  ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20'
+                  : 'border-gray-200 dark:border-gray-600'
+              }`}
+            >
+              <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                {sound ? <Volume2 size={16} className="text-violet-500" /> : <VolumeX size={16} />}
+                Audio Generation
+              </span>
+              <div className={`w-10 h-5 rounded-full transition-all relative ${sound ? 'bg-violet-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${sound ? 'left-5' : 'left-0.5'}`} />
+              </div>
+            </button>
+          </div>
+
+          {/* Cost & Generate */}
+          <div className="bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-900/20 dark:to-blue-900/20 rounded-2xl border border-violet-200 dark:border-violet-800 p-5">
+            <div className="flex justify-between items-center mb-4">
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Estimated Cost</span>
+              <span className="text-xl font-bold text-violet-600 dark:text-violet-400">{estimatedCredits} credits</span>
+            </div>
+            <button
+              onClick={handleGenerate}
+              disabled={isGenerating || !prompt.trim()}
+              className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white px-6 py-3.5 rounded-xl font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
+            >
+              {isGenerating ? (
+                <><Loader2 size={18} className="animate-spin" /> Generating...</>
+              ) : (
+                <><Play size={18} /> Generate Video</>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Right: Preview / Status */}
+        <div className="lg:col-span-3">
+          {/* Error */}
+          {error && (
+            <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center justify-between">
+              <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
+              <button onClick={() => setError('')} className="text-red-400 hover:text-red-600 text-lg ml-3">&times;</button>
+            </div>
+          )}
+
+          {/* Generating State */}
+          {currentTask && currentTask.status === 'IN_PROGRESS' && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 flex flex-col items-center justify-center" style={{ minHeight: 400 }}>
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center mb-6">
+                <Loader2 size={28} className="text-white animate-spin" />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Generating Your Video</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center max-w-sm">
+                Kling 3.0 is creating your video. This typically takes 1-3 minutes depending on duration and quality.
+              </p>
+              <div className="w-full max-w-xs">
+                <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                  <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-600 animate-pulse" style={{ width: '60%' }} />
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-3">Task: {currentTask.task_id}</p>
+            </div>
+          )}
+
+          {/* Failed State */}
+          {currentTask && currentTask.status === 'FAILED' && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-red-200 dark:border-red-800 p-8 flex flex-col items-center justify-center" style={{ minHeight: 300 }}>
+              <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+                <span className="text-2xl">!</span>
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Generation Failed</h3>
+              <p className="text-sm text-red-600 dark:text-red-400 text-center">{currentTask.error_message || 'Unknown error'}</p>
+            </div>
+          )}
+
+          {/* Success: Video Player */}
+          {videoReady && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+              <div className="bg-black rounded-t-2xl">
+                <video
+                  src={currentTask.video_urls![0]}
+                  controls
+                  autoPlay
+                  className="w-full"
+                  style={{ maxHeight: 500 }}
+                />
+              </div>
+
+              <div className="p-5 space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-500">Credits used: <strong className="text-gray-900 dark:text-white">{currentTask.consumed_credits || currentTask.estimated_credits}</strong></span>
+                  {currentTask.created_at && (
+                    <span className="text-gray-400">{new Date(currentTask.created_at).toLocaleString()}</span>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleDownload(currentTask.video_urls![0])}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold text-sm transition-all"
+                  >
+                    <Download size={16} /> Download MP4
+                  </button>
+                  {onSendToPostGenerator && (
+                    <button
+                      onClick={() => onSendToPostGenerator(currentTask.video_urls![0])}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
+                    >
+                      <Send size={16} /> Send to Post Generator
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!currentTask && !error && (
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-8 flex flex-col items-center justify-center" style={{ minHeight: 400 }}>
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-blue-100 dark:from-violet-900/30 dark:to-blue-900/30 flex items-center justify-center mb-6 rotate-3">
+                <Film size={36} className="text-violet-500" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Create Your First Video</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-sm mb-6">
+                Write a prompt describing your video, adjust settings, and hit Generate. Your AI-powered video will appear here.
+              </p>
+              <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
+                {[
+                  { icon: '🎤', label: 'UGC Reviews', desc: 'Person talking to camera' },
+                  { icon: '📦', label: 'Product Demos', desc: 'Showcase & unboxing' },
+                  { icon: '🎬', label: 'Promo Clips', desc: 'Ad-style short videos' },
+                  { icon: '✨', label: 'Social Stories', desc: 'Quick story-format' },
+                ].map(item => (
+                  <div key={item.label} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600">
+                    <span className="text-lg">{item.icon}</span>
+                    <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mt-1">{item.label}</p>
+                    <p className="text-[10px] text-gray-400">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

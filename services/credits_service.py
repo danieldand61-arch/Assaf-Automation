@@ -41,14 +41,16 @@ FIXED_CREDITS = {k: round(v * MARGIN_MULTIPLIER) for k, v in _BASE_FIXED.items()
 _BASE_DUBBING_PER_MIN = 240.0
 VIDEO_DUBBING_PER_MIN = round(_BASE_DUBBING_PER_MIN * MARGIN_MULTIPLIER)
 
-# Kling AI video generation (base = real cost in credits)
-_BASE_VIDEO_GEN = {
-    "5s_no_audio":  250,   # $0.25
-    "10s_no_audio": 490,   # $0.49
-    "5s_audio":     490,   # $0.49
-    "10s_audio":    980,   # $0.98
+# Kling 3.0 video generation — per-second pricing (base = real cost in credits)
+# Pro: 54 cr/s no audio, 80 cr/s with audio; Std: 40 cr/s no audio, 60 cr/s with audio
+# These are already API-level credits; we apply MARGIN_MULTIPLIER on top
+_BASE_VIDEO_GEN_PER_SEC = {
+    "pro_no_audio": 54,
+    "pro_audio": 80,
+    "std_no_audio": 40,
+    "std_audio": 60,
 }
-VIDEO_GEN_CREDITS = {k: round(v * MARGIN_MULTIPLIER) for k, v in _BASE_VIDEO_GEN.items()}
+VIDEO_GEN_PER_SEC = {k: round(v * MARGIN_MULTIPLIER) for k, v in _BASE_VIDEO_GEN_PER_SEC.items()}
 
 # Minimum credits per service type (base values, then multiplied)
 _BASE_MIN = {
@@ -80,11 +82,11 @@ def calculate_credits(
     if service_type in ("video_dubbing_actual", "video_dubbing"):
         return round(max(duration_minutes, 0.5) * VIDEO_DUBBING_PER_MIN, 2)
 
-    # Video generation (Kling AI)
+    # Video generation (Kling 3.0) — per-second pricing
     if service_type == "video_generation":
-        if video_duration_sec <= 5:
-            return float(VIDEO_GEN_CREDITS["5s_no_audio"])
-        return float(VIDEO_GEN_CREDITS["10s_no_audio"])
+        dur = max(video_duration_sec, 3)
+        per_sec = VIDEO_GEN_PER_SEC.get("pro_no_audio", 108)
+        return float(per_sec * dur)
 
     # Token-based services (Gemini 3 Flash)
     token_credits = round(

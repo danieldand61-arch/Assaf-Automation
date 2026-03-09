@@ -26,7 +26,7 @@ const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: bo
   { id: 'settings',     labelKey: 'navSettings',        icon: Settings },
   { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone, disabled: true, badgeKey: 'comingSoon' },
   { id: 'media',        labelKey: 'navMediaStudio',     icon: Image, disabled: true, badgeKey: 'comingSoon' },
-  { id: 'videogen',     labelKey: 'navVideoStudio',     icon: Film, disabled: true, badgeKey: 'comingSoon' },
+  { id: 'videogen',     labelKey: 'navVideoStudio',     icon: Film },
 ]
 
 export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollapse }: JoyoSidebarProps) {

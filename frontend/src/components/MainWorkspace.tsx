@@ -213,6 +213,17 @@ export function MainWorkspace() {
     setSocialScreen('form')
   }
 
+  const handleSendVideoToPostGenerator = (videoUrl: string) => {
+    savedFormRef.current = {
+      url: '', keywords: '', platforms: ['facebook', 'instagram'],
+      image_size: '1080x1080', style: 'professional', language: 'en',
+      target_audience: 'b2c', include_emojis: true, include_logo: false,
+      include_people: false, uploaded_image: null, media_file: videoUrl,
+    }
+    setSocialScreen('form')
+    setActiveTab('social')
+  }
+
   if (loading) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: JoyoTheme.surface }}>
@@ -286,7 +297,7 @@ export function MainWorkspace() {
             {activeTab === 'advisor' && <AIAdvisor />}
             {activeTab === 'media' && <PlaceholderPage title="Media Studio" description="Create, edit, and manage your visual content — templates, batch resize, background removal, and more." />}
             {activeTab === 'video' && <VideoTranslation />}
-            {activeTab === 'videogen' && <VideoGeneration />}
+            {activeTab === 'videogen' && <VideoGeneration onSendToPostGenerator={handleSendVideoToPostGenerator} />}
             {activeTab === 'library' && <Library />}
             {activeTab === 'calendar' && <Scheduled />}
             {activeTab === 'integrations' && <Connections />}
