@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
@@ -45,8 +45,39 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   const [currentTask, setCurrentTask] = useState<VideoTask | null>(null)
   const [error, setError] = useState('')
   const [savedToLibrary, setSavedToLibrary] = useState(false)
+  const [fakeProgress, setFakeProgress] = useState(0)
+  const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const estimatedCredits = CREDITS_PER_SEC[`${quality}_${sound ? 'audio' : 'no_audio'}`] * duration
+
+  const startFakeProgress = useCallback((videoDuration: number, videoQuality: string) => {
+    setFakeProgress(0)
+    if (progressInterval.current) clearInterval(progressInterval.current)
+    // Pro ~2min, Std ~1min base + ~5s per second of video
+    const estimatedMs = (videoQuality === 'pro' ? 120_000 : 60_000) + videoDuration * 5_000
+    const tickMs = 2500
+    const totalTicks = estimatedMs / tickMs
+    let tick = 0
+    progressInterval.current = setInterval(() => {
+      tick++
+      // Ease-out curve: fast start, slow near 90%, never reaches 100% until done
+      const raw = (tick / totalTicks) * 100
+      const progress = Math.min(92, raw < 60 ? raw * 1.1 : 60 + (raw - 60) * 0.4)
+      setFakeProgress(Math.round(progress))
+      if (progress >= 92) {
+        if (progressInterval.current) clearInterval(progressInterval.current)
+      }
+    }, tickMs)
+  }, [])
+
+  useEffect(() => {
+    if (currentTask?.status === 'SUCCESS' || currentTask?.status === 'FAILED') {
+      if (progressInterval.current) clearInterval(progressInterval.current)
+      setFakeProgress(currentTask.status === 'SUCCESS' ? 100 : 0)
+    }
+  }, [currentTask?.status])
+
+  useEffect(() => () => { if (progressInterval.current) clearInterval(progressInterval.current) }, [])
 
   const pollStatus = useCallback(async (taskId: string) => {
     const poll = async () => {
@@ -100,6 +131,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
       const data = await response.json()
       setCurrentTask({ task_id: data.task_id, status: 'IN_PROGRESS', estimated_credits: data.estimated_credits })
+      startFakeProgress(duration, quality)
       pollStatus(data.task_id)
     } catch (err: any) {
       const msg = err.message || ''
@@ -323,15 +355,22 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                 <Loader2 size={28} className="text-white animate-spin" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Generating Your Video</h3>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center max-w-sm">
-                Kling 3.0 is creating your video. This typically takes 1-3 minutes depending on duration and quality.
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 text-center max-w-sm">
+                {fakeProgress < 20 ? 'Initializing Kling 3.0 engine...'
+                  : fakeProgress < 50 ? 'Generating frames and scene composition...'
+                  : fakeProgress < 80 ? 'Rendering video and applying effects...'
+                  : 'Finalizing and encoding your video...'}
               </p>
-              <div className="w-full max-w-xs">
-                <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
-                  <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-600 animate-pulse" style={{ width: '60%' }} />
+              <div className="w-full max-w-xs mb-2">
+                <div className="h-2.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-600 transition-all duration-[2500ms] ease-out"
+                    style={{ width: `${fakeProgress}%` }}
+                  />
                 </div>
               </div>
-              <p className="text-xs text-gray-400 mt-3">Task: {currentTask.task_id}</p>
+              <p className="text-sm font-semibold text-violet-600 dark:text-violet-400">{fakeProgress}%</p>
+              <p className="text-[11px] text-gray-400 mt-2">Task: {currentTask.task_id}</p>
             </div>
           )}
 

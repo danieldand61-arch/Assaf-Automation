@@ -20,9 +20,9 @@ stripe.api_key = STRIPE_SECRET_KEY
 
 # Credit packages — credits, price in cents, Stripe creates prices dynamically
 CREDIT_PACKAGES = {
-    "starter": {"credits": 50_000, "price_cents": 2900, "label": "50K Credits", "description": "~100 posts"},
-    "growth": {"credits": 100_000, "price_cents": 4900, "label": "100K Credits", "description": "~200 posts"},
-    "scale": {"credits": 200_000, "price_cents": 8900, "label": "200K Credits", "description": "~400 posts"},
+    "starter": {"credits": 50_000, "price_cents": 5000, "label": "50K Credits", "description": "~100 posts"},
+    "growth": {"credits": 100_000, "price_cents": 8900, "label": "100K Credits", "description": "~200 posts"},
+    "scale": {"credits": 200_000, "price_cents": 16900, "label": "200K Credits", "description": "~400 posts"},
 }
 
 
@@ -87,8 +87,8 @@ async def create_checkout_session(
                 "credits": str(pkg["credits"]),
             },
             invoice_creation={"enabled": True},
-            success_url=f"{FRONTEND_URL}?tab=settings&payment=success",
-            cancel_url=f"{FRONTEND_URL}?tab=settings&payment=cancelled",
+            success_url=f"{FRONTEND_URL}/app?tab=billing&payment=success",
+            cancel_url=f"{FRONTEND_URL}/app?tab=billing&payment=cancelled",
         )
 
         logger.info(f"Stripe checkout created: session={session.id} user={user_id[:8]} package={request.package_id}")

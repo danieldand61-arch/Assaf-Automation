@@ -11,7 +11,7 @@ Real API prices (2026-03):
 
 Formula: credits = real_cost × MARGIN_MULTIPLIER / $0.001
 
-Packages: 50K cr = $29, 100K cr = $49, 200K cr = $89
+Packages: 50K cr = $50, 100K cr = $89, 200K cr = $169
 """
 import logging
 from database.supabase_client import get_supabase
