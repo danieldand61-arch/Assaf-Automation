@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize } from 'lucide-react'
+import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 
 const API_URL = getApiUrl()
@@ -44,6 +44,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   const [isGenerating, setIsGenerating] = useState(false)
   const [currentTask, setCurrentTask] = useState<VideoTask | null>(null)
   const [error, setError] = useState('')
+  const [savedToLibrary, setSavedToLibrary] = useState(false)
 
   const estimatedCredits = CREDITS_PER_SEC[`${quality}_${sound ? 'audio' : 'no_audio'}`] * duration
 
@@ -76,6 +77,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
     setIsGenerating(true)
     setError('')
     setCurrentTask(null)
+    setSavedToLibrary(false)
 
     const endpoint = mode === 'text' ? 'text-to-video' : 'image-to-video'
     const body: any = { prompt, duration, sound, quality, aspect_ratio: aspectRatio }
@@ -372,6 +374,17 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                   >
                     <Download size={16} /> Download MP4
                   </button>
+                  <button
+                    onClick={() => setSavedToLibrary(true)}
+                    disabled={savedToLibrary}
+                    className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
+                      savedToLibrary
+                        ? 'bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 border border-green-200 dark:border-green-800'
+                        : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
+                    }`}
+                  >
+                    {savedToLibrary ? <><CheckCircle2 size={16} /> Saved</> : <><FolderDown size={16} /> Save to Library</>}
+                  </button>
                   {onSendToPostGenerator && (
                     <button
                       onClick={() => onSendToPostGenerator(currentTask.video_urls![0])}
@@ -381,6 +394,9 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                     </button>
                   )}
                 </div>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 text-center">
+                  Videos are stored in the library for 7 days. Download to keep permanently.
+                </p>
               </div>
             </div>
           )}

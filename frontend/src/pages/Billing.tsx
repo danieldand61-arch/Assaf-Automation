@@ -24,6 +24,7 @@ export default function Billing() {
   const [packages, setPackages] = useState<CreditPackage[]>([])
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState<string | null>(null)
+  const [selectedPkg, setSelectedPkg] = useState<string>('growth')
   const [balance, setBalance] = useState<number | null>(null)
 
   useEffect(() => {
@@ -146,13 +147,14 @@ export default function Billing() {
           const style = PACKAGE_STYLES[pkg.id] || PACKAGE_STYLES.starter
           const Icon = style.icon
           const pricePerPost = (pkg.price / (pkg.credits / 500)).toFixed(2)
-          const isPopular = !!style.badge
+          const isSelected = selectedPkg === pkg.id
 
           return (
             <div
               key={pkg.id}
-              className={`relative bg-white dark:bg-gray-800 rounded-2xl border-2 transition-all hover:shadow-xl ${
-                isPopular
+              onClick={() => setSelectedPkg(pkg.id)}
+              className={`relative bg-white dark:bg-gray-800 rounded-2xl border-2 transition-all hover:shadow-xl cursor-pointer ${
+                isSelected
                   ? 'border-violet-400 dark:border-violet-500 shadow-lg shadow-violet-100 dark:shadow-violet-900/20'
                   : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
               }`}
@@ -194,10 +196,10 @@ export default function Billing() {
                 </ul>
 
                 <button
-                  onClick={() => handlePurchase(pkg.id)}
+                  onClick={(e) => { e.stopPropagation(); handlePurchase(pkg.id) }}
                   disabled={!!purchasing}
                   className={`w-full py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                    isPopular
+                    isSelected
                       ? 'bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white shadow-lg shadow-violet-200 dark:shadow-violet-900/30'
                       : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
                   } disabled:opacity-40`}
@@ -221,7 +223,6 @@ export default function Billing() {
           {[
             { q: 'How do credits work?', a: 'Credits are used for all AI operations — post generation, image creation, video generation, and AI advisor chats. Different operations cost different amounts.' },
             { q: 'Do credits expire?', a: 'No, purchased credits never expire. Use them at your own pace.' },
-            { q: 'Can I get a refund?', a: 'We offer refunds for unused credits within 14 days of purchase. Contact support for assistance.' },
             { q: 'Will I get an invoice?', a: 'Yes, Stripe automatically sends an invoice/receipt to your email after each purchase.' },
           ].map(({ q, a }) => (
             <div key={q}>
