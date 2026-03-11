@@ -170,6 +170,15 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
     if (savedForm) {
       setForm(savedForm)
       setImagePreview(savedForm.uploaded_image || null)
+      const mf = savedForm.media_file
+      if (mf && mf.startsWith('http')) {
+        const isVid = mf.includes('.mp4') || mf.includes('video') || mf.includes('/mp4')
+        setMediaPreview(mf)
+        setMediaIsVideo(isVid)
+      } else if (!mf) {
+        setMediaPreview(null)
+        setMediaIsVideo(false)
+      }
     }
   }, [savedForm])
 

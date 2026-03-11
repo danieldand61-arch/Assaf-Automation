@@ -42,6 +42,7 @@ export function SavedPostsLibrary() {
   const [selectedPost, setSelectedPost] = useState<SavedPost | null>(null)
   const [isScheduling, setIsScheduling] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
+  const [previewVideo, setPreviewVideo] = useState<string | null>(null)
 
   useEffect(() => { if (session) fetchPosts() }, [session])
 
@@ -103,7 +104,7 @@ export function SavedPostsLibrary() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {posts.map((post) => {
           const hook = getHook(post.text)
-          const isVideo = post.image_url?.includes('video') || post.image_url?.includes('.mp4')
+          const isVideo = post.is_video || post.image_url?.includes('.mp4') || post.image_url?.includes('video')
           return (
             <div key={post.id}
               className="group bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-gray-200 dark:hover:border-gray-600 transition cursor-pointer"
@@ -114,7 +115,12 @@ export function SavedPostsLibrary() {
                 <div className="relative aspect-[4/3] bg-gray-100 dark:bg-gray-700 overflow-hidden">
                   {isVideo ? (
                     <>
-                      <video src={post.image_url} className="w-full h-full object-cover" muted playsInline />
+                      <video src={post.image_url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
+                      <div className="absolute inset-0 flex items-center justify-center" onClick={e => { e.stopPropagation(); setPreviewVideo(post.image_url) }}>
+                        <div className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition">
+                          <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                        </div>
+                      </div>
                       <div className="absolute top-2 right-2 flex gap-1">
                         <span className="bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-bold">VIDEO</span>
                         {post.expires_at && (
@@ -202,6 +208,17 @@ export function SavedPostsLibrary() {
             imageUrl: selectedPost.image_url
           }}
         />
+      )}
+
+      {previewVideo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setPreviewVideo(null)}>
+          <div className="relative max-w-3xl w-full mx-4" onClick={e => e.stopPropagation()}>
+            <video src={previewVideo} controls autoPlay className="w-full rounded-2xl shadow-2xl" style={{ maxHeight: '80vh' }} />
+            <button onClick={() => setPreviewVideo(null)} className="absolute -top-3 -right-3 w-8 h-8 bg-white dark:bg-gray-800 rounded-full shadow-lg flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+              &times;
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )
