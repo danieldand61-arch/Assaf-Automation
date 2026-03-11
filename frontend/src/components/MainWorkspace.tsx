@@ -220,9 +220,10 @@ export function MainWorkspace() {
     setSocialScreen('form')
   }
 
-  const handleSendVideoToPostGenerator = (videoUrl: string) => {
+  const handleSendVideoToPostGenerator = (videoUrl: string, videoPrompt?: string) => {
     savedFormRef.current = {
-      url: '', keywords: '', platforms: ['facebook', 'instagram'],
+      url: '', keywords: videoPrompt ? `Write a social media post for this video: ${videoPrompt}` : '',
+      platforms: ['facebook', 'instagram'],
       image_size: '1080x1080', style: 'professional', language: 'en',
       target_audience: 'b2c', include_emojis: true, include_logo: false,
       include_people: false, uploaded_image: null, media_file: videoUrl,
@@ -296,7 +297,12 @@ export function MainWorkspace() {
           )}
         </div>
 
-        {activeTab !== 'social' && (
+        {/* Video Studio stays mounted so generation state persists on tab switch */}
+        <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto', display: activeTab === 'videogen' ? undefined : 'none' }}>
+          <VideoGeneration onSendToPostGenerator={handleSendVideoToPostGenerator} onNeedCredits={() => setShowCreditsPopup(true)} />
+        </div>
+
+        {activeTab !== 'social' && activeTab !== 'videogen' && (
           <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto' }}>
             {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as TabType)} />}
             {activeTab === 'ads' && <GoogleAdsGeneration />}
@@ -304,7 +310,6 @@ export function MainWorkspace() {
             {activeTab === 'advisor' && <AIAdvisor />}
             {activeTab === 'media' && <PlaceholderPage title="Media Studio" description="Create, edit, and manage your visual content — templates, batch resize, background removal, and more." />}
             {activeTab === 'video' && <VideoTranslation />}
-            {activeTab === 'videogen' && <VideoGeneration onSendToPostGenerator={handleSendVideoToPostGenerator} onNeedCredits={() => setShowCreditsPopup(true)} />}
             {activeTab === 'library' && <Library />}
             {activeTab === 'calendar' && <Scheduled />}
             {activeTab === 'billing' && <Billing />}

@@ -16,7 +16,7 @@ interface VideoTask {
 }
 
 interface VideoGenerationProps {
-  onSendToPostGenerator?: (videoUrl: string) => void
+  onSendToPostGenerator?: (videoUrl: string, videoPrompt: string) => void
   onNeedCredits?: () => void
 }
 
@@ -142,6 +142,25 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       }
       setIsGenerating(false)
     }
+  }
+
+  const handleSaveToLibrary = async () => {
+    if (!currentTask?.video_urls?.[0] || !session) return
+    try {
+      const res = await fetch(`${API_URL}/api/saved-posts/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          text: prompt,
+          image_url: currentTask.video_urls[0],
+          title: `AI Video — ${prompt.slice(0, 60)}`,
+          platforms: [],
+          hashtags: [],
+        }),
+      })
+      if (res.ok) setSavedToLibrary(true)
+      else setError('Failed to save to library')
+    } catch { setError('Failed to save to library') }
   }
 
   const handleDownload = async (url: string) => {
@@ -414,7 +433,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                     <Download size={16} /> Download MP4
                   </button>
                   <button
-                    onClick={() => setSavedToLibrary(true)}
+                    onClick={handleSaveToLibrary}
                     disabled={savedToLibrary}
                     className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
                       savedToLibrary
@@ -426,7 +445,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                   </button>
                   {onSendToPostGenerator && (
                     <button
-                      onClick={() => onSendToPostGenerator(currentTask.video_urls![0])}
+                      onClick={() => onSendToPostGenerator(currentTask.video_urls![0], prompt)}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
                     >
                       <Send size={16} /> Send to Post Generator

@@ -18,6 +18,5 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Schedule via pg_cron (run daily at 3 AM UTC)
--- Run this manually in Supabase SQL Editor if pg_cron is enabled:
-SELECT cron.schedule('delete-expired-saved-posts', '0 3 * * *', 'SELECT delete_expired_saved_posts()');
+-- pg_cron (optional, only if enabled in Supabase):
+-- SELECT cron.schedule('delete-expired-saved-posts', '0 3 * * *', 'SELECT delete_expired_saved_posts()');
