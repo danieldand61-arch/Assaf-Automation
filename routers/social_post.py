@@ -203,6 +203,84 @@ async def post_to_instagram_story(connection: dict, image_data: Optional[bytes])
         raise
 
 
+async def post_to_instagram_reel(connection: dict, text: str, video_url: str) -> dict:
+    """Post a video as Instagram Reel via Container API (requires public video URL)"""
+    try:
+        access_token = connection["access_token"]
+        instagram_account_id = connection["platform_user_id"]
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            container_resp = await client.post(
+                f"{FACEBOOK_GRAPH_URL}/{instagram_account_id}/media",
+                params={
+                    "media_type": "REELS",
+                    "video_url": video_url,
+                    "caption": text,
+                    "access_token": access_token,
+                }
+            )
+            if container_resp.status_code != 200:
+                raise Exception(f"Instagram Reel container error: {container_resp.text}")
+
+            container_id = container_resp.json().get("id")
+            if not container_id:
+                raise Exception("Instagram API returned no container ID for Reel")
+
+            import asyncio
+            for _ in range(30):
+                await asyncio.sleep(3)
+                status_resp = await client.get(
+                    f"{FACEBOOK_GRAPH_URL}/{container_id}",
+                    params={"fields": "status_code", "access_token": access_token}
+                )
+                status = status_resp.json().get("status_code")
+                if status == "FINISHED":
+                    break
+                if status == "ERROR":
+                    raise Exception(f"Instagram Reel processing failed: {status_resp.text}")
+
+            publish_resp = await client.post(
+                f"{FACEBOOK_GRAPH_URL}/{instagram_account_id}/media_publish",
+                params={"creation_id": container_id, "access_token": access_token}
+            )
+            if publish_resp.status_code != 200:
+                raise Exception(f"Instagram Reel publish error: {publish_resp.text}")
+
+            post_id = publish_resp.json().get("id")
+            logger.info(f"   ✅ Instagram Reel published: {post_id}")
+            return {"success": True, "post_id": post_id}
+
+    except Exception as e:
+        logger.error(f"Instagram Reel error: {str(e)}")
+        raise
+
+
+async def post_to_facebook_video(connection: dict, text: str, video_url: str) -> dict:
+    """Post a video to Facebook Page via URL"""
+    try:
+        access_token = connection["access_token"]
+        page_id = connection["platform_user_id"]
+
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                f"{FACEBOOK_GRAPH_URL}/{page_id}/videos",
+                params={
+                    "file_url": video_url,
+                    "description": text,
+                    "access_token": access_token,
+                }
+            )
+            if resp.status_code != 200:
+                raise Exception(f"Facebook video error: {resp.text}")
+
+            data = resp.json()
+            return {"success": True, "post_id": data.get("id")}
+
+    except Exception as e:
+        logger.error(f"Facebook video post error: {str(e)}")
+        raise
+
+
 async def post_to_linkedin(connection: dict, text: str, image_data: Optional[bytes]) -> dict:
     """Post to LinkedIn with text and optional image"""
     try:
@@ -397,7 +475,8 @@ async def post_to_social_media(
     text: str = Form(...),
     platforms: str = Form(...),  # JSON array as string
     image: Optional[UploadFile] = File(None),
-    instagram_post_type: str = Form("post"),  # "post" or "story"
+    instagram_post_type: str = Form("post"),  # "post", "story", or "reel"
+    video_url: Optional[str] = Form(None),  # Public video URL for reels/video posts
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -454,9 +533,14 @@ async def post_to_social_media(
                 
                 # Post to platform
                 if platform == "facebook":
-                    result = await post_to_facebook(connection.data, text, image_data)
+                    if video_url:
+                        result = await post_to_facebook_video(connection.data, text, video_url)
+                    else:
+                        result = await post_to_facebook(connection.data, text, image_data)
                 elif platform == "instagram":
-                    if instagram_post_type == "story":
+                    if instagram_post_type == "reel" and video_url:
+                        result = await post_to_instagram_reel(connection.data, text, video_url)
+                    elif instagram_post_type == "story":
                         result = await post_to_instagram_story(connection.data, image_data)
                     else:
                         result = await post_to_instagram(connection.data, text, image_data)

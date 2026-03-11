@@ -26,6 +26,8 @@ interface SavedPost {
   platforms: string[]
   saved_at: string
   created_at: string
+  is_video?: boolean
+  expires_at?: string
 }
 
 function getHook(text: string): string {
@@ -113,7 +115,14 @@ export function SavedPostsLibrary() {
                   {isVideo ? (
                     <>
                       <video src={post.image_url} className="w-full h-full object-cover" muted playsInline />
-                      <div className="absolute top-2 right-2 bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-bold">VIDEO</div>
+                      <div className="absolute top-2 right-2 flex gap-1">
+                        <span className="bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-bold">VIDEO</span>
+                        {post.expires_at && (
+                          <span className="bg-orange-500/90 text-white px-2 py-0.5 rounded text-[10px] font-bold">
+                            {Math.max(0, Math.ceil((new Date(post.expires_at).getTime() - Date.now()) / 86400000))}d left
+                          </span>
+                        )}
+                      </div>
                     </>
                   ) : (
                     <img src={post.image_url} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />

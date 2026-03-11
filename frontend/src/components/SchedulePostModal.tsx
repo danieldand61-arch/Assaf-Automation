@@ -51,7 +51,7 @@ export function SchedulePostModal({
   const [connectedPlatforms, setConnectedPlatforms] = useState<Connection[]>([])
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(initialPlatforms)
   const [loadingConnections, setLoadingConnections] = useState(true)
-  const [igPostType, setIgPostType] = useState<'post' | 'story'>('post')
+  const [igPostType, setIgPostType] = useState<'post' | 'story' | 'reel'>('post')
   
   // Update editable fields when postData changes
   useEffect(() => {
@@ -385,9 +385,18 @@ export function SchedulePostModal({
                   }`}>
                   ⏳ Story
                 </button>
+                <button onClick={() => setIgPostType('reel')}
+                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition flex items-center justify-center gap-2 text-sm ${
+                    igPostType === 'reel' ? 'bg-gradient-to-r from-violet-600 to-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-500'
+                  }`}>
+                  🎬 Reel
+                </button>
               </div>
               {igPostType === 'story' && (
                 <p className="text-xs text-gray-400 mt-1.5">Stories disappear after 24h. Caption won't be included — image only.</p>
+              )}
+              {igPostType === 'reel' && (
+                <p className="text-xs text-gray-400 mt-1.5">Reels require a video. Upload or use a generated video.</p>
               )}
             </div>
           )}

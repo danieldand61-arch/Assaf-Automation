@@ -40,7 +40,7 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
   const [errorMessage, setErrorMessage] = useState('')
   const [results, setResults] = useState<{[key: string]: 'success' | 'failed'}>({})
   const [prefilledImageUrl, setPrefilledImageUrl] = useState(prefilledData?.imageUrl || '')
-  const [igPostType, setIgPostType] = useState<'post' | 'story'>('post')
+  const [igPostType, setIgPostType] = useState<'post' | 'story' | 'reel'>('post')
 
   useEffect(() => {
     if (isOpen) {
@@ -185,8 +185,7 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
             } else {
               postResults[platform] = 'failed'
             }
-          } else if (contentType === 'text-image') {
-            // Post text/image to other platforms
+          } else {
             const formData = new FormData()
             formData.append('text', postText)
             formData.append('platforms', JSON.stringify([platform]))
@@ -195,6 +194,11 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
             }
             if (platform === 'instagram') {
               formData.append('instagram_post_type', igPostType)
+            }
+            // Pass video URL for reels / video posts
+            const videoUrlFromPrefill = prefilledImageUrl && prefilledImageUrl.startsWith('http') && !prefilledImageUrl.startsWith('data:') ? prefilledImageUrl : ''
+            if (videoUrlFromPrefill) {
+              formData.append('video_url', videoUrlFromPrefill)
             }
 
             const response = await fetch(`${apiUrl}/api/social/post`, {
@@ -383,7 +387,7 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
           </div>
 
           {/* Instagram Post Type */}
-          {selectedPlatforms.includes('instagram') && contentType === 'text-image' && (
+          {selectedPlatforms.includes('instagram') && (
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
                 Instagram Format
@@ -411,9 +415,23 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
                 >
                   ⏳ Story
                 </button>
+                <button
+                  onClick={() => setIgPostType('reel')}
+                  disabled={uploading}
+                  className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition flex items-center justify-center gap-2 text-sm ${
+                    igPostType === 'reel'
+                      ? 'bg-gradient-to-r from-violet-600 to-blue-600 text-white'
+                      : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                  }`}
+                >
+                  🎬 Reel
+                </button>
               </div>
               {igPostType === 'story' && (
                 <p className="text-xs text-gray-400 mt-1.5">Stories disappear after 24h. Caption won't be included — image only.</p>
+              )}
+              {igPostType === 'reel' && (
+                <p className="text-xs text-gray-400 mt-1.5">Reels require a video. Upload or use a generated video.</p>
               )}
             </div>
           )}
