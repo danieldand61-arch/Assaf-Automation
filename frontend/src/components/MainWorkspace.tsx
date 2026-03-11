@@ -310,7 +310,7 @@ export function MainWorkspace() {
             {activeTab === 'advisor' && <AIAdvisor />}
             {activeTab === 'media' && <PlaceholderPage title="Media Studio" description="Create, edit, and manage your visual content — templates, batch resize, background removal, and more." />}
             {activeTab === 'video' && <VideoTranslation />}
-            {activeTab === 'library' && <Library />}
+            {activeTab === 'library' && <Library onSendToPostGenerator={handleSendVideoToPostGenerator} />}
             {activeTab === 'calendar' && <Scheduled />}
             {activeTab === 'billing' && <Billing />}
             {activeTab === 'integrations' && <Connections />}

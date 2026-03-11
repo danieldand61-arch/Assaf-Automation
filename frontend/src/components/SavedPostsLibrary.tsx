@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
-import { Archive, Calendar, Trash2, RefreshCw, Send } from 'lucide-react'
+import { Archive, Calendar, Trash2, RefreshCw, Send, X, Wand2, Download } from 'lucide-react'
 import { SchedulePostModal } from './SchedulePostModal'
 import { PostToSocial } from './PostToSocial'
 
@@ -35,14 +35,18 @@ function getHook(text: string): string {
   return first?.length > 80 ? first.slice(0, 80) + '...' : first || 'Untitled Post'
 }
 
-export function SavedPostsLibrary() {
+interface SavedPostsLibraryProps {
+  onSendToPostGenerator?: (videoUrl: string, prompt: string) => void
+}
+
+export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryProps) {
   const { session } = useAuth()
   const [posts, setPosts] = useState<SavedPost[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPost, setSelectedPost] = useState<SavedPost | null>(null)
   const [isScheduling, setIsScheduling] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
-  const [previewVideo, setPreviewVideo] = useState<string | null>(null)
+  const [previewPost, setPreviewPost] = useState<SavedPost | null>(null)
 
   useEffect(() => { if (session) fetchPosts() }, [session])
 
@@ -108,7 +112,7 @@ export function SavedPostsLibrary() {
           return (
             <div key={post.id}
               className="group bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-gray-200 dark:hover:border-gray-600 transition cursor-pointer"
-              onClick={() => setSelectedPost(post)}
+              onClick={() => setPreviewPost(post)}
             >
               {/* Thumbnail */}
               {post.image_url && (
@@ -116,7 +120,7 @@ export function SavedPostsLibrary() {
                   {isVideo ? (
                     <>
                       <video src={post.image_url} className="w-full h-full object-cover" muted playsInline preload="metadata" />
-                      <div className="absolute inset-0 flex items-center justify-center" onClick={e => { e.stopPropagation(); setPreviewVideo(post.image_url) }}>
+                      <div className="absolute inset-0 flex items-center justify-center">
                         <div className="w-12 h-12 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80 transition">
                           <svg className="w-5 h-5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                         </div>
@@ -210,16 +214,108 @@ export function SavedPostsLibrary() {
         />
       )}
 
-      {previewVideo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={() => setPreviewVideo(null)}>
-          <div className="relative max-w-3xl w-full mx-4" onClick={e => e.stopPropagation()}>
-            <video src={previewVideo} controls autoPlay className="w-full rounded-2xl shadow-2xl" style={{ maxHeight: '80vh' }} />
-            <button onClick={() => setPreviewVideo(null)} className="absolute -top-3 -right-3 w-8 h-8 bg-white dark:bg-gray-800 rounded-full shadow-lg flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-              &times;
-            </button>
+      {previewPost && (() => {
+        const p = previewPost
+        const isVid = p.is_video || p.image_url?.includes('.mp4') || p.image_url?.includes('video')
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setPreviewPost(null)}>
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b dark:border-gray-700">
+                <h3 className="font-bold text-gray-900 dark:text-white text-lg">Post Preview</h3>
+                <button onClick={() => setPreviewPost(null)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
+                  <X size={18} className="text-gray-500" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {p.image_url && (
+                  <div className="rounded-xl overflow-hidden bg-black">
+                    {isVid ? (
+                      <video src={p.image_url} controls autoPlay className="w-full" style={{ maxHeight: 400 }} />
+                    ) : (
+                      <img src={p.image_url} alt="" className="w-full object-contain" style={{ maxHeight: 400 }} />
+                    )}
+                  </div>
+                )}
+
+                {isVid && p.expires_at && (
+                  <div className="flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-3 py-2 rounded-lg">
+                    <span className="font-bold">{Math.max(0, Math.ceil((new Date(p.expires_at).getTime() - Date.now()) / 86400000))} days left</span>
+                    <span className="text-orange-500">— video expires after 7 days. Download to keep.</span>
+                  </div>
+                )}
+
+                <div className="text-sm text-gray-900 dark:text-white whitespace-pre-wrap leading-relaxed">{p.text}</div>
+
+                {p.hashtags?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.hashtags.map((tag, i) => (
+                      <span key={i} className="text-sm text-blue-500 font-medium">#{tag}</span>
+                    ))}
+                  </div>
+                )}
+
+                {p.call_to_action && (
+                  <div className="text-sm font-semibold text-violet-600 dark:text-violet-400">{p.call_to_action}</div>
+                )}
+
+                {p.platforms?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.platforms.map(pl => {
+                      const pm = PLATFORM_COLORS[pl]
+                      return pm ? (
+                        <span key={pl} className="text-xs font-bold px-2.5 py-1 rounded-full" style={{ background: pm.bg, color: pm.text }}>{pm.label}</span>
+                      ) : null
+                    })}
+                  </div>
+                )}
+
+                <div className="text-xs text-gray-400">Saved {new Date(p.saved_at).toLocaleString()}</div>
+              </div>
+
+              {/* Actions */}
+              <div className="p-5 border-t dark:border-gray-700 flex flex-wrap gap-2">
+                {isVid && onSendToPostGenerator && (
+                  <button
+                    onClick={() => { onSendToPostGenerator(p.image_url, p.text); setPreviewPost(null) }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-semibold text-sm transition-all shadow-lg"
+                  >
+                    <Wand2 size={14} /> Send to Post Generator
+                  </button>
+                )}
+                {isVid && (
+                  <button
+                    onClick={() => { const a = document.createElement('a'); a.href = p.image_url; a.download = `video-${Date.now()}.mp4`; a.click() }}
+                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold text-sm transition-all"
+                  >
+                    <Download size={14} /> Download
+                  </button>
+                )}
+                <button
+                  onClick={() => { setPreviewPost(null); setSelectedPost(p); setIsPublishing(true) }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-semibold text-sm hover:bg-blue-100 transition"
+                >
+                  <Send size={14} /> Publish Now
+                </button>
+                <button
+                  onClick={() => { setPreviewPost(null); setSelectedPost(p); setIsScheduling(true) }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-semibold text-sm hover:bg-purple-100 transition"
+                >
+                  <Calendar size={14} /> Schedule
+                </button>
+                <button
+                  onClick={() => { setPreviewPost(null); handleDelete(p.id) }}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-semibold text-sm transition"
+                >
+                  <Trash2 size={14} /> Delete
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </div>
   )
 }

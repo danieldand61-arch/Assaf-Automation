@@ -118,7 +118,11 @@ function ChatHistoryTab() {
   )
 }
 
-export function Library() {
+interface LibraryProps {
+  onSendToPostGenerator?: (videoUrl: string, prompt: string) => void
+}
+
+export function Library({ onSendToPostGenerator }: LibraryProps) {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState<'posts' | 'chats'>('posts')
@@ -143,7 +147,7 @@ export function Library() {
         </button>
       </div>
 
-      {tab === 'posts' ? <SavedPostsLibrary /> : <ChatHistoryTab />}
+      {tab === 'posts' ? <SavedPostsLibrary onSendToPostGenerator={onSendToPostGenerator} /> : <ChatHistoryTab />}
     </div>
   )
 }
