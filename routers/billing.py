@@ -8,7 +8,7 @@ import stripe
 import logging
 import os
 from middleware.auth import get_current_user
-from services.credits_service import CREDITS_PER_POST, CREDITS_PER_VIDEO
+import services.credits_service as cs
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 logger = logging.getLogger(__name__)
@@ -24,8 +24,6 @@ CREDIT_PACKAGES = {
     "growth":  {"credits": 100_000, "price_cents": 8900, "label": "100K Credits"},
     "scale":   {"credits": 200_000, "price_cents": 16900, "label": "200K Credits"},
 }
-for _pkg in CREDIT_PACKAGES.values():
-    _pkg["description"] = f"~{_pkg['credits'] // CREDITS_PER_POST} posts or ~{_pkg['credits'] // CREDITS_PER_VIDEO} videos"
 
 
 class CheckoutRequest(BaseModel):
@@ -35,6 +33,8 @@ class CheckoutRequest(BaseModel):
 @router.get("/packages")
 async def get_packages(current_user: dict = Depends(get_current_user)):
     """Return available credit packages."""
+    cpp = cs.CREDITS_PER_POST
+    cpv = cs.CREDITS_PER_VIDEO
     return {
         "packages": [
             {
@@ -42,12 +42,12 @@ async def get_packages(current_user: dict = Depends(get_current_user)):
                 "credits": pkg["credits"],
                 "price": pkg["price_cents"] / 100,
                 "label": pkg["label"],
-                "description": pkg["description"],
+                "description": f"~{pkg['credits'] // cpp} posts or ~{pkg['credits'] // cpv} videos",
             }
             for pkg_id, pkg in CREDIT_PACKAGES.items()
         ],
-        "credits_per_post": CREDITS_PER_POST,
-        "credits_per_video": CREDITS_PER_VIDEO,
+        "credits_per_post": cpp,
+        "credits_per_video": cpv,
     }
 
 
@@ -79,7 +79,7 @@ async def create_checkout_session(
                         "unit_amount": pkg["price_cents"],
                         "product_data": {
                             "name": pkg["label"],
-                            "description": f"{pkg['credits']:,} credits — {pkg['description']}",
+                            "description": f"{pkg['credits']:,} credits — ~{pkg['credits'] // cs.CREDITS_PER_POST} posts or ~{pkg['credits'] // cs.CREDITS_PER_VIDEO} videos",
                         },
                     },
                     "quantity": 1,
