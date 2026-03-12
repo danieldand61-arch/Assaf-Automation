@@ -37,8 +37,10 @@ async def set_margin(body: MarginRequest, user=Depends(get_current_user)):
     cs.CREDITS_PER_1K_OUTPUT = cs._BASE_PER_1K_OUTPUT * body.margin
     cs.FIXED_CREDITS = {k: round(v * body.margin) for k, v in cs._BASE_FIXED.items()}
     cs.VIDEO_DUBBING_PER_MIN = round(cs._BASE_DUBBING_PER_MIN * body.margin)
-    cs.VIDEO_GEN_CREDITS = {k: round(v * body.margin) for k, v in cs._BASE_VIDEO_GEN.items()}
+    cs.VIDEO_GEN_PER_SEC = {k: round(v * body.margin) for k, v in cs._BASE_VIDEO_GEN_PER_SEC.items()}
     cs.MIN_CREDITS = {k: round(v * body.margin) for k, v in cs._BASE_MIN.items()}
+    cs.CREDITS_PER_POST = cs.MIN_CREDITS["social_posts"] + cs.FIXED_CREDITS["image_generation"]
+    cs.CREDITS_PER_VIDEO = cs.VIDEO_GEN_PER_SEC["std_no_audio"] * 5
 
     logger.info(f"💰 Margin multiplier updated to ×{body.margin} by admin {user.get('user_id', '?')[:8]}")
     return {"success": True, "margin": body.margin}
