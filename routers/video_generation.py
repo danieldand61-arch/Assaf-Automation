@@ -123,7 +123,8 @@ async def _create_kie_task(input_params: dict, api_key: str, callback_url: str =
         return task_id
 
 
-async def _record_video_credits(user_id: str, task_id: str, estimated_credits: int, metadata: dict):
+async def _charge_credits_on_success(user_id: str, task_id: str, estimated_credits: int, metadata: dict):
+    """Deduct credits only when video generation succeeds."""
     try:
         from services.credits_service import record_usage
         await record_usage(
@@ -136,9 +137,21 @@ async def _record_video_credits(user_id: str, task_id: str, estimated_credits: i
             metadata=metadata,
             video_duration_sec=metadata.get("duration", 5),
         )
-        logger.info(f"Recorded {estimated_credits} credits for task {task_id}")
+        logger.info(f"Charged {estimated_credits} credits for successful task {task_id}")
     except Exception as e:
-        logger.warning(f"Failed to record usage: {e}")
+        logger.warning(f"Failed to charge credits: {e}")
+
+
+def _friendly_error(fail_code: str, fail_msg: str) -> str:
+    """Convert KIE error codes into user-friendly messages."""
+    code = str(fail_code).strip()
+    if code == "500" or "internal" in fail_msg.lower():
+        return "The AI model is busy right now. Please try again in a few minutes. No credits were charged."
+    if code == "400" or "invalid" in fail_msg.lower() or "param" in fail_msg.lower():
+        return "Invalid prompt or parameters. Please adjust your prompt and try again. No credits were charged."
+    if "content" in fail_msg.lower() or "moderat" in fail_msg.lower() or "sensitive" in fail_msg.lower():
+        return "Your prompt was flagged by content moderation. Please rephrase and try again. No credits were charged."
+    return f"Generation failed: {fail_msg}. No credits were charged."
 
 
 async def _save_video_task(user_id: str, task_id: str, estimated_credits: int, metadata: dict):
@@ -154,6 +167,28 @@ async def _save_video_task(user_id: str, task_id: str, estimated_credits: int, m
         }).execute()
     except Exception as e:
         logger.warning(f"Failed to save video task: {e}")
+
+
+async def _charge_on_success_from_task(task_id: str):
+    """Look up video_tasks row and charge credits only on first success."""
+    try:
+        from database.supabase_client import get_supabase
+        supabase = get_supabase()
+        row = supabase.table("video_tasks").select("user_id, estimated_credits, metadata, credits_charged") \
+            .eq("task_id", task_id).limit(1).execute()
+        if not row.data:
+            logger.warning(f"No video_tasks row for {task_id}, skipping charge")
+            return
+        task = row.data[0]
+        if task.get("credits_charged"):
+            return
+        user_id = task["user_id"]
+        credits = int(task.get("estimated_credits", 0))
+        meta = task.get("metadata") or {}
+        await _charge_credits_on_success(user_id, task_id, credits, meta)
+        supabase.table("video_tasks").update({"credits_charged": True}).eq("task_id", task_id).execute()
+    except Exception as e:
+        logger.error(f"Failed to charge credits on success for {task_id}: {e}")
 
 
 async def _update_video_task(task_id: str, status: str, video_urls: list = None, error_message: str = None):
@@ -221,7 +256,6 @@ async def generate_text_to_video(
             "quality": request.quality,
             "type": "text-to-video",
         }
-        await _record_video_credits(user_id, task_id, estimated_credits, meta)
         await _save_video_task(user_id, task_id, estimated_credits, meta)
 
         return VideoGenerationResponse(
@@ -287,7 +321,6 @@ async def generate_image_to_video(
             "quality": request.quality,
             "type": "image-to-video",
         }
-        await _record_video_credits(user_id, task_id, estimated_credits, meta)
         await _save_video_task(user_id, task_id, estimated_credits, meta)
 
         return VideoGenerationResponse(
@@ -343,11 +376,12 @@ async def get_video_status(
                     except json.JSONDecodeError:
                         logger.warning(f"Failed to parse resultJson for task {task_id}")
                 await _update_video_task(task_id, "SUCCESS", video_urls)
+                await _charge_on_success_from_task(task_id)
 
             elif status == "FAILED":
                 fail_code = task_data.get("failCode", "unknown")
                 fail_msg = task_data.get("failMsg", "Generation failed")
-                error_message = f"{fail_msg} (code: {fail_code})"
+                error_message = _friendly_error(fail_code, fail_msg)
                 logger.error(f"KIE task FAILED: task={task_id} failCode={fail_code} failMsg={fail_msg}")
                 await _update_video_task(task_id, "FAILED", error_message=error_message)
 
@@ -418,10 +452,11 @@ async def video_webhook(request: Request):
                     video_urls = result_obj.get("resultUrls", [])
                 except (json.JSONDecodeError, AttributeError):
                     pass
+            await _charge_on_success_from_task(task_id)
         elif status == "FAILED":
             fail_code = body.get("data", {}).get("failCode", "unknown")
             fail_msg = body.get("data", {}).get("failMsg", "Generation failed")
-            error_message = f"{fail_msg} (code: {fail_code})"
+            error_message = _friendly_error(fail_code, fail_msg)
             logger.error(f"KIE webhook FAILED: task={task_id} failCode={fail_code} failMsg={fail_msg}")
 
         await _update_video_task(task_id, status, video_urls, error_message)

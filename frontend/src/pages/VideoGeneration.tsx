@@ -397,10 +397,17 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
           {currentTask && currentTask.status === 'FAILED' && (
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-red-200 dark:border-red-800 p-8 flex flex-col items-center justify-center" style={{ minHeight: 300 }}>
               <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
-                <span className="text-2xl">!</span>
+                <span className="text-2xl">⚠️</span>
               </div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Generation Failed</h3>
-              <p className="text-sm text-red-600 dark:text-red-400 text-center">{currentTask.error_message || 'Unknown error'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 text-center max-w-md mb-4">{currentTask.error_message || 'Unknown error'}</p>
+              <button
+                onClick={() => { setCurrentTask(null); setFakeProgress(0) }}
+                className="px-5 py-2 rounded-xl text-sm font-medium text-white transition"
+                style={{ background: 'linear-gradient(135deg, #4A7CFF, #7C3AED)' }}
+              >
+                Try Again
+              </button>
             </div>
           )}
 
