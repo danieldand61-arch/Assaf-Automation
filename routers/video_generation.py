@@ -345,7 +345,10 @@ async def get_video_status(
                 await _update_video_task(task_id, "SUCCESS", video_urls)
 
             elif status == "FAILED":
-                error_message = task_data.get("failMsg", "Generation failed")
+                fail_code = task_data.get("failCode", "unknown")
+                fail_msg = task_data.get("failMsg", "Generation failed")
+                error_message = f"{fail_msg} (code: {fail_code})"
+                logger.error(f"KIE task FAILED: task={task_id} failCode={fail_code} failMsg={fail_msg}")
                 await _update_video_task(task_id, "FAILED", error_message=error_message)
 
             created_at = None
@@ -416,7 +419,10 @@ async def video_webhook(request: Request):
                 except (json.JSONDecodeError, AttributeError):
                     pass
         elif status == "FAILED":
-            error_message = body.get("data", {}).get("failMsg", "Generation failed")
+            fail_code = body.get("data", {}).get("failCode", "unknown")
+            fail_msg = body.get("data", {}).get("failMsg", "Generation failed")
+            error_message = f"{fail_msg} (code: {fail_code})"
+            logger.error(f"KIE webhook FAILED: task={task_id} failCode={fail_code} failMsg={fail_msg}")
 
         await _update_video_task(task_id, status, video_urls, error_message)
 
