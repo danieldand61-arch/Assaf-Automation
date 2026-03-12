@@ -292,22 +292,44 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
     } catch { /* silent */ }
   }
 
-  const handleDownloadAll = async () => {
-    const zip = new JSZip()
-    variations.forEach((v: any, i: number) => {
-      zip.file(`post-${i + 1}.txt`, getFullText(v))
-      const img = images[i] || images[0] || (userMedia ? { url: userMedia } : null)
-      if (img?.url?.startsWith('data:')) {
-        const b64 = img.url.split(',')[1]
+  const fetchMediaBlob = async (url: string): Promise<{ data: Uint8Array; ext: string } | null> => {
+    try {
+      if (url.startsWith('data:')) {
+        const b64 = url.split(',')[1]
         const bin = atob(b64)
         const arr = new Uint8Array(bin.length)
         for (let j = 0; j < bin.length; j++) arr[j] = bin.charCodeAt(j)
-        const ext = isVideoUrl(img.url) ? 'mp4' : 'jpg'
-        zip.file(`media-${i + 1}.${ext}`, arr, { binary: true })
+        return { data: arr, ext: isVideoUrl(url) ? 'mp4' : 'jpg' }
       }
-    })
+      const resp = await fetch(url)
+      if (!resp.ok) return null
+      const ct = resp.headers.get('content-type') || ''
+      const ext = ct.includes('png') ? 'png' : ct.includes('video') ? 'mp4' : ct.includes('webp') ? 'webp' : 'jpg'
+      return { data: new Uint8Array(await resp.arrayBuffer()), ext }
+    } catch { return null }
+  }
+
+  const handleDownloadAll = async () => {
+    const zip = new JSZip()
+    for (let i = 0; i < variations.length; i++) {
+      zip.file(`post-${i + 1}.txt`, getFullText(variations[i]))
+      const img = images[i] || images[0] || (userMedia ? { url: userMedia } : null)
+      if (img?.url) {
+        const media = await fetchMediaBlob(img.url)
+        if (media) zip.file(`media-${i + 1}.${media.ext}`, media.data, { binary: true })
+      }
+    }
     const blob = await zip.generateAsync({ type: 'blob' })
     saveAs(blob, 'social-posts.zip')
+  }
+
+  const handleDownloadMedia = async (idx: number) => {
+    const img = images[idx] || images[0] || (userMedia ? { url: userMedia } : null)
+    if (!img?.url) return
+    const media = await fetchMediaBlob(img.url)
+    if (!media) return
+    const blob = new Blob([media.data.buffer as ArrayBuffer])
+    saveAs(blob, `post-media-${idx + 1}.${media.ext}`)
   }
 
   const handleSave = async (idx: number) => {
@@ -505,6 +527,11 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
                       >
                         <Edit3 size={11} /> Edit
+                      </button>
+                      <button onClick={() => handleDownloadMedia(idx)}
+                        className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
+                      >
+                        <Download size={11} /> Image
                       </button>
                       <button onClick={() => handleSave(idx)} disabled={savingIdx === idx || savedToLibrary[idx] || (savingInProgress && !savedToLibrary[idx])}
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-100 transition disabled:opacity-50"

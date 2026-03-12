@@ -135,7 +135,7 @@ export default function Billing() {
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{Math.round(balance).toLocaleString()} <span className="text-base font-normal text-gray-400">credits</span></p>
             </div>
             <div className="text-right text-xs text-gray-400">
-              <p>~{Math.round(balance / 500)} posts remaining</p>
+              <p>~{Math.floor(balance / 226).toLocaleString()} posts remaining</p>
             </div>
           </div>
         </div>
@@ -146,7 +146,10 @@ export default function Billing() {
         {packages.map((pkg) => {
           const style = PACKAGE_STYLES[pkg.id] || PACKAGE_STYLES.starter
           const Icon = style.icon
-          const pricePerPost = (pkg.price / (pkg.credits / 500)).toFixed(2)
+          const CREDITS_PER_POST = 226
+          const CREDITS_PER_VIDEO = 1000
+          const approxPosts = Math.floor(pkg.credits / CREDITS_PER_POST)
+          const approxVideos = Math.floor(pkg.credits / CREDITS_PER_VIDEO)
           const isSelected = selectedPkg === pkg.id
 
           return (
@@ -187,7 +190,11 @@ export default function Billing() {
                   </li>
                   <li className="flex items-center gap-2">
                     <Check size={14} className="text-green-500" />
-                    ~${pricePerPost} per post
+                    ~{approxPosts.toLocaleString()} posts
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Check size={14} className="text-green-500" />
+                    ~{approxVideos} videos (5s)
                   </li>
                   <li className="flex items-center gap-2">
                     <Check size={14} className="text-green-500" />

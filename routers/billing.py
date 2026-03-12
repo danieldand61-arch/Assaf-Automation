@@ -18,12 +18,16 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
-# Credit packages — credits, price in cents, Stripe creates prices dynamically
+CREDITS_PER_POST = 226   # text (24) + image (202)
+CREDITS_PER_VIDEO = 1000 # std 5s no-audio minimum
+
 CREDIT_PACKAGES = {
-    "starter": {"credits": 50_000, "price_cents": 5000, "label": "50K Credits", "description": "~100 posts"},
-    "growth": {"credits": 100_000, "price_cents": 8900, "label": "100K Credits", "description": "~200 posts"},
-    "scale": {"credits": 200_000, "price_cents": 16900, "label": "200K Credits", "description": "~400 posts"},
+    "starter": {"credits": 50_000, "price_cents": 5000, "label": "50K Credits"},
+    "growth":  {"credits": 100_000, "price_cents": 8900, "label": "100K Credits"},
+    "scale":   {"credits": 200_000, "price_cents": 16900, "label": "200K Credits"},
 }
+for _pkg in CREDIT_PACKAGES.values():
+    _pkg["description"] = f"~{_pkg['credits'] // CREDITS_PER_POST} posts or ~{_pkg['credits'] // CREDITS_PER_VIDEO} videos"
 
 
 class CheckoutRequest(BaseModel):
