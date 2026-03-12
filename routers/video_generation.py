@@ -18,15 +18,6 @@ logger = logging.getLogger(__name__)
 KIE_API_URL = "https://api.kie.ai"
 KIE_MODEL = "kling-3.0/video"
 
-# Our sale price per second (real cost × 2 margin, 1 credit = $0.001)
-# Std: $0.10/s base → 200cr/s, $0.15/s audio → 300cr/s
-# Pro: $0.135/s base → 270cr/s, $0.20/s audio → 400cr/s
-OUR_CREDITS_PER_SEC = {
-    "std_no_audio": 200,
-    "std_audio": 300,
-    "pro_no_audio": 270,
-    "pro_audio": 400,
-}
 
 # KIE states → our normalized states
 _STATE_MAP = {
@@ -46,8 +37,9 @@ def get_kling_api_key() -> str:
 
 
 def _estimate_credits(quality: str, duration: int, sound: bool) -> int:
+    from services.credits_service import VIDEO_GEN_PER_SEC
     key = f"{quality}_{'audio' if sound else 'no_audio'}"
-    per_sec = OUR_CREDITS_PER_SEC.get(key, 270)
+    per_sec = VIDEO_GEN_PER_SEC.get(key, 270)
     return per_sec * duration
 
 
@@ -189,6 +181,24 @@ async def _charge_on_success_from_task(task_id: str):
         supabase.table("video_tasks").update({"credits_charged": True}).eq("task_id", task_id).execute()
     except Exception as e:
         logger.error(f"Failed to charge credits on success for {task_id}: {e}")
+
+
+async def _get_task_db_status(task_id: str) -> str | None:
+    try:
+        from database.supabase_client import get_supabase
+        row = get_supabase().table("video_tasks").select("status").eq("task_id", task_id).limit(1).execute()
+        return row.data[0]["status"] if row.data else None
+    except Exception:
+        return None
+
+
+async def _get_task_video_urls(task_id: str) -> list | None:
+    try:
+        from database.supabase_client import get_supabase
+        row = get_supabase().table("video_tasks").select("video_urls").eq("task_id", task_id).limit(1).execute()
+        return row.data[0].get("video_urls") if row.data else None
+    except Exception:
+        return None
 
 
 async def _update_video_task(task_id: str, status: str, video_urls: list = None, error_message: str = None):
@@ -367,6 +377,9 @@ async def get_video_status(
             video_urls = None
             error_message = None
 
+            # Check if we already processed this final state (avoid repeated DB writes on re-polls)
+            db_status = await _get_task_db_status(task_id)
+
             if status == "SUCCESS":
                 result_json_str = task_data.get("resultJson", "")
                 if result_json_str:
@@ -375,15 +388,20 @@ async def get_video_status(
                         video_urls = result_obj.get("resultUrls", [])
                     except json.JSONDecodeError:
                         logger.warning(f"Failed to parse resultJson for task {task_id}")
-                await _update_video_task(task_id, "SUCCESS", video_urls)
-                await _charge_on_success_from_task(task_id)
+                if db_status != "SUCCESS":
+                    await _update_video_task(task_id, "SUCCESS", video_urls)
+                    await _charge_on_success_from_task(task_id)
+                elif not video_urls:
+                    # Re-poll on already-succeeded task: read URLs from DB
+                    video_urls = await _get_task_video_urls(task_id)
 
             elif status == "FAILED":
                 fail_code = task_data.get("failCode", "unknown")
                 fail_msg = task_data.get("failMsg", "Generation failed")
                 error_message = _friendly_error(fail_code, fail_msg)
-                logger.error(f"KIE task FAILED: task={task_id} failCode={fail_code} failMsg={fail_msg}")
-                await _update_video_task(task_id, "FAILED", error_message=error_message)
+                if db_status != "FAILED":
+                    logger.error(f"KIE task FAILED: task={task_id} failCode={fail_code} failMsg={fail_msg}")
+                    await _update_video_task(task_id, "FAILED", error_message=error_message)
 
             created_at = None
             create_time = task_data.get("createTime")
