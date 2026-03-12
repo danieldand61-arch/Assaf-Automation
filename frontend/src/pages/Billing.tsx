@@ -26,6 +26,8 @@ export default function Billing() {
   const [purchasing, setPurchasing] = useState<string | null>(null)
   const [selectedPkg, setSelectedPkg] = useState<string>('growth')
   const [balance, setBalance] = useState<number | null>(null)
+  const [creditsPerPost, setCreditsPerPost] = useState(226)
+  const [creditsPerVideo, setCreditsPerVideo] = useState(1000)
 
   useEffect(() => {
     const load = async () => {
@@ -41,6 +43,8 @@ export default function Billing() {
         if (pkgRes.ok) {
           const data = await pkgRes.json()
           setPackages(data.packages || [])
+          if (data.credits_per_post) setCreditsPerPost(data.credits_per_post)
+          if (data.credits_per_video) setCreditsPerVideo(data.credits_per_video)
         }
         if (balRes.ok) {
           const data = await balRes.json()
@@ -135,7 +139,7 @@ export default function Billing() {
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{Math.round(balance).toLocaleString()} <span className="text-base font-normal text-gray-400">credits</span></p>
             </div>
             <div className="text-right text-xs text-gray-400">
-              <p>~{Math.floor(balance / 226).toLocaleString()} posts remaining</p>
+              <p>~{Math.floor(balance / creditsPerPost).toLocaleString()} posts remaining</p>
             </div>
           </div>
         </div>
@@ -146,10 +150,8 @@ export default function Billing() {
         {packages.map((pkg) => {
           const style = PACKAGE_STYLES[pkg.id] || PACKAGE_STYLES.starter
           const Icon = style.icon
-          const CREDITS_PER_POST = 226
-          const CREDITS_PER_VIDEO = 1000
-          const approxPosts = Math.floor(pkg.credits / CREDITS_PER_POST)
-          const approxVideos = Math.floor(pkg.credits / CREDITS_PER_VIDEO)
+          const approxPosts = Math.floor(pkg.credits / creditsPerPost)
+          const approxVideos = Math.floor(pkg.credits / creditsPerVideo)
           const isSelected = selectedPkg === pkg.id
 
           return (

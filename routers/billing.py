@@ -8,6 +8,7 @@ import stripe
 import logging
 import os
 from middleware.auth import get_current_user
+from services.credits_service import CREDITS_PER_POST, CREDITS_PER_VIDEO
 
 router = APIRouter(prefix="/api/billing", tags=["billing"])
 logger = logging.getLogger(__name__)
@@ -17,9 +18,6 @@ STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "https://app.joyo.marketing")
 
 stripe.api_key = STRIPE_SECRET_KEY
-
-CREDITS_PER_POST = 226   # text (24) + image (202)
-CREDITS_PER_VIDEO = 1000 # std 5s no-audio minimum
 
 CREDIT_PACKAGES = {
     "starter": {"credits": 50_000, "price_cents": 5000, "label": "50K Credits"},
@@ -47,7 +45,9 @@ async def get_packages(current_user: dict = Depends(get_current_user)):
                 "description": pkg["description"],
             }
             for pkg_id, pkg in CREDIT_PACKAGES.items()
-        ]
+        ],
+        "credits_per_post": CREDITS_PER_POST,
+        "credits_per_video": CREDITS_PER_VIDEO,
     }
 
 

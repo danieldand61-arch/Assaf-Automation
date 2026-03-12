@@ -66,6 +66,10 @@ _BASE_MIN = {
 }
 MIN_CREDITS = {k: round(v * MARGIN_MULTIPLIER) for k, v in _BASE_MIN.items()}
 
+# Typical operation costs (auto-calculated from margin)
+CREDITS_PER_POST = MIN_CREDITS["social_posts"] + FIXED_CREDITS["image_generation"]
+CREDITS_PER_VIDEO = VIDEO_GEN_PER_SEC["std_no_audio"] * 5
+
 
 def calculate_credits(
     service_type: str,
