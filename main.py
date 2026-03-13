@@ -263,6 +263,14 @@ except Exception as e:
     logger.error(f"❌ Analytics router failed to load: {str(e)}")
     logger.warning("⚠️ Ad analytics features will NOT be available!")
 
+try:
+    from routers import graphic_gen
+    app.include_router(graphic_gen.router)
+    logger.info("✅ Graphic gen router registered")
+except Exception as e:
+    logger.error(f"❌ Graphic gen router failed to load: {str(e)}")
+    logger.warning("⚠️ Graphic text generation will NOT be available!")
+
 logger.info("ℹ️ All routers loaded successfully!")
 
 # Log all requests middleware (after CORS)
