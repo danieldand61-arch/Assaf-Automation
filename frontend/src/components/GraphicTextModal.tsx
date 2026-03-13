@@ -186,8 +186,39 @@ export function GraphicTextModal({ isOpen, onClose, brandColors = [], brandName 
             </div>
           </div>
 
+          {/* Live Preview */}
+          {textOnImage.trim() && !result && (
+            <div>
+              <label className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-1.5">Preview</label>
+              <div className="relative overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700" style={{ aspectRatio: size === '1080x1080' ? '1/1' : size === '1080x1350' ? '4/5' : size === '1200x628' ? '1200/628' : '9/16', maxHeight: 280 }}>
+                <div className="absolute inset-0" style={{
+                  background: style === 'elegant' ? 'linear-gradient(135deg, #1a1a2e, #16213e)' :
+                    style === 'bold' ? 'linear-gradient(135deg, #e63946, #f4a261)' :
+                    style === 'playful' ? 'linear-gradient(135deg, #a855f7, #3b82f6, #06b6d4)' :
+                    style === 'minimal' ? '#f8fafc' :
+                    brandColors.length >= 2 ? `linear-gradient(135deg, ${brandColors[0]}, ${brandColors[1]})` :
+                    'linear-gradient(135deg, #4A7CFF, #8B5CF6)',
+                }} />
+                {refPreview && <img src={refPreview} alt="" className="absolute inset-0 w-full h-full object-cover opacity-60" />}
+                <div className="absolute inset-0 flex items-center justify-center p-6">
+                  <p className={`text-center leading-tight font-bold drop-shadow-lg ${
+                    style === 'minimal' ? 'text-gray-900' : 'text-white'
+                  }`} style={{
+                    fontSize: textOnImage.length > 40 ? '1rem' : textOnImage.length > 20 ? '1.25rem' : '1.5rem',
+                    fontFamily: style === 'elegant' ? 'Georgia, serif' : style === 'playful' ? 'Comic Sans MS, cursive, sans-serif' : 'system-ui, sans-serif',
+                    letterSpacing: style === 'bold' ? '0.05em' : undefined,
+                    textTransform: style === 'bold' ? 'uppercase' as const : undefined,
+                  }}>
+                    {textOnImage}
+                  </p>
+                </div>
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1 text-center">Approximate preview — AI will create a polished version</p>
+            </div>
+          )}
+
           {/* Brand colors hint */}
-          {brandColors.length > 0 && (
+          {brandColors.length > 0 && !result && (
             <div className="flex items-center gap-2 text-xs text-gray-400">
               <Palette size={12} />
               <span>Using brand colors:</span>
