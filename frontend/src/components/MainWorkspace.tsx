@@ -8,6 +8,7 @@ import { InputSection, GenerateFormData } from './InputSection'
 import { GoogleAdsGeneration } from './GoogleAdsGeneration'
 import { VideoTranslation } from './VideoTranslation'
 import { PreviewSection } from './PreviewSection'
+import { GraphicTextModal } from './GraphicTextModal'
 import VideoGeneration from '../pages/VideoGeneration'
 import Dashboard from '../pages/Dashboard'
 import { Library } from '../pages/Library'
@@ -73,7 +74,7 @@ export function MainWorkspace() {
   const [showConnectTools, setShowConnectTools] = useState(
     () => !localStorage.getItem('joyo_tools_connected')
   )
-  const { generatedContent, setGeneratedContent } = useContentStore()
+  const { generatedContent, setGeneratedContent, updateImage } = useContentStore()
   const { loading } = useAccount()
   const { session } = useAuth()
   const { theme } = useTheme()
@@ -86,6 +87,8 @@ export function MainWorkspace() {
   const [saveResults, setSaveResults] = useState<Record<number, boolean>>({})
   const [showCreditsPopup, setShowCreditsPopup] = useState(false)
   const savedFormRef = useRef<GenerateFormData | null>(null)
+  const [addTextModalOpen, setAddTextModalOpen] = useState(false)
+  const [addTextImageIdx, setAddTextImageIdx] = useState(0)
 
   const JoyoTheme = getJoyoTheme(theme)
 
@@ -175,6 +178,11 @@ export function MainWorkspace() {
 
       setGeneratedContent({ ...result, request_params: data, user_media: data.media_file || null })
 
+      if (data.add_text_to_image && result.images?.length && !data.media_file) {
+        setAddTextImageIdx(0)
+        setAddTextModalOpen(true)
+      }
+
       // Auto-save all variations to library (track real completion)
       if (session && result.variations?.length) {
         const mediaUrl = data.media_file || ''
@@ -226,7 +234,7 @@ export function MainWorkspace() {
       platforms: ['facebook', 'instagram'],
       image_size: '1080x1080', style: 'professional', language: 'en',
       target_audience: 'b2c', include_emojis: true, include_logo: false,
-      include_people: false, uploaded_image: null, media_file: videoUrl,
+      include_people: false, add_text_to_image: false, uploaded_image: null, media_file: videoUrl,
     }
     setSocialScreen('form')
     setActiveTab('social')
@@ -318,6 +326,15 @@ export function MainWorkspace() {
           </div>
         )}
       </div>
+
+      <GraphicTextModal
+        isOpen={addTextModalOpen}
+        onClose={() => setAddTextModalOpen(false)}
+        sourceImage={generatedContent?.images?.[addTextImageIdx]?.url || null}
+        brandColors={generatedContent?.brand_colors || []}
+        brandName={generatedContent?.website_data?.title || ''}
+        onImageReady={(url) => { updateImage(addTextImageIdx, url); setAddTextModalOpen(false) }}
+      />
 
       <FloatingChat />
 

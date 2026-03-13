@@ -1,20 +1,14 @@
-import { useState, useRef } from 'react'
-import { X, Loader2, Download, Upload, Type, Sparkles, RefreshCw, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd } from 'lucide-react'
+import { useState } from 'react'
+import { X, Loader2, Download, Type, Sparkles, RefreshCw } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
 
 const STYLES = [
-  { id: 'modern', label: 'Modern' },
-  { id: 'bold', label: 'Bold' },
-  { id: 'minimal', label: 'Minimal' },
-  { id: 'elegant', label: 'Elegant' },
-  { id: 'playful', label: 'Playful' },
-]
-
-const POSITIONS = [
-  { id: 'top', label: 'Top', icon: AlignVerticalJustifyStart },
-  { id: 'center', label: 'Center', icon: AlignVerticalJustifyCenter },
-  { id: 'bottom', label: 'Bottom', icon: AlignVerticalJustifyEnd },
+  { id: 'modern', label: 'Modern', font: 'system-ui, sans-serif', weight: '700', transform: 'none' as const },
+  { id: 'bold', label: 'Bold', font: 'system-ui, sans-serif', weight: '900', transform: 'uppercase' as const },
+  { id: 'minimal', label: 'Minimal', font: 'system-ui, sans-serif', weight: '300', transform: 'none' as const },
+  { id: 'elegant', label: 'Elegant', font: 'Georgia, serif', weight: '600', transform: 'none' as const },
+  { id: 'playful', label: 'Playful', font: '"Comic Sans MS", cursive', weight: '700', transform: 'none' as const },
 ]
 
 interface Props {
@@ -30,25 +24,16 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
   const { session } = useAuth()
   const [textOnImage, setTextOnImage] = useState('')
   const [style, setStyle] = useState('modern')
-  const [position, setPosition] = useState('center')
-  const [imgSrc, setImgSrc] = useState<string | null>(sourceImage)
   const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState<string | null>(null)
   const [error, setError] = useState('')
-  const fileRef = useRef<HTMLInputElement>(null)
 
   if (!isOpen) return null
 
-  const handleUpload = (file: File) => {
-    if (!file.type.match(/^image\/(jpeg|png|webp)$/)) return
-    if (file.size > 10 * 1024 * 1024) { setError('Image must be under 10 MB'); return }
-    const reader = new FileReader()
-    reader.onload = (e) => { setImgSrc(e.target?.result as string); setResult(null) }
-    reader.readAsDataURL(file)
-  }
+  const currentStyle = STYLES.find(s => s.id === style) || STYLES[0]
 
   const handleGenerate = async () => {
-    if (!textOnImage.trim() || !imgSrc) return
+    if (!textOnImage.trim() || !sourceImage) return
     setGenerating(true)
     setError('')
     setResult(null)
@@ -56,7 +41,7 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
       const res = await fetch(`${getApiUrl()}/api/graphic/add-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ image: imgSrc, text_on_image: textOnImage, style, position, brand_colors: brandColors, brand_name: brandName }),
+        body: JSON.stringify({ image: sourceImage, text_on_image: textOnImage, style, brand_colors: brandColors, brand_name: brandName }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -72,7 +57,7 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
   }
 
   const handleDownload = async () => {
-    const url = result || imgSrc
+    const url = result
     if (!url) return
     try {
       const resp = await fetch(url)
@@ -81,15 +66,13 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
       const a = document.createElement('a'); a.href = blobUrl; a.download = `graphic-${Date.now()}.jpg`; a.click()
       URL.revokeObjectURL(blobUrl)
     } catch {
-      const a = document.createElement('a'); a.href = url!; a.download = `graphic-${Date.now()}.jpg`; a.click()
+      const a = document.createElement('a'); a.href = url; a.download = `graphic-${Date.now()}.jpg`; a.click()
     }
   }
 
-  const previewAlign = position === 'top' ? 'items-start pt-6' : position === 'bottom' ? 'items-end pb-6' : 'items-center'
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center gap-2">
@@ -100,54 +83,16 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Image with live text preview */}
-          {(imgSrc || result) ? (
+          {/* Result image */}
+          {result && (
             <div className="relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-              <img src={result || imgSrc!} alt="" className="w-full" />
-
-              {/* Live text overlay (only when no result yet and text entered) */}
-              {!result && textOnImage.trim() && (
-                <div className={`absolute inset-0 flex flex-col justify-center ${previewAlign} px-6 pointer-events-none`}>
-                  <div className="px-4 py-2 rounded-lg max-w-[85%]" style={{
-                    background: style === 'minimal' ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.55)',
-                    backdropFilter: 'blur(4px)',
-                  }}>
-                    <p className={`text-center leading-tight font-bold ${style === 'minimal' ? 'text-gray-900' : 'text-white'}`}
-                      style={{
-                        fontSize: textOnImage.length > 60 ? '0.75rem' : textOnImage.length > 30 ? '0.9rem' : '1.1rem',
-                        fontFamily: style === 'elegant' ? 'Georgia, serif' : style === 'playful' ? 'Comic Sans MS, cursive' : 'system-ui',
-                        letterSpacing: style === 'bold' ? '0.08em' : undefined,
-                        textTransform: style === 'bold' ? 'uppercase' as const : undefined,
-                      }}>
-                      {textOnImage}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {result && (
-                <div className="absolute top-2 right-2 px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full shadow">Text Added</div>
-              )}
-              {!result && (
-                <button onClick={() => { setImgSrc(null); setResult(null) }}
-                  className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-black/70 transition">
-                  <X size={14} />
-                </button>
-              )}
-            </div>
-          ) : (
-            <div onClick={() => fileRef.current?.click()}
-              className="border-2 border-dashed border-violet-300 dark:border-violet-600 rounded-xl p-10 flex flex-col items-center gap-2 cursor-pointer hover:bg-violet-50 dark:hover:bg-violet-900/10 transition">
-              <Upload size={28} className="text-violet-400" />
-              <span className="text-sm font-medium text-violet-500">Upload an image to add text on</span>
-              <span className="text-[10px] text-gray-400">Or use "Add Text" from a generated post image</span>
+              <img src={result} alt="" className="w-full" />
+              <div className="absolute top-2 right-2 px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full shadow">Text Added</div>
             </div>
           )}
-          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-            onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }} />
 
-          {/* Controls (only when image loaded, no result yet) */}
-          {imgSrc && !result && (
+          {/* Controls (before generation or redo) */}
+          {!result && (
             <>
               {/* Text input */}
               <div>
@@ -158,37 +103,38 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
                   rows={2} />
               </div>
 
-              {/* Style + Position row */}
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Style</label>
-                  <div className="flex gap-1 flex-wrap">
-                    {STYLES.map(s => (
-                      <button key={s.id} onClick={() => setStyle(s.id)}
-                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition ${style === s.id
-                          ? 'bg-violet-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
-                        {s.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Position</label>
-                  <div className="flex gap-1">
-                    {POSITIONS.map(p => {
-                      const Icon = p.icon
-                      return (
-                        <button key={p.id} onClick={() => setPosition(p.id)}
-                          title={p.label}
-                          className={`p-2 rounded-lg transition ${position === p.id
-                            ? 'bg-violet-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-gray-200'}`}>
-                          <Icon size={16} />
-                        </button>
-                      )
-                    })}
-                  </div>
+              {/* Style selector */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Style</label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {STYLES.map(s => (
+                    <button key={s.id} onClick={() => setStyle(s.id)}
+                      className={`px-3 py-1.5 rounded-lg text-[11px] font-medium transition ${style === s.id
+                        ? 'bg-violet-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
+                      {s.label}
+                    </button>
+                  ))}
                 </div>
               </div>
+
+              {/* Font preview */}
+              {textOnImage.trim() && (
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">Preview</label>
+                  <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center min-h-[60px]">
+                    <p className="text-center leading-snug" style={{
+                      fontFamily: currentStyle.font,
+                      fontWeight: currentStyle.weight,
+                      textTransform: currentStyle.transform,
+                      fontSize: textOnImage.length > 60 ? '0.85rem' : textOnImage.length > 30 ? '1.1rem' : '1.4rem',
+                      letterSpacing: style === 'bold' ? '0.1em' : style === 'elegant' ? '0.03em' : undefined,
+                      color: brandColors[0] || '#1f2937',
+                    }}>
+                      {textOnImage}
+                    </p>
+                  </div>
+                </div>
+              )}
             </>
           )}
 
@@ -198,7 +144,7 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
 
           {/* Actions */}
           <div className="flex gap-2">
-            {imgSrc && !result && (
+            {!result && (
               <button onClick={handleGenerate} disabled={generating || !textOnImage.trim()}
                 className="flex-1 py-2.5 rounded-xl text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-40 transition"
                 style={{ background: 'linear-gradient(135deg, #8B5CF6, #6366F1)' }}>

@@ -95,6 +95,7 @@ export interface GenerateFormData {
   include_emojis: boolean
   include_logo: boolean
   include_people: boolean
+  add_text_to_image: boolean
   uploaded_image?: string | null
   media_file?: string | null
   use_custom_url?: boolean
@@ -133,7 +134,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
       url: '', keywords: '', platforms: ['facebook', 'instagram'],
       image_size: '1080x1080', style: 'professional', language: 'en',
       target_audience: 'b2c', include_emojis: true, include_logo: false,
-      include_people: false, uploaded_image: null, media_file: null,
+      include_people: false, add_text_to_image: false, uploaded_image: null, media_file: null,
     }
   }
 
@@ -473,6 +474,15 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Include People in Images</span>
                       <Toggle checked={form.include_people} onChange={v => set('include_people', v)} />
+                    </div>
+                  )}
+                  {!mediaPreview && (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Add Text to Image</span>
+                        <p className="text-[10px] text-gray-400">Overlay promotional text after generation</p>
+                      </div>
+                      <Toggle checked={form.add_text_to_image} onChange={v => set('add_text_to_image', v)} />
                     </div>
                   )}
                 </div>
