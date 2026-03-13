@@ -285,9 +285,18 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                     <Wand2 size={14} /> Send to Post Generator
                   </button>
                 )}
-                {isVid && (
+                {p.image_url && (
                   <button
-                    onClick={() => { const a = document.createElement('a'); a.href = p.image_url; a.download = `video-${Date.now()}.mp4`; a.click() }}
+                    onClick={async () => {
+                      try {
+                        const resp = await fetch(p.image_url)
+                        const blob = await resp.blob()
+                        const ext = isVid ? 'mp4' : (blob.type.includes('png') ? 'png' : 'jpg')
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement('a'); a.href = url; a.download = `${isVid ? 'video' : 'image'}-${Date.now()}.${ext}`; a.click()
+                        URL.revokeObjectURL(url)
+                      } catch { const a = document.createElement('a'); a.href = p.image_url; a.download = `media-${Date.now()}`; a.click() }
+                    }}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold text-sm transition-all"
                   >
                     <Download size={14} /> Download
