@@ -522,6 +522,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
       <GraphicTextModal
         isOpen={showGraphicModal}
         onClose={() => setShowGraphicModal(false)}
+        sourceImage={null}
         brandColors={activeAccount?.brand_colors || activeAccount?.metadata?.brand_kit?.brand_colors || []}
         brandName={activeAccount?.name || activeAccount?.metadata?.brand_kit?.business_name || ''}
         onImageReady={(url) => {

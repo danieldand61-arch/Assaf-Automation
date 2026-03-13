@@ -1,8 +1,9 @@
 """
-Graphic Text Image Generator — separate pipeline for images WITH text overlay.
-Uses Gemini with a minimal prompt (no "NO TEXT" rule) to generate ad-style visuals.
+Graphic Text Overlay — adds text on top of an existing image.
+Step 1: User generates/uploads an image.
+Step 2: This endpoint overlays text onto it using Gemini.
 """
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 import google.generativeai as genai
@@ -22,22 +23,23 @@ logger = logging.getLogger(__name__)
 MODEL_NAME = "gemini-3.1-flash-image-preview"
 
 
-class GraphicRequest(BaseModel):
+class TextOverlayRequest(BaseModel):
+    image: str  # base64 data URI or URL of the source image
     text_on_image: str
-    description: str = ""
-    image_size: str = "1080x1080"
-    style: str = "modern"  # modern, bold, minimal, elegant, playful
+    style: str = "modern"
     brand_colors: list[str] = []
     brand_name: str = ""
-    reference_image: Optional[str] = None  # base64 data URI or URL — overlay text on this
 
 
-@router.post("/generate")
-async def generate_graphic(request: GraphicRequest, current_user: dict = Depends(get_current_user)):
+@router.post("/add-text")
+async def add_text_overlay(request: TextOverlayRequest, current_user: dict = Depends(get_current_user)):
     user_id = current_user["user_id"]
     bal = await check_balance(user_id, min_credits=80.0)
     if not bal["ok"]:
         raise HTTPException(status_code=402, detail=f"Not enough credits. You have {bal['remaining']:.0f}, need 80.")
+
+    if not request.text_on_image.strip():
+        raise HTTPException(status_code=400, detail="text_on_image is required")
 
     api_key = os.getenv("GOOGLE_AI_API_KEY")
     if not api_key:
@@ -46,15 +48,12 @@ async def generate_graphic(request: GraphicRequest, current_user: dict = Depends
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(MODEL_NAME)
 
-    prompt = _build_graphic_prompt(request)
-    content = []
+    img_part = await _load_image(request.image)
+    if not img_part:
+        raise HTTPException(status_code=400, detail="Could not load source image")
 
-    if request.reference_image:
-        ref_part = await _load_image(request.reference_image)
-        if ref_part:
-            content.append(ref_part)
-
-    content.append(prompt)
+    prompt = _build_overlay_prompt(request)
+    content = [img_part, prompt]
 
     last_error = None
     response = None
@@ -67,85 +66,58 @@ async def generate_graphic(request: GraphicRequest, current_user: dict = Depends
             break
         except Exception as e:
             last_error = e
-            logger.warning(f"Graphic gen attempt {attempt+1} failed: {e}")
+            logger.warning(f"Text overlay attempt {attempt+1} failed: {e}")
             if attempt < 2:
                 await asyncio.sleep(2 * (attempt + 1))
 
     if last_error or response is None:
-        raise HTTPException(status_code=500, detail=f"Image generation failed: {last_error}")
+        raise HTTPException(status_code=500, detail=f"Text overlay failed: {last_error}")
 
     try:
         in_t = getattr(response.usage_metadata, 'prompt_token_count', 0) if hasattr(response, 'usage_metadata') else 0
         out_t = getattr(response.usage_metadata, 'candidates_token_count', 0) if hasattr(response, 'usage_metadata') else 0
         await record_usage(user_id=user_id, service_type="image_generation", input_tokens=in_t, output_tokens=out_t,
-                           model_name=MODEL_NAME, metadata={"type": "graphic_text", "size": request.image_size})
+                           model_name=MODEL_NAME, metadata={"type": "text_overlay"})
     except Exception as e:
-        logger.warning(f"Failed to record graphic usage: {e}")
+        logger.warning(f"Failed to record usage: {e}")
 
-    image_b64 = _extract_image(response, request.image_size)
+    image_b64 = _extract_image(response)
     if not image_b64:
         raise HTTPException(status_code=500, detail="No image generated")
 
     return {"image_url": image_b64}
 
 
-def _build_graphic_prompt(req: GraphicRequest) -> str:
-    color_hint = f"Use these brand colors: {', '.join(req.brand_colors[:4])}." if req.brand_colors else ""
-    brand_hint = f'Brand: "{req.brand_name}".' if req.brand_name else ""
-
-    w, h = map(int, req.image_size.split('x'))
-    if w == h:
-        ratio = "square 1:1"
-    elif w > h:
-        ratio = "landscape 16:9"
-    else:
-        ratio = "portrait 9:16"
+def _build_overlay_prompt(req: TextOverlayRequest) -> str:
+    color_hint = f"Use these brand colors for the text/accents: {', '.join(req.brand_colors[:4])}." if req.brand_colors else ""
+    brand_hint = f'This is for brand "{req.brand_name}".' if req.brand_name else ""
 
     style_map = {
-        "modern": "Clean modern design with geometric shapes, gradient backgrounds, and sans-serif typography",
-        "bold": "Bold high-contrast design with large impactful text, strong colors, and dynamic layout",
-        "minimal": "Minimalist design with lots of white space, thin fonts, subtle colors",
-        "elegant": "Elegant premium design with serif fonts, dark/gold palette, luxurious feel",
-        "playful": "Playful colorful design with rounded shapes, bright gradients, fun casual fonts",
+        "modern": "Clean sans-serif typography, subtle gradient or frosted overlay behind text",
+        "bold": "Large bold impactful text, high contrast, uppercase, strong drop shadow",
+        "minimal": "Thin elegant font, lots of breathing room, subtle text placement",
+        "elegant": "Serif typography, dark overlay band, gold/white text, luxurious feel",
+        "playful": "Fun rounded font, colorful text with outline/shadow, energetic placement",
     }
     style_desc = style_map.get(req.style, style_map["modern"])
 
-    if req.reference_image:
-        return f"""The user has provided a BACKGROUND IMAGE above. Generate a new image that uses this photo as the background and overlays the following text on it in a professional, readable way.
+    return f"""The user has provided an IMAGE above. Your job is to add TEXT on top of this image to create a professional marketing/advertising visual.
 
-TEXT TO DISPLAY ON THE IMAGE:
+TEXT TO ADD:
 "{req.text_on_image}"
 
-{f'Additional context: {req.description}' if req.description else ''}
 {brand_hint} {color_hint}
 
-DESIGN RULES:
-- The text MUST be clearly readable against the background
-- Add a semi-transparent overlay, gradient, or text shadow to ensure contrast
-- {style_desc}
-- Professional marketing/advertising quality
-- {ratio} format
-- The text is the HERO element — make it prominent and well-positioned
-- Keep the background photo visible but ensure text legibility comes first"""
-    else:
-        return f"""Generate a professional marketing graphic image with TEXT on it.
+TYPOGRAPHY STYLE: {style_desc}
 
-TEXT TO DISPLAY ON THE IMAGE:
-"{req.text_on_image}"
-
-{f'Context/theme: {req.description}' if req.description else ''}
-{brand_hint} {color_hint}
-
-DESIGN STYLE: {style_desc}
-
-REQUIREMENTS:
-- {ratio} format
-- The text "{req.text_on_image}" MUST be rendered clearly and readably on the image
-- Professional advertising/social media graphic quality
-- Beautiful background design that complements the text
-- Text should be the focal point with proper hierarchy and spacing
-- Use appropriate font styling for the design style
-- Make it look like a professional designer created it"""
+CRITICAL RULES:
+- Keep the original image as the background — do NOT regenerate or significantly alter the photo
+- Add the text "{req.text_on_image}" as a clear, readable overlay
+- Ensure high contrast between text and background (use overlay bands, shadows, or gradients as needed)
+- Position text for maximum visual impact and readability
+- The result should look like a professional social media ad or marketing banner
+- Text must be the HERO element — prominent, well-sized, properly spaced
+- Maintain the original image's composition and quality"""
 
 
 async def _load_image(source: str) -> dict | None:
@@ -158,11 +130,11 @@ async def _load_image(source: str) -> dict | None:
             resp = await client.get(source, follow_redirects=True)
             return {"mime_type": resp.headers.get("content-type", "image/jpeg"), "data": resp.content}
     except Exception as e:
-        logger.warning(f"Failed to load reference image: {e}")
+        logger.warning(f"Failed to load image: {e}")
         return None
 
 
-def _extract_image(response, image_size: str) -> str | None:
+def _extract_image(response) -> str | None:
     if not hasattr(response, 'candidates') or not response.candidates:
         return None
     candidate = response.candidates[0]
@@ -187,29 +159,6 @@ def _extract_image(response, image_size: str) -> str | None:
             except Exception:
                 continue
 
-            w, h = map(int, image_size.split('x'))
-            target_ratio = w / h
-            api_ratio = img.width / img.height
-
-            if abs(api_ratio - target_ratio) > 0.1:
-                if api_ratio > target_ratio:
-                    nw = int(img.height * target_ratio)
-                    left = (img.width - nw) // 2
-                    img = img.crop((left, 0, left + nw, img.height))
-                else:
-                    nh = int(img.width / target_ratio)
-                    top = (img.height - nh) // 2
-                    img = img.crop((0, top, img.width, top + nh))
-
-            target_dims = {"16:9": (1920, 1080), "9:16": (1080, 1920), "1:1": (1024, 1024)}
-            if w == h:
-                tw, th = target_dims["1:1"]
-            elif w > h:
-                tw, th = target_dims["16:9"]
-            else:
-                tw, th = target_dims["9:16"]
-            img = img.resize((tw, th), Image.Resampling.LANCZOS)
-
             if img.mode in ('RGBA', 'LA', 'P'):
                 bg = Image.new('RGB', img.size, (255, 255, 255))
                 if img.mode == 'P':
@@ -218,7 +167,7 @@ def _extract_image(response, image_size: str) -> str | None:
                 img = bg
 
             out = io.BytesIO()
-            img.save(out, format='JPEG', quality=85, optimize=True)
+            img.save(out, format='JPEG', quality=90, optimize=True)
             return f"data:image/jpeg;base64,{base64.b64encode(out.getvalue()).decode()}"
 
     return None
