@@ -1,11 +1,12 @@
 import { useState, useMemo, useEffect } from 'react'
-import { ArrowLeft, Calendar, Send, Download, RefreshCw, Edit3, BookmarkPlus, Check, AlertTriangle, ImageOff, Wand2, Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, ThumbsUp, Globe } from 'lucide-react'
+import { ArrowLeft, Calendar, Send, Download, RefreshCw, Edit3, BookmarkPlus, Check, AlertTriangle, ImageOff, Wand2, Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, ThumbsUp, Globe, Type } from 'lucide-react'
 import { useContentStore } from '../store/contentStore'
 import { useAuth } from '../contexts/AuthContext'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { PostEditModal } from './PostEditModal'
 import { ImageEditModal } from './ImageEditModal'
+import { GraphicTextModal } from './GraphicTextModal'
 import { PostToSocial } from './PostToSocial'
 import { SchedulePostModal } from './SchedulePostModal'
 import { getApiUrl } from '../lib/api'
@@ -245,6 +246,7 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
   const [editingImageIdx, setEditingImageIdx] = useState<number | null>(null)
   const [postingIdx, setPostingIdx] = useState<number | null>(null)
   const [schedulingIdx, setSchedulingIdx] = useState<number | null>(null)
+  const [addTextIdx, setAddTextIdx] = useState<number | null>(null)
   const [savingIdx, setSavingIdx] = useState<number | null>(null)
   const [publishedStatus, setPublishedStatus] = useState<Record<number, string>>({})
   const [savedToLibrary, setSavedToLibrary] = useState<Record<number, boolean>>({})
@@ -533,6 +535,12 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
                       >
                         <Download size={11} /> Image
                       </button>
+                      {img?.url && !isVideoUrl(img.url) && !img.url.includes('placehold.co') && (
+                        <button onClick={() => setAddTextIdx(idx)}
+                          className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition">
+                          <Type size={11} /> Add Text
+                        </button>
+                      )}
                       <button onClick={() => handleSave(idx)} disabled={savingIdx === idx || savedToLibrary[idx] || (savingInProgress && !savedToLibrary[idx])}
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-100 transition disabled:opacity-50"
                       >
@@ -612,6 +620,16 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
             imageUrl: (images[schedulingIdx] || images[0])?.url,
           }}
           platforms={platforms}
+        />
+      )}
+      {addTextIdx !== null && (
+        <GraphicTextModal
+          isOpen
+          onClose={() => setAddTextIdx(null)}
+          sourceImage={(images[addTextIdx] || images[0])?.url || null}
+          brandColors={generatedContent.brand_colors || []}
+          brandName={generatedContent.website_data?.title || ''}
+          onImageReady={(url) => { updateImage(addTextIdx, url); setAddTextIdx(null) }}
         />
       )}
     </div>
