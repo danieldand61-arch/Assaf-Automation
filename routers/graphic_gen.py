@@ -27,6 +27,7 @@ class TextOverlayRequest(BaseModel):
     image: str  # base64 data URI or URL of the source image
     text_on_image: str
     style: str = "modern"
+    position: str = "center"  # top | center | bottom
     brand_colors: list[str] = []
     brand_name: str = ""
 
@@ -110,11 +111,13 @@ TEXT TO ADD:
 
 TYPOGRAPHY STYLE: {style_desc}
 
+TEXT POSITION: Place the text at the {req.position.upper()} of the image.
+
 CRITICAL RULES:
 - Keep the original image as the background — do NOT regenerate or significantly alter the photo
 - Add the text "{req.text_on_image}" as a clear, readable overlay
 - Ensure high contrast between text and background (use overlay bands, shadows, or gradients as needed)
-- Position text for maximum visual impact and readability
+- Position text at the {req.position} area of the image
 - The result should look like a professional social media ad or marketing banner
 - Text must be the HERO element — prominent, well-sized, properly spaced
 - Maintain the original image's composition and quality"""

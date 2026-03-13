@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Sparkles, Globe, Upload, X, Check, AlertCircle, Film, Zap, Type } from 'lucide-react'
+import { Sparkles, Globe, Upload, X, Check, AlertCircle, Film, Zap } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
-import { GraphicTextModal } from './GraphicTextModal'
 
 /* ── Platform SVG icons ────────────────────────────────────────── */
 const PlatformIcon = ({ id, size = 18 }: { id: string; size?: number }) => {
@@ -155,7 +154,6 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
     return mf
   })
   const [showCustomUrl, setShowCustomUrl] = useState(false)
-  const [showGraphicModal, setShowGraphicModal] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const mediaRef = useRef<HTMLInputElement>(null)
 
@@ -335,7 +333,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                   <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Media (Optional)</label>
                   <span className="text-[10px] font-semibold text-gray-400">AI will generate an image automatically if none provided</span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {/* AI Generated */}
                   <div className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${imagePreview ? 'border-[#4A7CFF] bg-[#4A7CFF]/5' : 'border-gray-100 dark:border-gray-700 hover:border-[#4A7CFF]/40'}`}>
                     <div className="flex items-center gap-2 mb-2">
@@ -386,19 +384,6 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                       onChange={e => { const f = e.target.files?.[0]; if (f) handleMediaFile(f) }} />
                   </div>
 
-                  {/* Create Graphic with Text */}
-                  <div onClick={() => setShowGraphicModal(true)}
-                    className="p-4 rounded-xl border-2 cursor-pointer transition-all border-gray-100 dark:border-gray-700 hover:border-violet-400 dark:hover:border-violet-500 bg-gray-50 dark:bg-gray-800/30 hover:bg-violet-50 dark:hover:bg-violet-900/10">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Type size={16} className="text-violet-500" />
-                      <span className="text-sm font-bold text-gray-900 dark:text-white">Create Graphic</span>
-                    </div>
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">Generate an ad-style image with text overlay. Perfect for promotions & announcements.</p>
-                    <div className="border-2 border-dashed border-violet-300 dark:border-violet-600 rounded-lg p-4 flex flex-col items-center gap-1 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors">
-                      <Type size={18} className="text-violet-400" />
-                      <span className="text-[10px] font-bold text-violet-500">Open Designer</span>
-                    </div>
-                  </div>
                 </div>
               </div>
             </section>
@@ -519,18 +504,6 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
         </div>
       </form>
 
-      <GraphicTextModal
-        isOpen={showGraphicModal}
-        onClose={() => setShowGraphicModal(false)}
-        sourceImage={null}
-        brandColors={activeAccount?.brand_colors || activeAccount?.metadata?.brand_kit?.brand_colors || []}
-        brandName={activeAccount?.name || activeAccount?.metadata?.brand_kit?.business_name || ''}
-        onImageReady={(url) => {
-          setMediaPreview(url)
-          setMediaIsVideo(false)
-          set('media_file', url)
-        }}
-      />
     </div>
   )
 }

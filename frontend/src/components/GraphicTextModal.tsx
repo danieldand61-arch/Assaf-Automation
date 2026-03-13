@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { X, Loader2, Download, Upload, Type, Sparkles, RefreshCw } from 'lucide-react'
+import { X, Loader2, Download, Upload, Type, Sparkles, RefreshCw, AlignVerticalJustifyStart, AlignVerticalJustifyCenter, AlignVerticalJustifyEnd } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
 
@@ -9,6 +9,12 @@ const STYLES = [
   { id: 'minimal', label: 'Minimal' },
   { id: 'elegant', label: 'Elegant' },
   { id: 'playful', label: 'Playful' },
+]
+
+const POSITIONS = [
+  { id: 'top', label: 'Top', icon: AlignVerticalJustifyStart },
+  { id: 'center', label: 'Center', icon: AlignVerticalJustifyCenter },
+  { id: 'bottom', label: 'Bottom', icon: AlignVerticalJustifyEnd },
 ]
 
 interface Props {
@@ -24,6 +30,7 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
   const { session } = useAuth()
   const [textOnImage, setTextOnImage] = useState('')
   const [style, setStyle] = useState('modern')
+  const [position, setPosition] = useState('center')
   const [imgSrc, setImgSrc] = useState<string | null>(sourceImage)
   const [generating, setGenerating] = useState(false)
   const [result, setResult] = useState<string | null>(null)
@@ -49,7 +56,7 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
       const res = await fetch(`${getApiUrl()}/api/graphic/add-text`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ image: imgSrc, text_on_image: textOnImage, style, brand_colors: brandColors, brand_name: brandName }),
+        body: JSON.stringify({ image: imgSrc, text_on_image: textOnImage, style, position, brand_colors: brandColors, brand_name: brandName }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -78,7 +85,7 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
     }
   }
 
-  const currentImage = result || imgSrc
+  const previewAlign = position === 'top' ? 'items-start pt-6' : position === 'bottom' ? 'items-end pb-6' : 'items-center'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
@@ -93,12 +100,33 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
         </div>
 
         <div className="p-5 space-y-4">
-          {/* Image preview / upload */}
-          {currentImage ? (
-            <div className="relative">
-              <img src={currentImage} alt="" className="w-full rounded-xl border border-gray-200 dark:border-gray-700" />
+          {/* Image with live text preview */}
+          {(imgSrc || result) ? (
+            <div className="relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
+              <img src={result || imgSrc!} alt="" className="w-full" />
+
+              {/* Live text overlay (only when no result yet and text entered) */}
+              {!result && textOnImage.trim() && (
+                <div className={`absolute inset-0 flex flex-col justify-center ${previewAlign} px-6 pointer-events-none`}>
+                  <div className="px-4 py-2 rounded-lg max-w-[85%]" style={{
+                    background: style === 'minimal' ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.55)',
+                    backdropFilter: 'blur(4px)',
+                  }}>
+                    <p className={`text-center leading-tight font-bold ${style === 'minimal' ? 'text-gray-900' : 'text-white'}`}
+                      style={{
+                        fontSize: textOnImage.length > 60 ? '0.75rem' : textOnImage.length > 30 ? '0.9rem' : '1.1rem',
+                        fontFamily: style === 'elegant' ? 'Georgia, serif' : style === 'playful' ? 'Comic Sans MS, cursive' : 'system-ui',
+                        letterSpacing: style === 'bold' ? '0.08em' : undefined,
+                        textTransform: style === 'bold' ? 'uppercase' as const : undefined,
+                      }}>
+                      {textOnImage}
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {result && (
-                <div className="absolute top-2 right-2 px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full">Text Added</div>
+                <div className="absolute top-2 right-2 px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full shadow">Text Added</div>
               )}
               {!result && (
                 <button onClick={() => { setImgSrc(null); setResult(null) }}
@@ -118,9 +146,10 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
           <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }} />
 
-          {/* Text + Style controls (only if we have an image and no result yet) */}
+          {/* Controls (only when image loaded, no result yet) */}
           {imgSrc && !result && (
             <>
+              {/* Text input */}
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Text to add *</label>
                 <textarea value={textOnImage} onChange={e => setTextOnImage(e.target.value)}
@@ -128,17 +157,36 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
                   className="w-full p-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-sm resize-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                   rows={2} />
               </div>
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Typography Style</label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {STYLES.map(s => (
-                    <button key={s.id} onClick={() => setStyle(s.id)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${style === s.id
-                        ? 'bg-violet-500 text-white'
-                        : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-                      {s.label}
-                    </button>
-                  ))}
+
+              {/* Style + Position row */}
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Style</label>
+                  <div className="flex gap-1 flex-wrap">
+                    {STYLES.map(s => (
+                      <button key={s.id} onClick={() => setStyle(s.id)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition ${style === s.id
+                          ? 'bg-violet-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200'}`}>
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Position</label>
+                  <div className="flex gap-1">
+                    {POSITIONS.map(p => {
+                      const Icon = p.icon
+                      return (
+                        <button key={p.id} onClick={() => setPosition(p.id)}
+                          title={p.label}
+                          className={`p-2 rounded-lg transition ${position === p.id
+                            ? 'bg-violet-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:bg-gray-200'}`}>
+                          <Icon size={16} />
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               </div>
             </>
@@ -170,7 +218,7 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
                     <Sparkles size={14} /> Use in Post
                   </button>
                 )}
-                <button onClick={() => { setResult(null) }}
+                <button onClick={() => setResult(null)}
                   className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
                   <RefreshCw size={14} /> Redo
                 </button>
