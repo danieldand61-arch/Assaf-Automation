@@ -86,7 +86,7 @@ async def generate_images(
                 response = await asyncio.to_thread(
                     model.generate_content,
                     content,
-                    generation_config={"temperature": 0.75}
+                    generation_config={"temperature": 0.6}
                 )
                 
                 logger.info(f"✅ Response received for image {idx + 1}")
