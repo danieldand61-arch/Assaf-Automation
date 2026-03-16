@@ -356,7 +356,8 @@ STRICT RULES:
 - The reference image is your PRIMARY guide. The brand context is SECONDARY.
 - If the reference shows a sunset landscape, generate a sunset landscape. If it shows food, generate food. FOLLOW THE REFERENCE."""
     else:
-        prompt = f"""You are a visual director. Generate a scroll-stopping image for social media.
+        user_image_prompt = None
+        prompt = f"""You are a visual director creating scroll-stopping images for social media.
 
 YOUR BRAND:
 - Brand: "{brand}"
@@ -367,27 +368,59 @@ YOUR BRAND:
 {f'- Brand colors: {brand_colors}' if brand_colors else ''}
 {f'- Target audience: {target_audience}' if target_audience else ''}
 
-THIS IMAGE MUST ILLUSTRATE THIS POST:
+THE POST THIS IMAGE IS FOR:
 "{post_text}"
 
-CREATIVE DIRECTION:
+{f'USER IMAGE REQUEST: "{user_image_prompt}"' if user_image_prompt else 'No specific image request from user - create the best visual based on the post content and brand.'}
 
-Read the post carefully. Identify the core emotion and scenario.
+---
+
+STEP 1: DECIDE THE IMAGE TYPE
+
+Read the post carefully. Based on the content, emotion, and brand - decide what type of image works best:
+
+- PHOTO - Best for: emotional stories, personal experiences, behind-the-scenes, lifestyle content. The visual alone should tell the story.
+- GRAPHIC DESIGN - Best for: quotes, sales/discounts with prices, holiday greetings, event announcements with dates/times. Create the complete graphic: layout, colors, decorative elements.
+- AI ILLUSTRATION - Best for: brand ads, product showcases, creative campaigns. Create an illustration-style (not photographic) image.
+
+STEP 2: CREATE THE IMAGE
+
+If PHOTO or ILLUSTRATION:
+Make it specific and vivid. A great image paints one specific scene - not a category.
+
+Think about:
+- What's happening - a moment in motion, not a posed subject
+- The perspective - what angle are we seeing this from? How close are we?
+- The light - where is it coming from? What quality does it have? What shadows does it create?
+- The place - make it real and specific, with texture and detail. Worn surfaces, lived-in spaces, real objects
+- The feeling - what emotion should this evoke? It should match the post's emotional core
+- The colors - what's the palette? Warm? Cool? Muted? Saturated? Should lean toward the brand's color world
 
 Don't illustrate the topic literally. Find the emotional truth.
-A post about failure? Show the aftermath - an empty chair, a light left on in an empty room.
-A post about growth? Show worn running shoes next to new ones. A plant pushing through a crack.
+A post about failure? Don't show someone looking sad. Show the aftermath - an empty chair, a closed laptop, a light left on in an empty room.
+A post about growth? Don't show a graph or a rocket. Show worn running shoes next to new ones. A plant pushing through a crack.
 
-The viewer should see the image and immediately FEEL what the post is about.
+If GRAPHIC DESIGN:
+Create the complete design:
+- Layout and composition
+- Colors: palette (prefer the brand's colors), background style
+- Decorative elements: shapes, icons, borders, patterns
+- Overall vibe: clean/bold/playful/elegant/edgy
 
-Make the image specific and vivid:
-- What's happening - a moment in motion, not a posed subject
-- The perspective - what angle? How close?
-- The light - where from? What quality? What shadows?
-- The place - real texture and detail. Worn surfaces, lived-in spaces, real objects
-- The colors - lean toward the brand's color world
+STEP 3: BRAND FIT
 
-Let the brand breathe through the image naturally. If someone saw just the image, they should get a sense of what kind of business this is.
+Let the brand breathe through the image naturally. The brand's industry, tone, audience, and color world should influence your choices - not as a rigid rule, but as a natural extension of who they are.
+
+If someone saw just the image without the post, they should get a sense of what kind of business this is.
+
+STEP 4: QUICK CHECK
+
+Before you generate, ask yourself:
+- Is this specific enough that I can picture exactly ONE image?
+- Does this feel like it belongs to THIS brand, or could it be for anyone?
+- Would this make someone stop scrolling?
+- Have I seen this exact image a thousand times before? If yes - find a fresher angle.
+- Am I falling into a pattern? Try a different approach than your instinct.
 
 {people_line}
 
@@ -395,15 +428,7 @@ PLATFORM: {platform_style}
 DIMENSIONS: {size_comp}
 MOOD: {mood}
 
-ABSOLUTE RULES:
-- NO text, words, letters, numbers, watermarks, logos, or typography anywhere in the image
-- NO UI elements, buttons, overlays, or borders
-- ONE single cohesive image, no collages or split frames
-- NO generic stock photo feel
-- The image MUST match the post content
-- If this looks like something you've generated a thousand times before - find a fresher angle
-
-Now generate the image."""
+Now generate the image. Be specific, be vivid, be surprising."""
 
     return prompt.strip()
 
