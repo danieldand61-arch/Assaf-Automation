@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Sparkles, Globe, Upload, X, Check, AlertCircle, Film, Zap } from 'lucide-react'
+import { Sparkles, Globe, Upload, X, Check, AlertCircle, Film, Zap, Palette } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 
 /* ── Platform SVG icons ────────────────────────────────────────── */
@@ -95,6 +95,7 @@ export interface GenerateFormData {
   include_emojis: boolean
   include_logo: boolean
   include_people: boolean
+  graphic_mode: boolean
   uploaded_image?: string | null
   media_file?: string | null
   use_custom_url?: boolean
@@ -133,7 +134,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
       url: '', keywords: '', platforms: ['facebook', 'instagram'],
       image_size: '1080x1080', style: 'professional', language: 'en',
       target_audience: 'b2c', include_emojis: true, include_logo: false,
-      include_people: false, uploaded_image: null, media_file: null,
+      include_people: false, graphic_mode: false, uploaded_image: null, media_file: null,
     }
   }
 
@@ -333,7 +334,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                   <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">Media (Optional)</label>
                   <span className="text-[10px] font-semibold text-gray-400">AI will generate an image automatically if none provided</span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   {/* AI Generated */}
                   <div className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${imagePreview ? 'border-[#4A7CFF] bg-[#4A7CFF]/5' : 'border-gray-100 dark:border-gray-700 hover:border-[#4A7CFF]/40'}`}>
                     <div className="flex items-center gap-2 mb-2">
@@ -382,6 +383,25 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                     )}
                     <input ref={mediaRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/quicktime,video/webm" className="hidden"
                       onChange={e => { const f = e.target.files?.[0]; if (f) handleMediaFile(f) }} />
+                  </div>
+
+                  {/* Graphic Design */}
+                  <div onClick={() => set('graphic_mode', !form.graphic_mode)}
+                    className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${form.graphic_mode
+                      ? 'border-violet-500 bg-violet-500/5 ring-1 ring-violet-300'
+                      : 'border-gray-100 dark:border-gray-700 hover:border-violet-400 bg-gray-50 dark:bg-gray-800/30'}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Palette size={16} className="text-violet-500" />
+                      <span className="text-sm font-bold text-gray-900 dark:text-white">Graphic Design</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">AI creates styled graphics with text — banners, quotes, ads. Not a photo.</p>
+                    <div className={`rounded-lg p-3 flex items-center justify-center gap-2 transition ${form.graphic_mode
+                      ? 'bg-violet-100 dark:bg-violet-900/30' : 'bg-gray-100 dark:bg-gray-700/50'}`}>
+                      <Palette size={18} className={form.graphic_mode ? 'text-violet-600' : 'text-gray-400'} />
+                      <span className={`text-[11px] font-bold ${form.graphic_mode ? 'text-violet-600' : 'text-gray-400'}`}>
+                        {form.graphic_mode ? '✓ Graphic Mode ON' : 'Enable Graphic Mode'}
+                      </span>
+                    </div>
                   </div>
 
                 </div>
@@ -465,11 +485,13 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                     <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Include Emojis</span>
                     <Toggle checked={form.include_emojis} onChange={v => set('include_emojis', v)} />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Include Logo Watermark</span>
-                    <Toggle checked={form.include_logo} onChange={v => set('include_logo', v)} />
-                  </div>
-                  {!mediaPreview && (
+                  {!form.graphic_mode && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Include Logo Watermark</span>
+                      <Toggle checked={form.include_logo} onChange={v => set('include_logo', v)} />
+                    </div>
+                  )}
+                  {!mediaPreview && !form.graphic_mode && (
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Include People in Images</span>
                       <Toggle checked={form.include_people} onChange={v => set('include_people', v)} />

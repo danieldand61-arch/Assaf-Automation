@@ -410,6 +410,17 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
         if request.skip_image_generation:
             logger.info("🖼️  Step 3: Skipped — user provided their own media")
             images = []
+        elif request.graphic_mode:
+            logger.info("🎨 Step 3: Generating GRAPHIC DESIGNS...")
+            from services.graphic_designer import generate_graphic_designs
+            images = await generate_graphic_designs(
+                website_data={**website_data, "language": request.language},
+                variations=variations,
+                platforms=request.platforms,
+                image_size=request.image_size,
+                user_id=current_user.get("user_id"),
+            )
+            logger.info(f"✅ Generated {len(images)} graphic designs")
         else:
             logger.info("🖼️  Step 3: Generating images...")
             from services.image_generator import generate_images

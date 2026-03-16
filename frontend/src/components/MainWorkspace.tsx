@@ -153,6 +153,7 @@ export function MainWorkspace() {
           use_custom_url: !!data.use_custom_url,
           include_people: !!data.include_people,
           reference_image: data.uploaded_image || undefined,
+          graphic_mode: !!data.graphic_mode,
         })
       })
 
@@ -226,7 +227,7 @@ export function MainWorkspace() {
       platforms: ['facebook', 'instagram'],
       image_size: '1080x1080', style: 'professional', language: 'en',
       target_audience: 'b2c', include_emojis: true, include_logo: false,
-      include_people: false, uploaded_image: null, media_file: videoUrl,
+      include_people: false, graphic_mode: false, uploaded_image: null, media_file: videoUrl,
     }
     setSocialScreen('form')
     setActiveTab('social')
