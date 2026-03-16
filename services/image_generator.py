@@ -86,7 +86,7 @@ async def generate_images(
                 response = await asyncio.to_thread(
                     model.generate_content,
                     content,
-                    generation_config={"temperature": 0.4}
+                    generation_config={"temperature": 0.75}
                 )
                 
                 logger.info(f"✅ Response received for image {idx + 1}")
@@ -378,14 +378,17 @@ VISUAL DIRECTION:
 - {size_comp}
 {f'- {color_hint}' if color_hint else ''}
 
-PHOTOGRAPHY STYLE:
-- Professional advertising quality, shallow depth of field, natural lighting
+PHOTOGRAPHY STYLE — vary between these approaches to keep each image unique:
+- Editorial lifestyle / candid moment / cinematic wide shot / dramatic close-up / overhead flat lay / environmental portrait / product hero shot
+- Mix lighting: golden hour, studio, moody, high-key, natural window light, neon, dusk
+- Mix depth of field: shallow bokeh, deep focus, tilt-shift
 
-COMPOSITION:
-- One hero subject that directly represents the specific scenario from the post
-- Environmental storytelling through props and setting that match the post context
-- Aspirational lifestyle context that the target audience identifies with
-- Visual hierarchy that draws the eye to the key selling point mentioned in the post
+COMPOSITION — choose ONE that fits best (vary across images):
+- Hero subject center frame with negative space
+- Rule of thirds with environmental context
+- Dynamic diagonal or leading lines
+- Close-up detail/texture shot
+- Wide establishing shot with atmosphere
 
 STRICT RULES:
 - ABSOLUTELY NO text, words, letters, numbers, watermarks, logos, or typography
