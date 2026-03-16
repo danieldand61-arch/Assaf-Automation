@@ -42,12 +42,13 @@ async def generate_images(
         return [_get_placeholder_image(size_info) for _ in variations]
     
     genai.configure(api_key=api_key)
-    model_name = 'gemini-3.1-flash-image-preview'
+    image_model_name = 'gemini-3.1-flash-image-preview'
+    text_model_name = 'gemini-2.0-flash'
     
-    logger.info(f"🔍 Using model: {model_name}")
+    logger.info(f"🔍 Using models: pass1={text_model_name}, pass2={image_model_name}")
     
-    # Create model once, reuse for all variations
-    model = genai.GenerativeModel(model_name)
+    model = genai.GenerativeModel(image_model_name)
+    text_model = genai.GenerativeModel(text_model_name)
     
     # Decode reference image once if provided (base64 data URI)
     ref_image_part = None
@@ -76,8 +77,22 @@ async def generate_images(
                 logger.info(f"🔍 Generating image {idx + 1}/{len(variations)} (attempt {attempt + 1}) for: {variation.text[:50]}...")
                 
                 plat = variation.platform or (platforms[idx % len(platforms)] if platforms else 'instagram')
-                image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt, platform=plat, image_size=image_size, include_people=include_people, has_reference=ref_image_part is not None)
-                
+
+                if custom_prompt or ref_image_part is not None:
+                    image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt, platform=plat, image_size=image_size, include_people=include_people, has_reference=ref_image_part is not None)
+                else:
+                    # Pass 1: text model creates the ultimate image prompt
+                    pass1_prompt = _build_pass1_prompt(website_data, variation, plat, image_size, include_people)
+                    pass1_response = await asyncio.to_thread(
+                        text_model.generate_content, pass1_prompt,
+                        generation_config={"temperature": 0.8, "max_output_tokens": 300}
+                    )
+                    ultimate_prompt = pass1_response.text.strip() if hasattr(pass1_response, 'text') else ''
+                    logger.info(f"🧠 Pass 1 ultimate prompt ({len(ultimate_prompt)} chars): {ultimate_prompt[:150]}...")
+
+                    # Pass 2: combine ultimate prompt with brand context for image generation
+                    image_prompt = _build_pass2_prompt(website_data, variation, ultimate_prompt, plat, image_size, include_people)
+
                 content = []
                 if ref_image_part:
                     content.append(ref_image_part)
@@ -113,7 +128,7 @@ async def generate_images(
                     await record_usage(
                         user_id=user_id, service_type="image_generation",
                         input_tokens=input_tokens, output_tokens=output_tokens, total_tokens=total_tokens,
-                        model_name=model_name, metadata={"image_size": image_size, "variation_index": idx + 1}
+                        model_name=image_model_name, metadata={"image_size": image_size, "variation_index": idx + 1}
                     )
                 except Exception as e:
                     logger.error(f"❌ Failed to track image usage: {e}")
@@ -431,6 +446,74 @@ MOOD: {mood}
 Now generate the image. Be specific, be vivid, be surprising."""
 
     return prompt.strip()
+
+
+def _build_pass1_prompt(website_data: Dict, variation: PostVariation, platform: str, image_size: str, include_people: bool) -> str:
+    """Pass 1: text model creates the ultimate image description."""
+    brand = website_data.get('title', '').strip() or 'a brand'
+    industry = website_data.get('industry', '') or website_data.get('description', '')[:80]
+    products = ', '.join(website_data.get('products', [])[:3])
+    colors = website_data.get('colors', [])
+    brand_colors = ', '.join(colors[:4]) if colors else 'not specified'
+    voice = website_data.get('brand_voice', 'professional')
+    post_text = variation.text[:300]
+
+    people_rule = 'Include people naturally in the scene.' if include_people else 'Do NOT include any people, faces, hands, or human body parts.'
+
+    return f"""You are a creative director. Write a vivid, specific image description (50-80 words) for an AI image generator.
+
+BRAND: "{brand}" | Industry: {industry} | Voice: {voice} | Colors: {brand_colors} | Products: {products}
+
+POST THIS IMAGE IS FOR:
+"{post_text}"
+
+RULES:
+- {people_rule}
+- Don't illustrate literally. Find the emotional truth of the post.
+- Describe ONE specific scene: what's in frame, the angle, the lighting, the textures, the colors, the mood.
+- NO generic descriptions. Be cinematic and surprising.
+- NO text/words/typography in the image.
+- Platform: {platform}, Size: {image_size}
+
+Write ONLY the image description, nothing else."""
+
+
+def _build_pass2_prompt(website_data: Dict, variation: PostVariation, ultimate_prompt: str, platform: str, image_size: str, include_people: bool) -> str:
+    """Pass 2: combine ultimate prompt with brand context for final image generation."""
+    brand = website_data.get('title', '').strip() or 'a brand'
+    colors = website_data.get('colors', [])
+    brand_colors = ', '.join(colors[:4]) if colors else ''
+    voice = website_data.get('brand_voice', 'professional')
+    post_text = variation.text[:150]
+
+    people_line = (
+        'Include people naturally.' if include_people
+        else 'Do NOT include any people, faces, hands, silhouettes, or human body parts.'
+    )
+
+    size_comp = {
+        '1080x1080': 'Square 1:1',
+        '1080x1350': 'Portrait 4:5',
+        '1080x1920': 'Story 9:16',
+        '1200x628': 'Landscape 16:9',
+    }.get(image_size.replace('_story', ''), 'Square 1:1')
+
+    return f"""Generate this image for brand "{brand}" ({voice}):
+
+{ultimate_prompt}
+
+CONTEXT: This is for a {platform} post about: "{post_text[:100]}"
+{f'BRAND COLORS: {brand_colors}' if brand_colors else ''}
+DIMENSIONS: {size_comp}
+{people_line}
+
+ABSOLUTE RULES:
+- NO text, words, letters, numbers, watermarks, or typography in the image
+- NO UI elements, buttons, or borders
+- ONE single cohesive image, no collages
+- Professional quality, scroll-stopping visual
+
+Generate the image now."""
 
 
 def _detect_mood(text: str) -> str:
