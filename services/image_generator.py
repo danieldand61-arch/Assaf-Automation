@@ -437,7 +437,7 @@ PLATFORM: {platform_style}
 DIMENSIONS: {size_comp}
 MOOD: {mood}
 
-Now create the image prompt. Be specific, be vivid, be surprising. Make something worth looking at. Wrap your final image prompt in <image_prompt> and </image_prompt> tags."""
+Now generate the image. Be specific, be vivid, be surprising. Make something worth looking at."""
 
     return prompt.strip()
 
