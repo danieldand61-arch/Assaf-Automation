@@ -300,6 +300,9 @@ STRICT RULES:
     colors = website_data.get('colors', [])
     color_hint = f'Subtly incorporate brand colors ({", ".join(colors[:3])}) through props, backgrounds, or accents.' if colors else ''
 
+    brand_colors = ', '.join(colors[:4]) if colors else ''
+    target_audience = website_data.get('target_audience', '')
+
     post_text = variation.text[:250]
     mood = _detect_mood(variation.text)
     vtype = getattr(variation, 'variant_type', '') or ''
@@ -353,50 +356,88 @@ STRICT RULES:
 - The reference image is your PRIMARY guide. The brand context is SECONDARY.
 - If the reference shows a sunset landscape, generate a sunset landscape. If it shows food, generate food. FOLLOW THE REFERENCE."""
     else:
-        prompt = f"""You are an elite advertising creative director. Create a premium social media advertisement image.
+        user_image_prompt = None
+        prompt = f"""You are a visual director creating scroll-stopping images for social media.
 
-BRAND: "{brand}"
-BRAND VOICE: {voice}
-{f'INDUSTRY: {industry}' if industry else ''}
-{f'PRODUCTS: {products}' if products else ''}
-{f'KEY FEATURES: {features}' if features else ''}
+YOUR BRAND:
+- Brand: "{brand}"
+- Voice: {voice}
+{f'- Industry: {industry}' if industry else ''}
+{f'- Products: {products}' if products else ''}
+{f'- Key features: {features}' if features else ''}
+{f'- Brand colors: {brand_colors}' if brand_colors else ''}
+{f'- Target audience: {target_audience}' if target_audience else ''}
 
-CRITICAL — THE IMAGE MUST DIRECTLY ILLUSTRATE THIS SPECIFIC POST:
+THE POST THIS IMAGE IS FOR:
 "{post_text}"
 
-Read the post above carefully. Identify the CORE SUBJECT, the SPECIFIC SCENARIO, and the EMOTION described.
-The image MUST depict EXACTLY what the post talks about. NOT a generic brand photo. NOT a logo. NOT an abstract concept.
-The viewer should see the image and immediately understand what the post is about WITHOUT reading it.
+{f'USER IMAGE REQUEST: "{user_image_prompt}"' if user_image_prompt else 'No specific image request from user - create the best visual based on the post content and brand.'}
 
-PEOPLE DIRECTIVE:
+---
+
+STEP 1: DECIDE THE IMAGE TYPE
+
+Read the post carefully. Based on the content, emotion, and brand - decide what type of image works best:
+
+- PHOTO (no text on image) - Best for: emotional stories, personal experiences, behind-the-scenes, lifestyle content. The visual alone should tell the story.
+- PHOTO + TEXT OVERLAY - Best for: tips with a key takeaway, announcements, content where a headline adds impact. Generate the photo prompt AND specify what text to overlay (limit text to 1-5 words max), where, and in what style.
+- PURE GRAPHIC DESIGN (no photo, just design) - Best for: quotes, sales/discounts with prices, holiday greetings, event announcements with dates/times. Describe the complete graphic: layout, typography, colors, decorative elements.
+- AI ILLUSTRATION + TEXT - Best for: brand ads, product showcases, creative campaigns. Generate an illustration-style (not photographic) image prompt, plus text overlay details (limit text to 1-5 words max).
+
+Output your choice as: [TYPE: PHOTO / PHOTO+TEXT / GRAPHIC / ILLUSTRATION+TEXT]
+
+STEP 2: CREATE THE IMAGE PROMPT (Strictly 50-100 words)
+
+If PHOTO or ILLUSTRATION:
+Make your prompt specific and vivid. A great prompt paints one specific image - not a category.
+
+Think about:
+- What's happening - describe a moment in motion, not a posed subject
+- The perspective - what angle are we seeing this from? How close are we?
+- The light - where is it coming from? What quality does it have? What shadows does it create?
+- The place - make it real and specific, with texture and detail. Worn surfaces, lived-in spaces, real objects
+- The feeling - what emotion should this evoke? It should match the post's emotional core
+- The colors - what's the palette? Warm? Cool? Muted? Saturated? Should lean toward the brand's color world
+
+Don't illustrate the topic literally. Find the emotional truth.
+A post about failure? Don't show someone looking sad. Show the aftermath - an empty chair, a closed laptop, a light left on in an empty room.
+A post about growth? Don't show a graph or a rocket. Show worn running shoes next to new ones. A plant pushing through a crack.
+
+If GRAPHIC DESIGN:
+Describe the complete design:
+- Layout and composition
+- Typography: what text, how big, what style, what hierarchy
+- Colors: palette (prefer the brand's colors), background style
+- Decorative elements: shapes, icons, borders, patterns
+- Overall vibe: clean/bold/playful/elegant/edgy
+
+If PHOTO+TEXT or ILLUSTRATION+TEXT:
+Create both:
+1. The image prompt (as above)
+2. The text overlay: what words (1-5 words max), where positioned, what size/style/color, how it relates to the image
+
+STEP 3: BRAND FIT
+
+Let the brand breathe through the image naturally. The brand's industry, tone, audience, and color world should influence your choices - not as a rigid rule, but as a natural extension of who they are.
+
+If someone saw just the image without the post text, they should get a sense of what kind of business this is.
+
+STEP 4: QUICK CHECK
+
+Before you output, ask yourself:
+- Is this specific enough that I can picture exactly ONE image? (not "a person at a desk" but a specific person, specific desk, specific light, specific moment)
+- Does this feel like it belongs to THIS brand, or could it be for anyone?
+- Would this make someone stop scrolling?
+- Have I seen this exact image a thousand times before? If yes - find a fresher angle.
+- Am I falling into a pattern? Try a different approach than your instinct.
+
 {people_line}
 
-VISUAL DIRECTION:
-- {style_by_variant}
-- {platform_style}
-- Mood: {mood}
-- {size_comp}
-{f'- {color_hint}' if color_hint else ''}
+PLATFORM: {platform_style}
+DIMENSIONS: {size_comp}
+MOOD: {mood}
 
-PHOTOGRAPHY STYLE — vary between these approaches to keep each image unique:
-- Editorial lifestyle / candid moment / cinematic wide shot / dramatic close-up / overhead flat lay / environmental portrait / product hero shot
-- Mix lighting: golden hour, studio, moody, high-key, natural window light, neon, dusk
-- Mix depth of field: shallow bokeh, deep focus, tilt-shift
-
-COMPOSITION — choose ONE that fits best (vary across images):
-- Hero subject center frame with negative space
-- Rule of thirds with environmental context
-- Dynamic diagonal or leading lines
-- Close-up detail/texture shot
-- Wide establishing shot with atmosphere
-
-STRICT RULES:
-- ABSOLUTELY NO text, words, letters, numbers, watermarks, logos, or typography
-- NO UI elements, buttons, overlays, or borders
-- ONE single cohesive photograph, no collages or split frames
-- NO stock photo feel. Must look like a real premium ad campaign shoot
-- The image alone should make someone stop scrolling
-- The image MUST match the post content. Generic brand imagery is FORBIDDEN."""
+Now create the image prompt. Be specific, be vivid, be surprising. Make something worth looking at. Wrap your final image prompt in <image_prompt> and </image_prompt> tags."""
 
     return prompt.strip()
 
