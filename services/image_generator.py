@@ -43,7 +43,7 @@ async def generate_images(
     
     genai.configure(api_key=api_key)
     image_model_name = 'gemini-3.1-flash-image-preview'
-    text_model_name = 'gemini-2.0-flash'
+    text_model_name = 'gemini-3-flash-preview'
     
     logger.info(f"🔍 Using models: pass1={text_model_name}, pass2={image_model_name}")
     
