@@ -449,33 +449,121 @@ Now generate the image. Be specific, be vivid, be surprising."""
 
 
 def _build_pass1_prompt(website_data: Dict, variation: PostVariation, platform: str, image_size: str, include_people: bool) -> str:
-    """Pass 1: text model creates the ultimate image description."""
+    """Pass 1: text model creates the ultimate image prompt."""
     brand = website_data.get('title', '').strip() or 'a brand'
     industry = website_data.get('industry', '') or website_data.get('description', '')[:80]
     products = ', '.join(website_data.get('products', [])[:3])
+    features = ', '.join(website_data.get('key_features', [])[:3])
     colors = website_data.get('colors', [])
-    brand_colors = ', '.join(colors[:4]) if colors else 'not specified'
+    brand_colors = ', '.join(colors[:4]) if colors else ''
     voice = website_data.get('brand_voice', 'professional')
+    target_audience = website_data.get('target_audience', '')
     post_text = variation.text[:300]
+    user_image_prompt = None
+    mood = _detect_mood(variation.text)
 
-    people_rule = 'Include people naturally in the scene.' if include_people else 'Do NOT include any people, faces, hands, or human body parts.'
+    people_line = (
+        'If the post mentions a person or lifestyle scenario, show a real person naturally interacting with the product/environment. Authentic expression, natural skin.'
+        if include_people else
+        'Do NOT include any people, faces, hands, silhouettes, or human body parts in the image. Focus on product, environment, and objects only.'
+    )
 
-    return f"""You are a creative director. Write a vivid, specific image description (50-80 words) for an AI image generator.
+    platform_style = {
+        'instagram': 'Instagram-optimized: vibrant colors, high saturation, lifestyle editorial feel. Hero subject with negative space for text overlay.',
+        'facebook': 'Facebook feed-optimized: eye-catching, scroll-stopping composition. Bright, relatable scene that triggers engagement.',
+        'linkedin': 'LinkedIn-appropriate: professional, corporate-quality photography. Clean backgrounds, business context, polished look.',
+        'tiktok': 'TikTok aesthetic: trendy, Gen-Z visual language. Bold colors, dynamic angles, lifestyle-forward.',
+        'x': 'Twitter/X card: clean, minimal, high-impact single subject with strong focal point.',
+    }.get(platform, 'Social media advertising: professional, eye-catching, commercial quality.')
 
-BRAND: "{brand}" | Industry: {industry} | Voice: {voice} | Colors: {brand_colors} | Products: {products}
+    size_comp = {
+        '1080x1080': 'Square 1:1. Center the subject. Symmetrical or rule-of-thirds composition.',
+        '1080x1350': 'Portrait 4:5. Vertical composition. Subject in upper third, breathing room at bottom.',
+        '1080x1920': 'Story/Reel 9:16. Full vertical. Subject centered, dramatic top-to-bottom flow.',
+        '1200x628': 'Landscape 16:9. Wide cinematic composition. Subject on left or right third.',
+    }.get(image_size.replace('_story', ''), 'Balanced composition with clear focal point.')
 
-POST THIS IMAGE IS FOR:
+    return f"""You are a visual director creating scroll-stopping images for social media.
+
+YOUR BRAND:
+- Brand: "{brand}"
+- Voice: {voice}
+{f'- Industry: {industry}' if industry else ''}
+{f'- Products: {products}' if products else ''}
+{f'- Key features: {features}' if features else ''}
+{f'- Brand colors: {brand_colors}' if brand_colors else ''}
+{f'- Target audience: {target_audience}' if target_audience else ''}
+
+THE POST THIS IMAGE IS FOR:
 "{post_text}"
 
-RULES:
-- {people_rule}
-- Don't illustrate literally. Find the emotional truth of the post.
-- Describe ONE specific scene: what's in frame, the angle, the lighting, the textures, the colors, the mood.
-- NO generic descriptions. Be cinematic and surprising.
-- NO text/words/typography in the image.
-- Platform: {platform}, Size: {image_size}
+{f'USER IMAGE REQUEST: "{user_image_prompt}"' if user_image_prompt else 'No specific image request from user - create the best visual based on the post content and brand.'}
 
-Write ONLY the image description, nothing else."""
+---
+
+STEP 1: DECIDE THE IMAGE TYPE
+
+Read the post carefully. Based on the content, emotion, and brand - decide what type of image works best:
+
+- **PHOTO** (no text on image) - Best for: emotional stories, personal experiences, behind-the-scenes, lifestyle content. The visual alone should tell the story.
+- **PHOTO + TEXT OVERLAY** - Best for: tips with a key takeaway, announcements, content where a headline adds impact. Generate the photo prompt AND specify what text to overlay, where, and in what style.
+- **PURE GRAPHIC DESIGN** (no photo, just design) - Best for: quotes, sales/discounts with prices, holiday greetings, event announcements with dates/times. Describe the complete graphic: layout, typography, colors, decorative elements.
+- **AI ILLUSTRATION + TEXT** - Best for: brand ads, product showcases, creative campaigns. Generate an illustration-style (not photographic) image prompt, plus text overlay details.
+
+Output your choice as: [TYPE: PHOTO / PHOTO+TEXT / GRAPHIC / ILLUSTRATION+TEXT]
+
+STEP 2: CREATE THE IMAGE PROMPT
+
+**If PHOTO or ILLUSTRATION:**
+Make your prompt specific and vivid. A great prompt paints one specific image - not a category.
+
+Think about:
+- What's happening - describe a moment in motion, not a posed subject
+- The perspective - what angle are we seeing this from? How close are we?
+- The light - where is it coming from? What quality does it have? What shadows does it create?
+- The place - make it real and specific, with texture and detail. Worn surfaces, lived-in spaces, real objects
+- The feeling - what emotion should this evoke? It should match the post's emotional core
+- The colors - what's the palette? Warm? Cool? Muted? Saturated? Should lean toward the brand's color world
+
+Don't illustrate the topic literally. Find the emotional truth.
+A post about failure? Don't show someone looking sad. Show the aftermath - an empty chair, a closed laptop, a light left on in an empty room.
+A post about growth? Don't show a graph or a rocket. Show worn running shoes next to new ones. A plant pushing through a crack.
+
+**If GRAPHIC DESIGN:**
+Describe the complete design:
+- Layout and composition
+- Typography: what text, how big, what style, what hierarchy
+- Colors: palette (prefer the brand's colors), background style
+- Decorative elements: shapes, icons, borders, patterns
+- Overall vibe: clean/bold/playful/elegant/edgy
+
+**If PHOTO+TEXT or ILLUSTRATION+TEXT:**
+Create both:
+1. The image prompt (as above)
+2. The text overlay: what words, where positioned, what size/style/color, how it relates to the image
+
+STEP 3: BRAND FIT
+
+Let the brand breathe through the image naturally. The brand's industry, tone, audience, and color world should influence your choices - not as a rigid rule, but as a natural extension of who they are.
+
+If someone saw just the image without the post text, they should get a sense of what kind of business this is.
+
+STEP 4: QUICK CHECK
+
+Before you output, ask yourself:
+- Is this specific enough that I can picture exactly ONE image? (not "a person at a desk" but a specific person, specific desk, specific light, specific moment)
+- Does this feel like it belongs to THIS brand, or could it be for anyone?
+- Would this make someone stop scrolling?
+- Have I seen this exact image a thousand times before? If yes - find a fresher angle.
+- Am I falling into a pattern? Try a different approach than your instinct.
+
+{people_line}
+
+PLATFORM: {platform_style}
+DIMENSIONS: {size_comp}
+MOOD: {mood}
+
+Now create the image prompt. Be specific, be vivid, be surprising. Make something worth looking at."""
 
 
 def _build_pass2_prompt(website_data: Dict, variation: PostVariation, ultimate_prompt: str, platform: str, image_size: str, include_people: bool) -> str:
