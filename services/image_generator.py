@@ -281,7 +281,16 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
 
     if custom_prompt:
         logger.info(f"🎨 Using custom prompt: {custom_prompt[:100]}...")
-        return custom_prompt.strip()
+        return f"""Generate a professional social media advertisement image based on this description:
+
+"{custom_prompt.strip()}"
+
+STRICT RULES:
+- ABSOLUTELY NO text, words, letters, numbers, watermarks, logos, or typography in the image
+- NO UI elements, buttons, overlays, or borders
+- ONE single cohesive photograph, no collages or split frames
+- Professional advertising quality, high resolution
+- The image alone should make someone stop scrolling"""
 
     brand = website_data.get('title', '').strip() or 'a brand'
     industry = website_data.get('industry', '') or website_data.get('description', '')[:80]

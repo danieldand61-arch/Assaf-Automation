@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { getApiUrl } from '../lib/api'
+import { useAuth } from '../contexts/AuthContext'
 import { X, RefreshCw, Upload, History, Loader2, Image as ImageIcon } from 'lucide-react'
 
 interface ImageEditModalProps {
@@ -25,6 +26,7 @@ export function ImageEditModal({
   includeLogo,
   onImageUpdate
 }: ImageEditModalProps) {
+  const { session } = useAuth()
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [variations, setVariations] = useState<string[]>([currentImage])
   const [selectedVariation, setSelectedVariation] = useState(0)
@@ -47,7 +49,7 @@ export function ImageEditModal({
       for (let i = 0; i < 3; i++) {
         const response = await fetch(`${apiUrl}/api/content/regenerate-image`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
           body: JSON.stringify({
             website_data: websiteData,
             post_text: postText,
