@@ -501,21 +501,18 @@ THE POST THIS IMAGE IS FOR:
 
 ---
 
-STEP 1: DECIDE THE IMAGE TYPE
+STEP 1: DECIDE THE VISUAL APPROACH
 
-Read the post carefully. Based on the content, emotion, and brand - decide what type of image works best:
+Read the post carefully. Based on the content, emotion, and brand - internally decide what visual approach works best. Do NOT label or name the approach in your output.
 
-- **PHOTO** (no text on image) - Best for: emotional stories, personal experiences, behind-the-scenes, lifestyle content. The visual alone should tell the story.
-- **PHOTO + TEXT OVERLAY** - Best for: tips with a key takeaway, announcements, content where a headline adds impact. Generate the photo prompt AND specify what text to overlay, where, and in what style.
-- **PURE GRAPHIC DESIGN** (no photo, just design) - Best for: quotes, sales/discounts with prices, holiday greetings, event announcements with dates/times. Describe the complete graphic: layout, typography, colors, decorative elements.
-- **AI ILLUSTRATION + TEXT** - Best for: brand ads, product showcases, creative campaigns. Generate an illustration-style (not photographic) image prompt, plus text overlay details.
-
-Output your choice as: [TYPE: PHOTO / PHOTO+TEXT / GRAPHIC / ILLUSTRATION+TEXT]
+Possible approaches (choose one, but do NOT mention it by name):
+- A photograph with no text — for emotional stories, lifestyle, behind-the-scenes
+- A designed graphic with typography — for quotes, sales, announcements, events
+- An illustration-style visual — for brand ads, product showcases, creative campaigns
 
 STEP 2: CREATE THE IMAGE PROMPT
 
-**If PHOTO or ILLUSTRATION:**
-Make your prompt specific and vivid. A great prompt paints one specific image - not a category.
+Write a detailed, vivid image description. A great prompt paints one specific image - not a category.
 
 Think about:
 - What's happening - describe a moment in motion, not a posed subject
@@ -529,18 +526,7 @@ Don't illustrate the topic literally. Find the emotional truth.
 A post about failure? Don't show someone looking sad. Show the aftermath - an empty chair, a closed laptop, a light left on in an empty room.
 A post about growth? Don't show a graph or a rocket. Show worn running shoes next to new ones. A plant pushing through a crack.
 
-**If GRAPHIC DESIGN:**
-Describe the complete design:
-- Layout and composition
-- Typography: what text, how big, what style, what hierarchy
-- Colors: palette (prefer the brand's colors), background style
-- Decorative elements: shapes, icons, borders, patterns
-- Overall vibe: clean/bold/playful/elegant/edgy
-
-**If PHOTO+TEXT or ILLUSTRATION+TEXT:**
-Create both:
-1. The image prompt (as above)
-2. The text overlay: what words, where positioned, what size/style/color, how it relates to the image
+If the approach involves graphic design, describe the complete visual: layout, typography style, colors, decorative elements, overall vibe.
 
 STEP 3: BRAND FIT
 
@@ -562,6 +548,13 @@ Before you output, ask yourself:
 PLATFORM: {platform_style}
 DIMENSIONS: {size_comp}
 MOOD: {mood}
+
+CRITICAL OUTPUT RULES:
+- Output ONLY the image description/prompt itself
+- Do NOT include labels like "Option A", "Option B", "Type: PHOTO", "[TYPE: ...]", category names, or approach names
+- Do NOT mention the platform name, image dimensions, or resolution in the prompt
+- Do NOT include meta-commentary about your choice — just describe the image directly
+- The output should read as a pure visual description that an image generator can use
 
 Now create the image prompt. Be specific, be vivid, be surprising. Make something worth looking at."""
 
@@ -590,16 +583,17 @@ def _build_pass2_prompt(website_data: Dict, variation: PostVariation, ultimate_p
 
 {ultimate_prompt}
 
-CONTEXT: This is for a {platform} post about: "{post_text[:100]}"
-{f'BRAND COLORS: {brand_colors}' if brand_colors else ''}
-DIMENSIONS: {size_comp}
+{f'Use brand colors: {brand_colors}.' if brand_colors else ''}
+Aspect ratio: {size_comp}.
 {people_line}
 
 ABSOLUTE RULES:
-- NO text, words, letters, numbers, watermarks, or typography in the image
-- NO UI elements, buttons, or borders
-- ONE single cohesive image, no collages
-- Professional quality, scroll-stopping visual
+- NO text, words, letters, numbers, watermarks, or typography anywhere in the image
+- NO labels, option names, category names, platform names, or resolution numbers on the image
+- NO hashtags, captions, or any written content on the image
+- NO UI elements, buttons, borders, or frames
+- ONE single clean image, no collages, no split frames
+- The image must be ONLY the visual — completely clean of any overlaid text or metadata
 
 Generate the image now."""
 

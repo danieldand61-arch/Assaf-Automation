@@ -1,0 +1,16 @@
+[
+  {
+    "url": "https://www.joyoai.io/",
+    "label": "JOYO (regular website)",
+    "expect_title": true,
+    "expect_description": true,
+    "min_content_length": 50
+  },
+  {
+    "url": "https://www.instagram.com/hametziut_shel_shahar/",
+    "label": "Instagram profile (hametziut_shel_shahar)",
+    "expect_title": true,
+    "expect_description": true,
+    "min_content_length": 10
+  }
+]

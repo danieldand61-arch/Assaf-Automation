@@ -146,15 +146,7 @@ SIZE: {size_label} (aspect ratio {aspect})
 {lang_instruction}
 
 YOUR TASK:
-Create a professional social media graphic design. Choose the BEST approach for this content:
-
-OPTION A — PURE GRAPHIC (no photo): Use colored/gradient backgrounds, geometric shapes, icons, and styled typography. Best for: quotes, announcements, sales, tips, stats.
-
-OPTION B — ILLUSTRATION + TEXT: Create a stylized AI illustration (NOT a realistic photo) as the background, then compose professional text on top. The illustration should be graphic/artistic style, not photographic. Best for: product promos, brand ads, event posters.
-
-OPTION C — STRUCTURED LAYOUT: Split the design into zones — text area + visual area. Clean grid-based layout. Best for: product features, profiles, comparisons, infographics.
-
-Pick whichever option creates the most impactful, professional result for this specific content.
+Create a professional social media graphic design. Internally decide the best visual approach for this content — it could be a pure graphic with typography, an illustration with text, or a structured layout with zones. Do NOT label or name the approach you chose anywhere in the image.
 
 DESIGN RULES (CRITICAL):
 1. TYPOGRAPHY IS THE HERO — headline must be large, bold, and immediately readable
@@ -174,7 +166,14 @@ COMPOSITION:
 - Decorative elements (lines, shapes, icons) to add visual interest
 - Brand name or logo text in a subtle corner position
 
-OUTPUT: Generate a single complete graphic design image at {size_label}. The image must be the FINAL design, ready to post on social media."""
+CRITICAL — DO NOT PUT ANY OF THE FOLLOWING ON THE IMAGE:
+- NO option labels ("Option A", "Option B", etc.)
+- NO category names ("Pure Graphic", "Illustration + Text", etc.)
+- NO platform name ("{platform}") or resolution/dimensions ("{size_label}") as visible text
+- NO meta-commentary or approach descriptions
+- ONLY the actual design content: headline, CTA, brand name, decorative elements
+
+OUTPUT: Generate a single complete graphic design image at aspect ratio {aspect}. The image must be the FINAL design, ready to post on social media."""
 
 
 def _extract_headline(post_text: str) -> str:
