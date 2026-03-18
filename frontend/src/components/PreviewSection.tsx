@@ -238,7 +238,7 @@ interface PreviewSectionProps {
 }
 
 export function PreviewSection({ onReset, onBack, content, autoSaveResults }: PreviewSectionProps) {
-  const { generatedContent: globalContent, updateVariation, updateImage } = useContentStore()
+  const { generatedContent: globalContent, updateVariation, updateImage, imageHistory, addToImageHistory } = useContentStore()
   const generatedContent = content || globalContent
   const { session } = useAuth()
 
@@ -411,7 +411,10 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
   }
 
   const handleImageUpdate = (url: string) => {
-    if (editingImageIdx !== null) updateImage(editingImageIdx, url)
+    if (editingImageIdx !== null) {
+      updateImage(editingImageIdx, url)
+      addToImageHistory(editingImageIdx, url)
+    }
     setEditingImageIdx(null)
   }
 
@@ -589,6 +592,9 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
           imageSize={generatedContent.request_params?.image_size || '1080x1080'}
           includeLogo={generatedContent.request_params?.include_logo || false}
           onImageUpdate={handleImageUpdate}
+          imageIndex={editingImageIdx}
+          persistedHistory={imageHistory[editingImageIdx] || [(images[editingImageIdx] || images[0])?.url]}
+          onAddToHistory={(url) => addToImageHistory(editingImageIdx, url)}
         />
       )}
       {postingIdx !== null && (

@@ -13,6 +13,9 @@ interface ImageEditModalProps {
   imageSize: string
   includeLogo: boolean
   onImageUpdate: (newImageUrl: string) => void
+  imageIndex: number
+  persistedHistory: string[]
+  onAddToHistory: (url: string) => void
 }
 
 export function ImageEditModal({
@@ -24,13 +27,16 @@ export function ImageEditModal({
   platform,
   imageSize,
   includeLogo,
-  onImageUpdate
+  onImageUpdate,
+  imageIndex,
+  persistedHistory,
+  onAddToHistory
 }: ImageEditModalProps) {
   const { session } = useAuth()
   const [isRegenerating, setIsRegenerating] = useState(false)
   const [variations, setVariations] = useState<string[]>([currentImage])
   const [selectedVariation, setSelectedVariation] = useState(0)
-  const [history, setHistory] = useState<string[]>([currentImage])
+  const history = persistedHistory
   const [customPrompt, setCustomPrompt] = useState('')
   const [useCustomPrompt, setUseCustomPrompt] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -71,7 +77,7 @@ export function ImageEditModal({
       if (newVariations.length > 0) {
         setVariations(newVariations)
         setSelectedVariation(0)
-        setHistory([...history, ...newVariations])
+        newVariations.forEach(url => onAddToHistory(url))
       }
     } catch (error) {
       console.error('Regeneration error:', error)
@@ -102,7 +108,7 @@ export function ImageEditModal({
       const dataUrl = e.target?.result as string
       setVariations([dataUrl])
       setSelectedVariation(0)
-      setHistory([...history, dataUrl])
+      onAddToHistory(dataUrl)
     }
     reader.readAsDataURL(file)
   }

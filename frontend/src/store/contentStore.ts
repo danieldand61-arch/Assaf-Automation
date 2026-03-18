@@ -28,14 +28,25 @@ interface GeneratedContent {
 
 interface ContentStore {
   generatedContent: GeneratedContent | null
+  imageHistory: Record<number, string[]>
   setGeneratedContent: (content: GeneratedContent | null) => void
   updateVariation: (index: number, text: string, hashtags: string[], cta: string) => void
   updateImage: (index: number, imageUrl: string) => void
+  addToImageHistory: (index: number, imageUrl: string) => void
 }
 
 export const useContentStore = create<ContentStore>((set) => ({
   generatedContent: null,
-  setGeneratedContent: (content) => set({ generatedContent: content }),
+  imageHistory: {},
+  setGeneratedContent: (content) => set(() => {
+    const history: Record<number, string[]> = {}
+    if (content?.images) {
+      content.images.forEach((img, i) => {
+        if (img?.url) history[i] = [img.url]
+      })
+    }
+    return { generatedContent: content, imageHistory: history }
+  }),
   updateVariation: (index, text, hashtags, cta) => set((state) => {
     if (!state.generatedContent) return state
     const newVariations = [...state.generatedContent.variations]
@@ -66,6 +77,13 @@ export const useContentStore = create<ContentStore>((set) => ({
         images: newImages
       }
     }
-  })
+  }),
+  addToImageHistory: (index, imageUrl) => set((state) => {
+    const prev = state.imageHistory[index] || []
+    if (prev.includes(imageUrl)) return state
+    return {
+      imageHistory: { ...state.imageHistory, [index]: [...prev, imageUrl] }
+    }
+  }),
 }))
 
