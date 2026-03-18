@@ -148,13 +148,14 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
     try {
       const apiUrl = getApiUrl()
       
-      // Convert base64 image URL to file if needed
+      // Convert prefilled image URL (base64 or HTTP) to File if no file was manually uploaded
       let imageToUpload = imageFile
-      if (!imageFile && prefilledImageUrl && prefilledImageUrl.startsWith('data:')) {
+      if (!imageFile && prefilledImageUrl) {
         try {
           const response = await fetch(prefilledImageUrl)
           const blob = await response.blob()
-          imageToUpload = new File([blob], 'generated-image.jpg', { type: 'image/jpeg' })
+          const ext = blob.type.includes('png') ? 'png' : 'jpg'
+          imageToUpload = new File([blob], `image.${ext}`, { type: blob.type || 'image/jpeg' })
         } catch (error) {
           console.error('Failed to convert image:', error)
         }
