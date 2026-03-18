@@ -592,7 +592,6 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
           imageSize={generatedContent.request_params?.image_size || '1080x1080'}
           includeLogo={generatedContent.request_params?.include_logo || false}
           onImageUpdate={handleImageUpdate}
-          imageIndex={editingImageIdx}
           persistedHistory={imageHistory[editingImageIdx] || [(images[editingImageIdx] || images[0])?.url]}
           onAddToHistory={(url) => addToImageHistory(editingImageIdx, url)}
         />

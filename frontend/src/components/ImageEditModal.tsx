@@ -13,7 +13,6 @@ interface ImageEditModalProps {
   imageSize: string
   includeLogo: boolean
   onImageUpdate: (newImageUrl: string) => void
-  imageIndex: number
   persistedHistory: string[]
   onAddToHistory: (url: string) => void
 }
@@ -28,7 +27,6 @@ export function ImageEditModal({
   imageSize,
   includeLogo,
   onImageUpdate,
-  imageIndex,
   persistedHistory,
   onAddToHistory
 }: ImageEditModalProps) {
