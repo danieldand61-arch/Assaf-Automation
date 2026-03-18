@@ -80,8 +80,8 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImag
         <MoreHorizontal size={14} className="text-gray-500" />
       </div>
       {img?.url && !img.url.includes('placehold.co') ? (
-        <div className="group/img relative w-full bg-black/5 dark:bg-black/30 cursor-pointer" style={{ aspectRatio: '4/5' }} onClick={onEditImage}>
-          <MediaElement url={img.url} className="w-full h-full object-cover" />
+        <div className="group/img relative w-full bg-white dark:bg-black/30 cursor-pointer" onClick={onEditImage}>
+          <MediaElement url={img.url} className="w-full object-contain" />
           {!isVideoUrl(img.url) && (
             <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
@@ -91,7 +91,7 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImag
           )}
         </div>
       ) : (
-        <div className="w-full flex items-center justify-center bg-gray-100 dark:bg-gray-700/40" style={{ aspectRatio: '4/5' }}>
+        <div className="w-full flex items-center justify-center bg-gray-100 dark:bg-gray-700/40" style={{ aspectRatio: '1/1' }}>
           <ImageOff size={32} className="text-gray-300" />
         </div>
       )}
