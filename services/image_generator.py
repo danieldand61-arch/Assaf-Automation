@@ -42,13 +42,12 @@ async def generate_images(
         return [_get_placeholder_image(size_info) for _ in variations]
     
     genai.configure(api_key=api_key)
-    image_model_name = 'gemini-3.1-flash-image-preview'
-    text_model_name = 'gemini-3-flash-preview'
+    model_name = 'gemini-3.1-flash-image-preview'
     
-    logger.info(f"🔍 Using models: pass1={text_model_name}, pass2={image_model_name}")
+    logger.info(f"🔍 Using model: {model_name}")
     
-    model = genai.GenerativeModel(image_model_name)
-    text_model = genai.GenerativeModel(text_model_name)
+    # Create model once, reuse for all variations
+    model = genai.GenerativeModel(model_name)
     
     # Decode reference image once if provided (base64 data URI)
     ref_image_part = None
@@ -77,22 +76,8 @@ async def generate_images(
                 logger.info(f"🔍 Generating image {idx + 1}/{len(variations)} (attempt {attempt + 1}) for: {variation.text[:50]}...")
                 
                 plat = variation.platform or (platforms[idx % len(platforms)] if platforms else 'instagram')
-
-                if custom_prompt or ref_image_part is not None:
-                    image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt, platform=plat, image_size=image_size, include_people=include_people, has_reference=ref_image_part is not None)
-                else:
-                    # Pass 1: text model creates the ultimate image prompt
-                    pass1_prompt = _build_pass1_prompt(website_data, variation, plat, image_size, include_people)
-                    pass1_response = await asyncio.to_thread(
-                        text_model.generate_content, pass1_prompt,
-                        generation_config={"temperature": 0.8, "max_output_tokens": 300}
-                    )
-                    ultimate_prompt = pass1_response.text.strip() if hasattr(pass1_response, 'text') else ''
-                    logger.info(f"🧠 Pass 1 ultimate prompt ({len(ultimate_prompt)} chars): {ultimate_prompt[:150]}...")
-
-                    # Pass 2: combine ultimate prompt with brand context for image generation
-                    image_prompt = _build_pass2_prompt(website_data, variation, ultimate_prompt, plat, image_size, include_people)
-
+                image_prompt = _build_image_prompt(website_data, variation, custom_prompt=custom_prompt, platform=plat, image_size=image_size, include_people=include_people, has_reference=ref_image_part is not None)
+                
                 content = []
                 if ref_image_part:
                     content.append(ref_image_part)
@@ -128,7 +113,7 @@ async def generate_images(
                     await record_usage(
                         user_id=user_id, service_type="image_generation",
                         input_tokens=input_tokens, output_tokens=output_tokens, total_tokens=total_tokens,
-                        model_name=image_model_name, metadata={"image_size": image_size, "variation_index": idx + 1}
+                        model_name=model_name, metadata={"image_size": image_size, "variation_index": idx + 1}
                     )
                 except Exception as e:
                     logger.error(f"❌ Failed to track image usage: {e}")
@@ -315,9 +300,6 @@ STRICT RULES:
     colors = website_data.get('colors', [])
     color_hint = f'Subtly incorporate brand colors ({", ".join(colors[:3])}) through props, backgrounds, or accents.' if colors else ''
 
-    brand_colors = ', '.join(colors[:4]) if colors else ''
-    target_audience = website_data.get('target_audience', '')
-
     post_text = variation.text[:250]
     mood = _detect_mood(variation.text)
     vtype = getattr(variation, 'variant_type', '') or ''
@@ -371,231 +353,52 @@ STRICT RULES:
 - The reference image is your PRIMARY guide. The brand context is SECONDARY.
 - If the reference shows a sunset landscape, generate a sunset landscape. If it shows food, generate food. FOLLOW THE REFERENCE."""
     else:
-        user_image_prompt = None
-        prompt = f"""You are a visual director creating scroll-stopping images for social media.
+        prompt = f"""You are an elite advertising creative director. Create a premium social media advertisement image.
 
-YOUR BRAND:
-- Brand: "{brand}"
-- Voice: {voice}
-{f'- Industry: {industry}' if industry else ''}
-{f'- Products: {products}' if products else ''}
-{f'- Key features: {features}' if features else ''}
-{f'- Brand colors: {brand_colors}' if brand_colors else ''}
-{f'- Target audience: {target_audience}' if target_audience else ''}
+BRAND: "{brand}"
+BRAND VOICE: {voice}
+{f'INDUSTRY: {industry}' if industry else ''}
+{f'PRODUCTS: {products}' if products else ''}
+{f'KEY FEATURES: {features}' if features else ''}
 
-THE POST THIS IMAGE IS FOR:
+CRITICAL — THE IMAGE MUST DIRECTLY ILLUSTRATE THIS SPECIFIC POST:
 "{post_text}"
 
-{f'USER IMAGE REQUEST: "{user_image_prompt}"' if user_image_prompt else 'No specific image request from user - create the best visual based on the post content and brand.'}
+Read the post above carefully. Identify the CORE SUBJECT, the SPECIFIC SCENARIO, and the EMOTION described.
+The image MUST depict EXACTLY what the post talks about. NOT a generic brand photo. NOT a logo. NOT an abstract concept.
+The viewer should see the image and immediately understand what the post is about WITHOUT reading it.
 
----
-
-STEP 1: DECIDE THE IMAGE TYPE
-
-Read the post carefully. Based on the content, emotion, and brand - decide what type of image works best:
-
-- PHOTO - Best for: emotional stories, personal experiences, behind-the-scenes, lifestyle content. The visual alone should tell the story.
-- GRAPHIC DESIGN - Best for: quotes, sales/discounts with prices, holiday greetings, event announcements with dates/times. Create the complete graphic: layout, colors, decorative elements.
-- AI ILLUSTRATION - Best for: brand ads, product showcases, creative campaigns. Create an illustration-style (not photographic) image.
-
-STEP 2: CREATE THE IMAGE
-
-If PHOTO or ILLUSTRATION:
-Make it specific and vivid. A great image paints one specific scene - not a category.
-
-Think about:
-- What's happening - a moment in motion, not a posed subject
-- The perspective - what angle are we seeing this from? How close are we?
-- The light - where is it coming from? What quality does it have? What shadows does it create?
-- The place - make it real and specific, with texture and detail. Worn surfaces, lived-in spaces, real objects
-- The feeling - what emotion should this evoke? It should match the post's emotional core
-- The colors - what's the palette? Warm? Cool? Muted? Saturated? Should lean toward the brand's color world
-
-Don't illustrate the topic literally. Find the emotional truth.
-A post about failure? Don't show someone looking sad. Show the aftermath - an empty chair, a closed laptop, a light left on in an empty room.
-A post about growth? Don't show a graph or a rocket. Show worn running shoes next to new ones. A plant pushing through a crack.
-
-If GRAPHIC DESIGN:
-Create the complete design:
-- Layout and composition
-- Colors: palette (prefer the brand's colors), background style
-- Decorative elements: shapes, icons, borders, patterns
-- Overall vibe: clean/bold/playful/elegant/edgy
-
-STEP 3: BRAND FIT
-
-Let the brand breathe through the image naturally. The brand's industry, tone, audience, and color world should influence your choices - not as a rigid rule, but as a natural extension of who they are.
-
-If someone saw just the image without the post, they should get a sense of what kind of business this is.
-
-STEP 4: QUICK CHECK
-
-Before you generate, ask yourself:
-- Is this specific enough that I can picture exactly ONE image?
-- Does this feel like it belongs to THIS brand, or could it be for anyone?
-- Would this make someone stop scrolling?
-- Have I seen this exact image a thousand times before? If yes - find a fresher angle.
-- Am I falling into a pattern? Try a different approach than your instinct.
-
+PEOPLE DIRECTIVE:
 {people_line}
 
-PLATFORM: {platform_style}
-DIMENSIONS: {size_comp}
-MOOD: {mood}
+VISUAL DIRECTION:
+- {style_by_variant}
+- {platform_style}
+- Mood: {mood}
+- {size_comp}
+{f'- {color_hint}' if color_hint else ''}
 
-Now generate the image. Be specific, be vivid, be surprising."""
+PHOTOGRAPHY STYLE — vary between these approaches to keep each image unique:
+- Editorial lifestyle / candid moment / cinematic wide shot / dramatic close-up / overhead flat lay / environmental portrait / product hero shot
+- Mix lighting: golden hour, studio, moody, high-key, natural window light, neon, dusk
+- Mix depth of field: shallow bokeh, deep focus, tilt-shift
+
+COMPOSITION — choose ONE that fits best (vary across images):
+- Hero subject center frame with negative space
+- Rule of thirds with environmental context
+- Dynamic diagonal or leading lines
+- Close-up detail/texture shot
+- Wide establishing shot with atmosphere
+
+STRICT RULES:
+- ABSOLUTELY NO text, words, letters, numbers, watermarks, logos, or typography
+- NO UI elements, buttons, overlays, or borders
+- ONE single cohesive photograph, no collages or split frames
+- NO stock photo feel. Must look like a real premium ad campaign shoot
+- The image alone should make someone stop scrolling
+- The image MUST match the post content. Generic brand imagery is FORBIDDEN."""
 
     return prompt.strip()
-
-
-def _build_pass1_prompt(website_data: Dict, variation: PostVariation, platform: str, image_size: str, include_people: bool) -> str:
-    """Pass 1: text model creates the ultimate image prompt."""
-    brand = website_data.get('title', '').strip() or 'a brand'
-    industry = website_data.get('industry', '') or website_data.get('description', '')[:80]
-    products = ', '.join(website_data.get('products', [])[:3])
-    features = ', '.join(website_data.get('key_features', [])[:3])
-    colors = website_data.get('colors', [])
-    brand_colors = ', '.join(colors[:4]) if colors else ''
-    voice = website_data.get('brand_voice', 'professional')
-    target_audience = website_data.get('target_audience', '')
-    post_text = variation.text[:300]
-    user_image_prompt = None
-    mood = _detect_mood(variation.text)
-
-    people_line = (
-        'If the post mentions a person or lifestyle scenario, show a real person naturally interacting with the product/environment. Authentic expression, natural skin.'
-        if include_people else
-        'Do NOT include any people, faces, hands, silhouettes, or human body parts in the image. Focus on product, environment, and objects only.'
-    )
-
-    platform_style = {
-        'instagram': 'Instagram-optimized: vibrant colors, high saturation, lifestyle editorial feel. Hero subject with negative space for text overlay.',
-        'facebook': 'Facebook feed-optimized: eye-catching, scroll-stopping composition. Bright, relatable scene that triggers engagement.',
-        'linkedin': 'LinkedIn-appropriate: professional, corporate-quality photography. Clean backgrounds, business context, polished look.',
-        'tiktok': 'TikTok aesthetic: trendy, Gen-Z visual language. Bold colors, dynamic angles, lifestyle-forward.',
-        'x': 'Twitter/X card: clean, minimal, high-impact single subject with strong focal point.',
-    }.get(platform, 'Social media advertising: professional, eye-catching, commercial quality.')
-
-    size_comp = {
-        '1080x1080': 'Square 1:1. Center the subject. Symmetrical or rule-of-thirds composition.',
-        '1080x1350': 'Portrait 4:5. Vertical composition. Subject in upper third, breathing room at bottom.',
-        '1080x1920': 'Story/Reel 9:16. Full vertical. Subject centered, dramatic top-to-bottom flow.',
-        '1200x628': 'Landscape 16:9. Wide cinematic composition. Subject on left or right third.',
-    }.get(image_size.replace('_story', ''), 'Balanced composition with clear focal point.')
-
-    return f"""You are a visual director creating scroll-stopping images for social media.
-
-YOUR BRAND:
-- Brand: "{brand}"
-- Voice: {voice}
-{f'- Industry: {industry}' if industry else ''}
-{f'- Products: {products}' if products else ''}
-{f'- Key features: {features}' if features else ''}
-{f'- Brand colors: {brand_colors}' if brand_colors else ''}
-{f'- Target audience: {target_audience}' if target_audience else ''}
-
-THE POST THIS IMAGE IS FOR:
-"{post_text}"
-
-{f'USER IMAGE REQUEST: "{user_image_prompt}"' if user_image_prompt else 'No specific image request from user - create the best visual based on the post content and brand.'}
-
----
-
-STEP 1: DECIDE THE VISUAL APPROACH
-
-Read the post carefully. Based on the content, emotion, and brand - internally decide what visual approach works best. Do NOT label or name the approach in your output.
-
-Possible approaches (choose one, but do NOT mention it by name):
-- A photograph with no text — for emotional stories, lifestyle, behind-the-scenes
-- A designed graphic with typography — for quotes, sales, announcements, events
-- An illustration-style visual — for brand ads, product showcases, creative campaigns
-
-STEP 2: CREATE THE IMAGE PROMPT
-
-Write a detailed, vivid image description. A great prompt paints one specific image - not a category.
-
-Think about:
-- What's happening - describe a moment in motion, not a posed subject
-- The perspective - what angle are we seeing this from? How close are we?
-- The light - where is it coming from? What quality does it have? What shadows does it create?
-- The place - make it real and specific, with texture and detail. Worn surfaces, lived-in spaces, real objects
-- The feeling - what emotion should this evoke? It should match the post's emotional core
-- The colors - what's the palette? Warm? Cool? Muted? Saturated? Should lean toward the brand's color world
-
-Don't illustrate the topic literally. Find the emotional truth.
-A post about failure? Don't show someone looking sad. Show the aftermath - an empty chair, a closed laptop, a light left on in an empty room.
-A post about growth? Don't show a graph or a rocket. Show worn running shoes next to new ones. A plant pushing through a crack.
-
-If the approach involves graphic design, describe the complete visual: layout, typography style, colors, decorative elements, overall vibe.
-
-STEP 3: BRAND FIT
-
-Let the brand breathe through the image naturally. The brand's industry, tone, audience, and color world should influence your choices - not as a rigid rule, but as a natural extension of who they are.
-
-If someone saw just the image without the post text, they should get a sense of what kind of business this is.
-
-STEP 4: QUICK CHECK
-
-Before you output, ask yourself:
-- Is this specific enough that I can picture exactly ONE image? (not "a person at a desk" but a specific person, specific desk, specific light, specific moment)
-- Does this feel like it belongs to THIS brand, or could it be for anyone?
-- Would this make someone stop scrolling?
-- Have I seen this exact image a thousand times before? If yes - find a fresher angle.
-- Am I falling into a pattern? Try a different approach than your instinct.
-
-{people_line}
-
-PLATFORM: {platform_style}
-DIMENSIONS: {size_comp}
-MOOD: {mood}
-
-CRITICAL OUTPUT RULES:
-- Output ONLY the image description/prompt itself
-- Do NOT include labels like "Option A", "Option B", "Type: PHOTO", "[TYPE: ...]", category names, or approach names
-- Do NOT mention the platform name, image dimensions, or resolution in the prompt
-- Do NOT include meta-commentary about your choice — just describe the image directly
-- The output should read as a pure visual description that an image generator can use
-
-Now create the image prompt. Be specific, be vivid, be surprising. Make something worth looking at."""
-
-
-def _build_pass2_prompt(website_data: Dict, variation: PostVariation, ultimate_prompt: str, platform: str, image_size: str, include_people: bool) -> str:
-    """Pass 2: combine ultimate prompt with brand context for final image generation."""
-    brand = website_data.get('title', '').strip() or 'a brand'
-    colors = website_data.get('colors', [])
-    brand_colors = ', '.join(colors[:4]) if colors else ''
-    voice = website_data.get('brand_voice', 'professional')
-    post_text = variation.text[:150]
-
-    people_line = (
-        'Include people naturally.' if include_people
-        else 'Do NOT include any people, faces, hands, silhouettes, or human body parts.'
-    )
-
-    size_comp = {
-        '1080x1080': 'Square 1:1',
-        '1080x1350': 'Portrait 4:5',
-        '1080x1920': 'Story 9:16',
-        '1200x628': 'Landscape 16:9',
-    }.get(image_size.replace('_story', ''), 'Square 1:1')
-
-    return f"""Generate this image for brand "{brand}" ({voice}):
-
-{ultimate_prompt}
-
-{f'Use brand colors: {brand_colors}.' if brand_colors else ''}
-Aspect ratio: {size_comp}.
-{people_line}
-
-ABSOLUTE RULES:
-- NO text, words, letters, numbers, watermarks, or typography anywhere in the image
-- NO labels, option names, category names, platform names, or resolution numbers on the image
-- NO hashtags, captions, or any written content on the image
-- NO UI elements, buttons, borders, or frames
-- ONE single clean image, no collages, no split frames
-- The image must be ONLY the visual — completely clean of any overlaid text or metadata
-
-Generate the image now."""
 
 
 def _detect_mood(text: str) -> str:
