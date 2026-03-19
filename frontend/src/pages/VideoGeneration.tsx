@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2, Captions } from 'lucide-react'
+import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2, FileText } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 
 const API_URL = getApiUrl()
@@ -495,7 +495,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                   >
                     {isAddingSubtitles
                       ? <><Loader2 size={15} className="animate-spin" /> Adding subtitles...</>
-                      : <><Captions size={15} /> Add Subtitles (Auto)</>
+                      : <><FileText size={15} /> Add Subtitles (Auto)</>
                     }
                   </button>
                 ) : (
