@@ -1,10 +1,8 @@
 """
 Subtitle generation for videos.
-Flow: download MP4 -> Whisper transcription -> SRT -> FFmpeg burn-in -> upload -> return URL
+Flow: download MP4 -> ElevenLabs STT -> SRT -> FFmpeg burn-in -> upload -> return URL
 """
 import asyncio
-import base64
-import io
 import logging
 import os
 import subprocess
@@ -22,13 +20,12 @@ from services.credits_service import check_balance, record_usage
 router = APIRouter(prefix="/api/video-gen", tags=["subtitles"])
 logger = logging.getLogger(__name__)
 
-WHISPER_COST_PER_MINUTE = 0.006  # USD — OpenAI Whisper pricing
-CREDITS_PER_SUBTITLE = 50        # flat fee for the feature
+CREDITS_PER_SUBTITLE = 50
 
 
 class AddSubtitlesRequest(BaseModel):
     video_url: str
-    language: str = "en"   # "he" for Hebrew, "en" for English
+    language: str = "he"   # "he" for Hebrew, "en" for English
 
 
 @router.post("/add-subtitles")
@@ -39,16 +36,13 @@ async def add_subtitles(request: AddSubtitlesRequest, current_user: dict = Depen
     if not bal["ok"]:
         raise HTTPException(status_code=402, detail=f"Not enough credits. Need {CREDITS_PER_SUBTITLE}.")
 
-    if not request.video_url:
-        raise HTTPException(status_code=400, detail="video_url is required")
-
-    openai_key = os.getenv("OPENAI_API_KEY")
-    if not openai_key:
-        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured")
+    el_key = os.getenv("ELEVENLABS_API_KEY")
+    if not el_key:
+        raise HTTPException(status_code=500, detail="ELEVENLABS_API_KEY not configured")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         input_path = os.path.join(tmpdir, "input.mp4")
-        srt_path = os.path.join(tmpdir, "subtitles.srt")
+        srt_path   = os.path.join(tmpdir, "subtitles.srt")
         output_path = os.path.join(tmpdir, "output.mp4")
 
         # 1. Download the video
@@ -66,12 +60,12 @@ async def add_subtitles(request: AddSubtitlesRequest, current_user: dict = Depen
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Failed to download video: {e}")
 
-        # 2. Transcribe with Whisper
-        logger.info(f"🎙️ Transcribing with Whisper (language={request.language})")
+        # 2. Transcribe with ElevenLabs Speech-to-Text
+        logger.info(f"🎙️ Transcribing with ElevenLabs STT (language={request.language})")
         try:
-            srt_content = await _transcribe_to_srt(input_path, openai_key, request.language)
+            srt_content = await _elevenlabs_to_srt(input_path, el_key, request.language)
         except Exception as e:
-            logger.error(f"❌ Whisper transcription failed: {e}")
+            logger.error(f"❌ ElevenLabs STT failed: {e}")
             raise HTTPException(status_code=500, detail=f"Transcription failed: {e}")
 
         if not srt_content.strip():
@@ -82,15 +76,15 @@ async def add_subtitles(request: AddSubtitlesRequest, current_user: dict = Depen
         logger.info(f"✅ SRT generated ({len(srt_content)} chars)")
 
         # 3. Burn subtitles into video with FFmpeg
-        logger.info("🔥 Burning subtitles into video with FFmpeg")
+        logger.info("🔥 Burning subtitles with FFmpeg")
         try:
             await _burn_subtitles(input_path, srt_path, output_path, request.language)
         except Exception as e:
             logger.error(f"❌ FFmpeg failed: {e}")
             raise HTTPException(status_code=500, detail=f"Subtitle burn-in failed: {e}")
 
-        # 4. Upload result to Supabase storage
-        logger.info("☁️ Uploading subtitled video to storage")
+        # 4. Upload to Supabase
+        logger.info("☁️ Uploading subtitled video")
         try:
             with open(output_path, "rb") as f:
                 video_bytes = f.read()
@@ -99,88 +93,141 @@ async def add_subtitles(request: AddSubtitlesRequest, current_user: dict = Depen
             logger.error(f"❌ Upload failed: {e}")
             raise HTTPException(status_code=500, detail=f"Upload failed: {e}")
 
-    # 5. Charge credits
     try:
         await record_usage(
             user_id=user_id, service_type="subtitle_generation",
             input_tokens=0, output_tokens=0, total_tokens=0,
-            model_name="whisper-1", metadata={"language": request.language}
+            model_name="elevenlabs-scribe", metadata={"language": request.language}
         )
     except Exception as e:
-        logger.warning(f"Failed to record subtitle usage: {e}")
+        logger.warning(f"Failed to record usage: {e}")
 
     logger.info(f"✅ Subtitled video ready: {result_url[:80]}")
     return {"video_url": result_url}
 
 
-async def _transcribe_to_srt(video_path: str, api_key: str, language: str) -> str:
-    """Call OpenAI Whisper API and return SRT-formatted subtitles."""
-    whisper_lang = "he" if language.lower().startswith("he") else "en"
+async def _elevenlabs_to_srt(video_path: str, api_key: str, language: str) -> str:
+    """Transcribe via ElevenLabs Scribe and convert word timestamps to SRT."""
+    with open(video_path, "rb") as f:
+        video_data = f.read()
+
+    payload: dict = {
+        "model_id": "scribe_v1",
+        "timestamps_granularity": "word",
+    }
+    if language:
+        payload["language_code"] = language
 
     async with httpx.AsyncClient(timeout=300.0) as client:
-        with open(video_path, "rb") as f:
-            video_data = f.read()
-
         response = await client.post(
-            "https://api.openai.com/v1/audio/transcriptions",
-            headers={"Authorization": f"Bearer {api_key}"},
+            "https://api.elevenlabs.io/v1/speech-to-text",
+            headers={"xi-api-key": api_key},
             files={"file": ("video.mp4", video_data, "video/mp4")},
-            data={
-                "model": "whisper-1",
-                "response_format": "srt",
-                "language": whisper_lang,
-            },
+            data=payload,
         )
 
     if response.status_code != 200:
-        raise Exception(f"Whisper API returned {response.status_code}: {response.text[:200]}")
+        raise Exception(f"ElevenLabs STT returned {response.status_code}: {response.text[:300]}")
 
-    return response.text
+    data = response.json()
+    words = data.get("words", [])
+    if not words:
+        # Fallback: use full text as single block
+        text = data.get("text", "").strip()
+        if not text:
+            return ""
+        return "1\n00:00:00,000 --> 00:00:30,000\n" + text + "\n"
+
+    return _words_to_srt(words)
+
+
+def _words_to_srt(words: list) -> str:
+    """Group word-level timestamps into subtitle lines (~5 words / 3s max per block)."""
+    lines = []
+    block: list = []
+    block_start: float = 0.0
+    block_end: float = 0.0
+    idx = 1
+
+    for w in words:
+        if w.get("type") == "spacing":
+            continue
+        start = float(w.get("start", 0))
+        end   = float(w.get("end", start + 0.3))
+        text  = w.get("text", "").strip()
+        if not text:
+            continue
+
+        if not block:
+            block_start = start
+
+        block.append(text)
+        block_end = end
+
+        # Break into a new subtitle every 5 words or 3 seconds
+        if len(block) >= 5 or (block_end - block_start) >= 3.0:
+            lines.append(_srt_block(idx, block_start, block_end, " ".join(block)))
+            idx += 1
+            block = []
+
+    if block:
+        lines.append(_srt_block(idx, block_start, block_end, " ".join(block)))
+
+    return "\n".join(lines)
+
+
+def _srt_block(idx: int, start: float, end: float, text: str) -> str:
+    return f"{idx}\n{_ts(start)} --> {_ts(end)}\n{text}\n"
+
+
+def _ts(sec: float) -> str:
+    h = int(sec // 3600)
+    m = int((sec % 3600) // 60)
+    s = int(sec % 60)
+    ms = int((sec - int(sec)) * 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
 async def _burn_subtitles(input_path: str, srt_path: str, output_path: str, language: str) -> None:
     """Use FFmpeg to burn SRT subtitles into the video."""
-    # For Hebrew we force right-to-left alignment
-    alignment = "Alignment=2" if not language.lower().startswith("he") else "Alignment=2"
     force_style = (
-        f"FontSize=18,Bold=1,PrimaryColour=&Hffffff,OutlineColour=&H000000,"
-        f"BackColour=&H80000000,BorderStyle=4,Outline=2,Shadow=0,{alignment}"
+        "FontSize=18,Bold=1,"
+        "PrimaryColour=&Hffffff,OutlineColour=&H000000,"
+        "BackColour=&H80000000,BorderStyle=4,Outline=2,Shadow=0,Alignment=2"
     )
+    # FFmpeg needs forward slashes even on Windows
+    srt_safe = srt_path.replace("\\", "/").replace(":", "\\:")
 
     cmd = [
         "ffmpeg", "-y",
         "-i", input_path,
-        "-vf", f"subtitles={srt_path}:force_style='{force_style}'",
+        "-vf", f"subtitles='{srt_safe}':force_style='{force_style}'",
         "-c:a", "copy",
         "-preset", "fast",
         output_path,
     ]
 
-    result = await asyncio.to_thread(
-        subprocess.run, cmd, capture_output=True, text=True
-    )
+    result = await asyncio.to_thread(subprocess.run, cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
         raise Exception(f"FFmpeg error: {result.stderr[-500:]}")
 
 
 async def _upload_video(video_bytes: bytes, user_id: str) -> str:
-    """Upload processed video to Supabase storage and return public URL."""
+    """Upload to Supabase storage and return public URL."""
     supabase = get_supabase()
     filename = f"subtitled/{user_id}/{uuid.uuid4().hex}.mp4"
     bucket = "posts"
 
     try:
         supabase.storage.from_(bucket).upload(
-            path=filename,
-            file=video_bytes,
+            path=filename, file=video_bytes,
             file_options={"content-type": "video/mp4", "upsert": "true"},
         )
     except Exception:
         bucket = "products"
         supabase.storage.from_(bucket).upload(
-            path=filename,
-            file=video_bytes,
+            path=filename, file=video_bytes,
             file_options={"content-type": "video/mp4", "upsert": "true"},
         )
 
