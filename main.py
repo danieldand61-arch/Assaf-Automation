@@ -271,6 +271,14 @@ except Exception as e:
     logger.error(f"❌ Graphic gen router failed to load: {str(e)}")
     logger.warning("⚠️ Graphic text generation will NOT be available!")
 
+try:
+    from routers import subtitles
+    app.include_router(subtitles.router)
+    logger.info("✅ Subtitles router registered")
+except Exception as e:
+    logger.error(f"❌ Subtitles router failed to load: {str(e)}")
+    logger.warning("⚠️ Subtitle generation will NOT be available!")
+
 logger.info("ℹ️ All routers loaded successfully!")
 
 # Log all requests middleware (after CORS)

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2 } from 'lucide-react'
+import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2, Captions } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 
 const API_URL = getApiUrl()
@@ -47,6 +47,8 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   const [savedToLibrary, setSavedToLibrary] = useState(false)
   const [fakeProgress, setFakeProgress] = useState(0)
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [isAddingSubtitles, setIsAddingSubtitles] = useState(false)
+  const [subtitledVideoUrl, setSubtitledVideoUrl] = useState<string | null>(null)
 
   const estimatedCredits = CREDITS_PER_SEC[`${quality}_${sound ? 'audio' : 'no_audio'}`] * duration
 
@@ -109,6 +111,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
     setError('')
     setCurrentTask(null)
     setSavedToLibrary(false)
+    setSubtitledVideoUrl(null)
 
     const endpoint = mode === 'text' ? 'text-to-video' : 'image-to-video'
     const body: any = { prompt, duration, sound, quality, aspect_ratio: aspectRatio }
@@ -161,6 +164,28 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       if (res.ok) setSavedToLibrary(true)
       else setError('Failed to save to library')
     } catch { setError('Failed to save to library') }
+  }
+
+  const handleAddSubtitles = async () => {
+    if (!currentTask?.video_urls?.[0] || !session) return
+    setIsAddingSubtitles(true)
+    try {
+      const res = await fetch(`${API_URL}/api/video-gen/add-subtitles`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ video_url: currentTask.video_urls[0], language: 'he' }),
+      })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || 'Failed to add subtitles')
+      }
+      const data = await res.json()
+      setSubtitledVideoUrl(data.video_url)
+    } catch (e: any) {
+      setError(e.message || 'Failed to add subtitles')
+    } finally {
+      setIsAddingSubtitles(false)
+    }
   }
 
   const handleDownload = async (url: string) => {
@@ -416,7 +441,8 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
               <div className="bg-black rounded-t-2xl">
                 <video
-                  src={currentTask.video_urls![0]}
+                  key={subtitledVideoUrl || currentTask.video_urls![0]}
+                  src={subtitledVideoUrl || currentTask.video_urls![0]}
                   controls
                   autoPlay
                   className="w-full"
@@ -434,7 +460,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
                 <div className="flex gap-3">
                   <button
-                    onClick={() => handleDownload(currentTask.video_urls![0])}
+                    onClick={() => handleDownload(subtitledVideoUrl || currentTask.video_urls![0])}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold text-sm transition-all"
                   >
                     <Download size={16} /> Download MP4
@@ -452,13 +478,33 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                   </button>
                   {onSendToPostGenerator && (
                     <button
-                      onClick={() => onSendToPostGenerator(currentTask.video_urls![0], prompt)}
+                      onClick={() => onSendToPostGenerator(subtitledVideoUrl || currentTask.video_urls![0], prompt)}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
                     >
                       <Send size={16} /> Send to Post Generator
                     </button>
                   )}
                 </div>
+
+                {/* Subtitles */}
+                {!subtitledVideoUrl ? (
+                  <button
+                    onClick={handleAddSubtitles}
+                    disabled={isAddingSubtitles}
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 font-semibold text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all disabled:opacity-50"
+                  >
+                    {isAddingSubtitles
+                      ? <><Loader2 size={15} className="animate-spin" /> Adding subtitles...</>
+                      : <><Captions size={15} /> Add Subtitles (Auto)</>
+                    }
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-xs text-green-600 dark:text-green-400 font-semibold text-center flex items-center justify-center gap-1">
+                      <CheckCircle2 size={13} /> Subtitles added — video updated above
+                    </p>
+                  </div>
+                )}
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 text-center">
                   Videos are stored in the library for 7 days. Download to keep permanently.
                 </p>
