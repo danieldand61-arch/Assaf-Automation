@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2, FileText } from 'lucide-react'
+import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
+import { SubtitlePicker, type SubtitleStyle, type SubtitleLang } from '../components/SubtitlePicker'
 
 const API_URL = getApiUrl()
 
@@ -49,7 +50,8 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   const progressInterval = useRef<ReturnType<typeof setInterval> | null>(null)
   const [isAddingSubtitles, setIsAddingSubtitles] = useState(false)
   const [subtitledVideoUrl, setSubtitledVideoUrl] = useState<string | null>(null)
-  const [subtitleLang, setSubtitleLang] = useState<'en' | 'he'>('en')
+  const [subtitleLang, setSubtitleLang] = useState<SubtitleLang>('en')
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>('classic')
 
   const estimatedCredits = CREDITS_PER_SEC[`${quality}_${sound ? 'audio' : 'no_audio'}`] * duration
 
@@ -174,7 +176,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       const res = await fetch(`${API_URL}/api/video-gen/add-subtitles`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ video_url: currentTask.video_urls[0], language: subtitleLang }),
+        body: JSON.stringify({ video_url: currentTask.video_urls[0], language: subtitleLang, style: subtitleStyle }),
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
@@ -488,37 +490,16 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                 </div>
 
                 {/* Subtitles */}
-                {!subtitledVideoUrl ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Language:</span>
-                      <button
-                        onClick={() => setSubtitleLang('en')}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${subtitleLang === 'en' ? 'bg-violet-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
-                      >EN</button>
-                      <button
-                        onClick={() => setSubtitleLang('he')}
-                        className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${subtitleLang === 'he' ? 'bg-violet-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
-                      >HE</button>
-                    </div>
-                    <button
-                      onClick={handleAddSubtitles}
-                      disabled={isAddingSubtitles}
-                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 font-semibold text-sm hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all disabled:opacity-50"
-                    >
-                      {isAddingSubtitles
-                        ? <><Loader2 size={15} className="animate-spin" /> Adding subtitles...</>
-                        : <><FileText size={15} /> Add Subtitles (Auto)</>
-                      }
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <p className="text-xs text-green-600 dark:text-green-400 font-semibold text-center flex items-center justify-center gap-1">
-                      <CheckCircle2 size={13} /> Subtitles added — video updated above
-                    </p>
-                  </div>
-                )}
+                <SubtitlePicker
+                  lang={subtitleLang}
+                  style={subtitleStyle}
+                  isProcessing={isAddingSubtitles}
+                  hasSubtitles={!!subtitledVideoUrl}
+                  onLangChange={setSubtitleLang}
+                  onStyleChange={setSubtitleStyle}
+                  onGenerate={handleAddSubtitles}
+                  onRevert={() => setSubtitledVideoUrl(null)}
+                />
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 text-center">
                   Videos are stored in the library for 7 days. Download to keep permanently.
                 </p>

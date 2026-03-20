@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
-import { Archive, Calendar, Trash2, RefreshCw, Send, X, Wand2, Download, FileText, Loader2, CheckCircle2 } from 'lucide-react'
+import { Archive, Calendar, Trash2, RefreshCw, Send, X, Wand2, Download } from 'lucide-react'
 import { SchedulePostModal } from './SchedulePostModal'
 import { PostToSocial } from './PostToSocial'
+import { SubtitlePicker, type SubtitleStyle, type SubtitleLang } from './SubtitlePicker'
 
 const API_URL = getApiUrl()
 
@@ -49,7 +50,8 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
   const [isScheduling, setIsScheduling] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [previewPost, setPreviewPost] = useState<SavedPost | null>(null)
-  const [subtitleLang, setSubtitleLang] = useState<'en' | 'he'>('en')
+  const [subtitleLang, setSubtitleLang] = useState<SubtitleLang>('en')
+  const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>('classic')
   const [isAddingSubtitles, setIsAddingSubtitles] = useState(false)
   const [subtitledUrl, setSubtitledUrl] = useState<string | null>(null)
 
@@ -330,44 +332,33 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
 
                 {/* Subtitles for video posts */}
                 {isVid && p.image_url && (
-                  subtitledUrl ? (
-                    <p className="text-xs text-green-600 dark:text-green-400 font-semibold flex items-center gap-1">
-                      <CheckCircle2 size={13} /> Subtitles added — download the video above to save it
-                    </p>
-                  ) : (
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">Subtitles language:</span>
-                      {(['en', 'he'] as const).map(lang => (
-                        <button key={lang} onClick={() => setSubtitleLang(lang)}
-                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${subtitleLang === lang ? 'bg-violet-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
-                        >{lang.toUpperCase()}</button>
-                      ))}
-                      <button
-                        disabled={isAddingSubtitles}
-                        onClick={async () => {
-                          if (!session) return
-                          setIsAddingSubtitles(true)
-                          try {
-                            const res = await fetch(`${API_URL}/api/video-gen/add-subtitles`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-                              body: JSON.stringify({ video_url: p.image_url, language: subtitleLang }),
-                            })
-                            if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Failed') }
-                            const data = await res.json()
-                            setSubtitledUrl(data.video_url)
-                          } catch (e: any) {
-                            alert(e.message || 'Failed to add subtitles')
-                          } finally {
-                            setIsAddingSubtitles(false)
-                          }
-                        }}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 font-semibold text-xs hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all disabled:opacity-50"
-                      >
-                        {isAddingSubtitles ? <><Loader2 size={13} className="animate-spin" /> Adding...</> : <><FileText size={13} /> Add Subtitles</>}
-                      </button>
-                    </div>
-                  )
+                  <SubtitlePicker
+                    lang={subtitleLang}
+                    style={subtitleStyle}
+                    isProcessing={isAddingSubtitles}
+                    hasSubtitles={!!subtitledUrl}
+                    onLangChange={setSubtitleLang}
+                    onStyleChange={setSubtitleStyle}
+                    onRevert={() => setSubtitledUrl(null)}
+                    onGenerate={async () => {
+                      if (!session) return
+                      setIsAddingSubtitles(true)
+                      try {
+                        const res = await fetch(`${API_URL}/api/video-gen/add-subtitles`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                          body: JSON.stringify({ video_url: p.image_url, language: subtitleLang, style: subtitleStyle }),
+                        })
+                        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Failed') }
+                        const data = await res.json()
+                        setSubtitledUrl(data.video_url)
+                      } catch (e: any) {
+                        alert(e.message || 'Failed to add subtitles')
+                      } finally {
+                        setIsAddingSubtitles(false)
+                      }
+                    }}
+                  />
                 )}
               </div>
             </div>

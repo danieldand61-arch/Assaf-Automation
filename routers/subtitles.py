@@ -22,10 +22,20 @@ logger = logging.getLogger(__name__)
 
 CREDITS_PER_SUBTITLE = 50
 
+# FFmpeg ASS force_style strings (colors are BBGGRR hex)
+SUBTITLE_STYLES: dict[str, str] = {
+    "classic": "FontSize=20,Bold=1,PrimaryColour=&Hffffff,BackColour=&H80000000,BorderStyle=4,Outline=0,Shadow=0,Alignment=2",
+    "yellow":  "FontSize=20,Bold=1,PrimaryColour=&H00ffff,OutlineColour=&H000000,BorderStyle=1,Outline=2,Shadow=1,Alignment=2",
+    "clean":   "FontSize=20,Bold=1,PrimaryColour=&Hffffff,OutlineColour=&H000000,BorderStyle=1,Outline=3,Shadow=1,Alignment=2",
+    "pill":    "FontSize=18,Bold=1,PrimaryColour=&H000000,BackColour=&Hffffffff,BorderStyle=4,Outline=0,Shadow=0,Alignment=2",
+    "neon":    "FontSize=20,Bold=1,PrimaryColour=&H88ff00,BackColour=&Hb0000000,BorderStyle=4,Outline=0,Shadow=0,Alignment=2",
+}
+
 
 class AddSubtitlesRequest(BaseModel):
     video_url: str
-    language: str = "he"   # "he" for Hebrew, "en" for English
+    language: str = "en"
+    style: str = "classic"   # one of the SUBTITLE_STYLES keys
 
 
 @router.post("/add-subtitles")
@@ -76,9 +86,10 @@ async def add_subtitles(request: AddSubtitlesRequest, current_user: dict = Depen
         logger.info(f"✅ SRT generated ({len(srt_content)} chars)")
 
         # 3. Burn subtitles into video with FFmpeg
-        logger.info("🔥 Burning subtitles with FFmpeg")
+        style = request.style if request.style in SUBTITLE_STYLES else "classic"
+        logger.info(f"🔥 Burning subtitles with FFmpeg (style={style})")
         try:
-            await _burn_subtitles(input_path, srt_path, output_path, request.language)
+            await _burn_subtitles(input_path, srt_path, output_path, style)
         except Exception as e:
             logger.error(f"❌ FFmpeg failed: {e}")
             raise HTTPException(status_code=500, detail=f"Subtitle burn-in failed: {e}")
@@ -188,14 +199,9 @@ def _ts(sec: float) -> str:
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
 
-async def _burn_subtitles(input_path: str, srt_path: str, output_path: str, language: str) -> None:
+async def _burn_subtitles(input_path: str, srt_path: str, output_path: str, style: str) -> None:
     """Use FFmpeg to burn SRT subtitles into the video."""
-    force_style = (
-        "FontSize=18,Bold=1,"
-        "PrimaryColour=&Hffffff,OutlineColour=&H000000,"
-        "BackColour=&H80000000,BorderStyle=4,Outline=2,Shadow=0,Alignment=2"
-    )
-    # FFmpeg needs forward slashes even on Windows
+    force_style = SUBTITLE_STYLES.get(style, SUBTITLE_STYLES["classic"])
     srt_safe = srt_path.replace("\\", "/").replace(":", "\\:")
 
     cmd = [
