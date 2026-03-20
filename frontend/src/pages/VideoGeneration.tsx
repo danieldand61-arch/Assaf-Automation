@@ -158,7 +158,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
           text: prompt,
-          image_url: currentTask.video_urls[0],
+          image_url: subtitledVideoUrl || currentTask.video_urls[0],
           title: `AI Video — ${prompt.slice(0, 60)}`,
           platforms: [],
           hashtags: [],

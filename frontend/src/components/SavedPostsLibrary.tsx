@@ -287,7 +287,7 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                 <div className="flex flex-wrap gap-2">
                 {isVid && onSendToPostGenerator && (
                   <button
-                    onClick={() => { onSendToPostGenerator(p.image_url, p.text); setPreviewPost(null) }}
+                    onClick={() => { onSendToPostGenerator(subtitledUrl || p.image_url, p.text); setPreviewPost(null) }}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-semibold text-sm transition-all shadow-lg"
                   >
                     <Wand2 size={14} /> Send to Post Generator
@@ -296,14 +296,15 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                 {p.image_url && (
                   <button
                     onClick={async () => {
+                      const mediaUrl = subtitledUrl || p.image_url
                       try {
-                        const resp = await fetch(p.image_url)
+                        const resp = await fetch(mediaUrl)
                         const blob = await resp.blob()
                         const ext = isVid ? 'mp4' : (blob.type.includes('png') ? 'png' : 'jpg')
                         const url = URL.createObjectURL(blob)
                         const a = document.createElement('a'); a.href = url; a.download = `${isVid ? 'video' : 'image'}-${Date.now()}.${ext}`; a.click()
                         URL.revokeObjectURL(url)
-                      } catch { const a = document.createElement('a'); a.href = p.image_url; a.download = `media-${Date.now()}`; a.click() }
+                      } catch { const a = document.createElement('a'); a.href = mediaUrl; a.download = `media-${Date.now()}`; a.click() }
                     }}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold text-sm transition-all"
                   >
@@ -311,13 +312,13 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                   </button>
                 )}
                 <button
-                  onClick={() => { setPreviewPost(null); setSelectedPost(p); setIsPublishing(true) }}
+                  onClick={() => { setPreviewPost(null); setSelectedPost({ ...p, image_url: subtitledUrl || p.image_url }); setIsPublishing(true) }}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-semibold text-sm hover:bg-blue-100 transition"
                 >
                   <Send size={14} /> Publish Now
                 </button>
                 <button
-                  onClick={() => { setPreviewPost(null); setSelectedPost(p); setIsScheduling(true) }}
+                  onClick={() => { setPreviewPost(null); setSelectedPost({ ...p, image_url: subtitledUrl || p.image_url }); setIsScheduling(true) }}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-semibold text-sm hover:bg-purple-100 transition"
                 >
                   <Calendar size={14} /> Schedule
