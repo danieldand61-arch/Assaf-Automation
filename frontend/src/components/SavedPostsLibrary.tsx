@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
-import { Archive, Calendar, Trash2, RefreshCw, Send, X, Wand2, Download } from 'lucide-react'
+import { Archive, Calendar, Trash2, RefreshCw, Send, X, Wand2, Download, FileText, Loader2, CheckCircle2 } from 'lucide-react'
 import { SchedulePostModal } from './SchedulePostModal'
 import { PostToSocial } from './PostToSocial'
+
+const API_URL = getApiUrl()
 
 const PLATFORM_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   facebook:        { bg: '#1877F215', text: '#1877F2', label: 'Facebook' },
@@ -47,6 +49,9 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
   const [isScheduling, setIsScheduling] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
   const [previewPost, setPreviewPost] = useState<SavedPost | null>(null)
+  const [subtitleLang, setSubtitleLang] = useState<'en' | 'he'>('en')
+  const [isAddingSubtitles, setIsAddingSubtitles] = useState(false)
+  const [subtitledUrl, setSubtitledUrl] = useState<string | null>(null)
 
   useEffect(() => { if (session) fetchPosts() }, [session])
 
@@ -112,7 +117,7 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
           return (
             <div key={post.id}
               className="group bg-white dark:bg-gray-800 rounded-2xl shadow-md overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-lg hover:border-gray-200 dark:hover:border-gray-600 transition cursor-pointer"
-              onClick={() => setPreviewPost(post)}
+              onClick={() => { setPreviewPost(post); setSubtitledUrl(null) }}
             >
               {/* Thumbnail */}
               {post.image_url && (
@@ -233,7 +238,7 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                 {p.image_url && (
                   <div className="rounded-xl overflow-hidden bg-black">
                     {isVid ? (
-                      <video src={p.image_url} controls autoPlay className="w-full" style={{ maxHeight: 400 }} />
+                      <video key={subtitledUrl || p.image_url} src={subtitledUrl || p.image_url} controls autoPlay className="w-full" style={{ maxHeight: 400 }} />
                     ) : (
                       <img src={p.image_url} alt="" className="w-full object-contain" style={{ maxHeight: 400 }} />
                     )}
@@ -276,7 +281,8 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
               </div>
 
               {/* Actions */}
-              <div className="p-5 border-t dark:border-gray-700 flex flex-wrap gap-2">
+              <div className="p-5 border-t dark:border-gray-700 space-y-3">
+                <div className="flex flex-wrap gap-2">
                 {isVid && onSendToPostGenerator && (
                   <button
                     onClick={() => { onSendToPostGenerator(p.image_url, p.text); setPreviewPost(null) }}
@@ -320,6 +326,49 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                 >
                   <Trash2 size={14} /> Delete
                 </button>
+                </div>
+
+                {/* Subtitles for video posts */}
+                {isVid && p.image_url && (
+                  subtitledUrl ? (
+                    <p className="text-xs text-green-600 dark:text-green-400 font-semibold flex items-center gap-1">
+                      <CheckCircle2 size={13} /> Subtitles added — download the video above to save it
+                    </p>
+                  ) : (
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">Subtitles language:</span>
+                      {(['en', 'he'] as const).map(lang => (
+                        <button key={lang} onClick={() => setSubtitleLang(lang)}
+                          className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all ${subtitleLang === lang ? 'bg-violet-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                        >{lang.toUpperCase()}</button>
+                      ))}
+                      <button
+                        disabled={isAddingSubtitles}
+                        onClick={async () => {
+                          if (!session) return
+                          setIsAddingSubtitles(true)
+                          try {
+                            const res = await fetch(`${API_URL}/api/video-gen/add-subtitles`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+                              body: JSON.stringify({ video_url: p.image_url, language: subtitleLang }),
+                            })
+                            if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Failed') }
+                            const data = await res.json()
+                            setSubtitledUrl(data.video_url)
+                          } catch (e: any) {
+                            alert(e.message || 'Failed to add subtitles')
+                          } finally {
+                            setIsAddingSubtitles(false)
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl border border-violet-300 dark:border-violet-700 text-violet-600 dark:text-violet-400 font-semibold text-xs hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-all disabled:opacity-50"
+                      >
+                        {isAddingSubtitles ? <><Loader2 size={13} className="animate-spin" /> Adding...</> : <><FileText size={13} /> Add Subtitles</>}
+                      </button>
+                    </div>
+                  )
+                )}
               </div>
             </div>
           </div>

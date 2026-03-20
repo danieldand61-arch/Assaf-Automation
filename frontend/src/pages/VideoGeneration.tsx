@@ -439,7 +439,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
           {/* Success: Video Player */}
           {videoReady && (
-            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700">
               <div className="bg-black rounded-t-2xl">
                 <video
                   key={subtitledVideoUrl || currentTask.video_urls![0]}
