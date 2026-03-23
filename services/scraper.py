@@ -2,6 +2,7 @@ import httpx
 from bs4 import BeautifulSoup
 from typing import Dict, List, Optional
 import re
+import json
 from urllib.parse import urljoin, urlparse
 import colorthief
 import io
@@ -981,22 +982,125 @@ async def _extract_colors(soup: BeautifulSoup, base_url: str) -> List[str]:
 
 
 def _extract_logo(soup: BeautifulSoup, base_url: str) -> str:
-    """Finds website logo"""
-    # Search in different places
-    logo = (
-        soup.find('img', class_=re.compile('logo', re.I)) or
-        soup.find('img', id=re.compile('logo', re.I)) or
-        soup.find('img', alt=re.compile('logo', re.I))
+    """
+    Finds website logo with high confidence.
+    Priority: header/nav logo img → any logo-named img → SVG in header →
+              JSON-LD logo → apple-touch-icon → favicon.
+    NEVER falls back to og:image (that is a social share image, not a logo).
+    """
+
+    def _resolve(src: str) -> str:
+        return urljoin(base_url, src) if src else ""
+
+    def _is_plausible_logo_size(tag) -> bool:
+        """Reject images that are clearly too large to be a logo (hero/product shots)."""
+        for attr in ("width", "height"):
+            val = tag.get(attr, "")
+            try:
+                px = int(str(val).replace("px", "").strip())
+                if px > 400:
+                    return False
+            except (ValueError, TypeError):
+                pass
+        return True
+
+    # ── 1. Look inside <header> / <nav> / common header wrappers first ──
+    header_containers = soup.find_all(
+        ["header", "nav"],
+        limit=5,
+    ) + soup.find_all(
+        True,
+        class_=re.compile(r'\b(header|navbar|nav-bar|site-header|top-bar)\b', re.I),
+        limit=5,
     )
-    
-    if logo and logo.get('src'):
-        return urljoin(base_url, logo['src'])
-    
-    # Search in meta
-    meta_logo = soup.find('meta', attrs={'property': 'og:image'})
-    if meta_logo and meta_logo.get('content'):
-        return urljoin(base_url, meta_logo['content'])
-    
+
+    for container in header_containers:
+        # img with logo in class/id/alt
+        for img in container.find_all("img", limit=10):
+            classes = " ".join(img.get("class", []))
+            id_val  = img.get("id", "")
+            alt_val = img.get("alt", "")
+            src     = img.get("src", "") or img.get("data-src", "") or img.get("data-lazy-src", "")
+            if not src:
+                continue
+            if re.search(r'logo', f"{classes} {id_val} {alt_val}", re.I) and _is_plausible_logo_size(img):
+                return _resolve(src)
+
+        # Any img inside an <a> that links to homepage (logo pattern)
+        for a in container.find_all("a", href=True, limit=10):
+            href = a["href"]
+            if href in ("/", base_url, "#", ""):
+                img = a.find("img")
+                if img:
+                    src = img.get("src", "") or img.get("data-src", "")
+                    if src and _is_plausible_logo_size(img):
+                        return _resolve(src)
+
+        # SVG logo inside header
+        for svg in container.find_all("svg", limit=5):
+            classes = " ".join(svg.get("class", []))
+            if re.search(r'logo', classes, re.I):
+                # Can't return SVG as URL, skip
+                pass
+
+    # ── 2. Any <img> with "logo" in class / id / alt anywhere on page ──
+    for attr, pattern in [("class", re.compile(r'logo', re.I)),
+                           ("id",    re.compile(r'logo', re.I))]:
+        img = soup.find("img", attrs={attr: pattern})
+        if img:
+            src = img.get("src", "") or img.get("data-src", "")
+            if src and _is_plausible_logo_size(img):
+                return _resolve(src)
+
+    img = soup.find("img", alt=re.compile(r'logo', re.I))
+    if img:
+        src = img.get("src", "") or img.get("data-src", "")
+        if src and _is_plausible_logo_size(img):
+            return _resolve(src)
+
+    # ── 3. JSON-LD schema.org logo ──
+    for script in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(script.string or "")
+            # Handle both object and list
+            items = data if isinstance(data, list) else [data]
+            for item in items:
+                logo_field = item.get("logo")
+                if isinstance(logo_field, str) and logo_field.startswith("http"):
+                    return logo_field
+                if isinstance(logo_field, dict):
+                    url_val = logo_field.get("url", "")
+                    if url_val:
+                        return _resolve(url_val)
+        except Exception:
+            pass
+
+    # ── 4. <link rel="apple-touch-icon"> (reliable, always a logo/icon) ──
+    for rel_val in ("apple-touch-icon", "apple-touch-icon-precomposed"):
+        link = soup.find("link", rel=re.compile(rel_val, re.I))
+        if link and link.get("href"):
+            return _resolve(link["href"])
+
+    # ── 5. Largest favicon as last resort ──
+    best_icon = ""
+    best_size = 0
+    for link in soup.find_all("link", rel=re.compile(r'icon', re.I)):
+        href = link.get("href", "")
+        if not href:
+            continue
+        sizes = link.get("sizes", "0x0")
+        try:
+            w = int(sizes.split("x")[0])
+        except (ValueError, AttributeError):
+            w = 16
+        if w > best_size:
+            best_size = w
+            best_icon = href
+
+    if best_icon:
+        return _resolve(best_icon)
+
+    # ── No logo found — return empty string, never og:image ──
     return ""
 
 
