@@ -839,6 +839,17 @@ async def scrape_website(url: str) -> Dict:
     description = _extract_description(soup)
     colors = await _extract_colors(soup, url)
     logo_url = _extract_logo(soup, url)
+
+    # SPA fallback: if no logo found (or only favicon), try Playwright rendered HTML
+    if not logo_url or '/favicon' in logo_url:
+        logger.info("🔄 Logo not found via static HTML, trying Playwright fallback...")
+        pw_logo = await _extract_logo_via_playwright(url)
+        if pw_logo:
+            logo_url = pw_logo
+            logger.info(f"✅ Playwright found logo: {logo_url[:80]}")
+        else:
+            logger.info("⚠️ Playwright also could not find logo")
+
     brand_voice = _analyze_brand_voice(soup)
     products = _extract_products(soup)
     key_features = _extract_key_features(soup)
@@ -979,6 +990,38 @@ async def _extract_colors(soup: BeautifulSoup, base_url: str) -> List[str]:
     filtered.sort(key=lambda c: counts.get(c, 0), reverse=True)
 
     return filtered[:6] if filtered else []
+
+
+async def _extract_logo_via_playwright(url: str) -> str:
+    """Fallback: render page with Playwright, then run _extract_logo on rendered HTML."""
+    try:
+        from playwright.async_api import async_playwright
+        import shutil
+
+        async with async_playwright() as p:
+            chromium_path = shutil.which('chromium') or shutil.which('chromium-browser') or shutil.which('google-chrome')
+            launch_kwargs = {
+                'headless': True,
+                'args': ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+                         '--disable-gpu', '--single-process', '--no-zygote'],
+            }
+            if chromium_path:
+                launch_kwargs['executable_path'] = chromium_path
+
+            browser = await p.chromium.launch(**launch_kwargs)
+            try:
+                page = await browser.new_page()
+                await page.goto(url, wait_until='networkidle', timeout=15000)
+                await asyncio.sleep(2)
+                html = await page.content()
+            finally:
+                await browser.close()
+
+        soup = BeautifulSoup(html, 'html.parser')
+        return _extract_logo(soup, url)
+    except Exception as e:
+        logger.warning(f"Playwright logo fallback failed: {e}")
+        return ""
 
 
 def _extract_logo(soup: BeautifulSoup, base_url: str) -> str:

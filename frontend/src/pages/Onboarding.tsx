@@ -255,12 +255,24 @@ export function Onboarding() {
                   </div>
                 )}
 
-                {brandKit?.brand_colors?.length > 0 && (
-                  <div className="flex items-center gap-2">
-                    <span style={{ fontSize: 12, color: '#5C6478', fontWeight: 600 }}>Brand colors:</span>
-                    {brandKit.brand_colors.slice(0, 6).map((c: string, i: number) => (
-                      <div key={i} style={{ width: 22, height: 22, borderRadius: 6, background: c, border: '1px solid #E5E9F0' }} />
-                    ))}
+                {(brandKit?.logo_url || brandKit?.brand_colors?.length > 0) && (
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {brandKit?.logo_url && (
+                      <img
+                        src={brandKit.logo_url}
+                        alt="Logo"
+                        className="w-10 h-10 rounded-lg object-contain border border-gray-200 bg-white shrink-0"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    )}
+                    {brandKit?.brand_colors?.length > 0 && (
+                      <>
+                        <span style={{ fontSize: 12, color: '#5C6478', fontWeight: 600 }}>Brand colors:</span>
+                        {brandKit.brand_colors.slice(0, 6).map((c: string, i: number) => (
+                          <div key={i} style={{ width: 22, height: 22, borderRadius: 6, background: c, border: '1px solid #E5E9F0' }} />
+                        ))}
+                      </>
+                    )}
                   </div>
                 )}
 

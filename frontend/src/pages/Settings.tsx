@@ -308,7 +308,17 @@ function BrandKitTab() {
           </div>
           <div>
             <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Logo URL</label>
-            <input value={logoUrl} onChange={e => setLogoUrl(e.target.value)} className={fieldCls} placeholder="https://..." />
+            <div className="flex items-center gap-2">
+              {logoUrl && (
+                <img
+                  src={logoUrl}
+                  alt="Logo"
+                  className="w-10 h-10 rounded-lg object-contain border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 shrink-0"
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                />
+              )}
+              <input value={logoUrl} onChange={e => setLogoUrl(e.target.value)} className={fieldCls + ' flex-1'} placeholder="https://..." />
+            </div>
           </div>
         </div>
 
