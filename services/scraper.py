@@ -1057,8 +1057,10 @@ def _extract_logo(soup: BeautifulSoup, base_url: str) -> str:
         limit=5,
     )
 
+    first_header_img = None  # track first small img in header as fallback
+
     for container in header_containers:
-        # img with logo in class/id/alt
+        # img with logo in class/id/alt/src
         for img in container.find_all("img", limit=10):
             classes = " ".join(img.get("class", []))
             id_val  = img.get("id", "")
@@ -1066,8 +1068,12 @@ def _extract_logo(soup: BeautifulSoup, base_url: str) -> str:
             src     = img.get("src", "") or img.get("data-src", "") or img.get("data-lazy-src", "")
             if not src:
                 continue
-            if re.search(r'logo', f"{classes} {id_val} {alt_val}", re.I) and _is_plausible_logo_size(img):
+            haystack = f"{classes} {id_val} {alt_val} {src}"
+            if re.search(r'logo', haystack, re.I) and _is_plausible_logo_size(img):
                 return _resolve(src)
+            # remember first plausible img in header as fallback
+            if first_header_img is None and _is_plausible_logo_size(img):
+                first_header_img = _resolve(src)
 
         # Any img inside an <a> that links to homepage (logo pattern)
         for a in container.find_all("a", href=True, limit=10):
@@ -1083,7 +1089,6 @@ def _extract_logo(soup: BeautifulSoup, base_url: str) -> str:
         for svg in container.find_all("svg", limit=5):
             classes = " ".join(svg.get("class", []))
             if re.search(r'logo', classes, re.I):
-                # Can't return SVG as URL, skip
                 pass
 
     # ── 2. Any <img> with "logo" in class / id / alt anywhere on page ──
@@ -1118,13 +1123,17 @@ def _extract_logo(soup: BeautifulSoup, base_url: str) -> str:
         except Exception:
             pass
 
-    # ── 4. <link rel="apple-touch-icon"> (reliable, always a logo/icon) ──
+    # ── 4. First small image found in header/nav (very common logo pattern) ──
+    if first_header_img:
+        return first_header_img
+
+    # ── 5. <link rel="apple-touch-icon"> (reliable, always a logo/icon) ──
     for rel_val in ("apple-touch-icon", "apple-touch-icon-precomposed"):
         link = soup.find("link", rel=re.compile(rel_val, re.I))
         if link and link.get("href"):
             return _resolve(link["href"])
 
-    # ── 5. Largest favicon as last resort ──
+    # ── 6. Largest favicon as last resort ──
     best_icon = ""
     best_size = 0
     for link in soup.find_all("link", rel=re.compile(r'icon', re.I)):
