@@ -27,6 +27,32 @@ def _detect_social_platform(url: str) -> Optional[str]:
     return SOCIAL_DOMAINS.get(host.lower())
 
 
+async def _rehost_image_to_supabase(image_url: str, identifier: str) -> str:
+    """Download an image and re-upload to Supabase for a stable, CORS-free URL."""
+    try:
+        import uuid
+        from database.supabase_client import get_supabase
+
+        async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            resp = await client.get(image_url)
+            if resp.status_code != 200 or len(resp.content) < 100:
+                return ""
+
+        ct = resp.headers.get('content-type', 'image/jpeg')
+        ext = 'png' if 'png' in ct else 'jpg'
+        filename = f"avatars/{identifier}_{uuid.uuid4().hex[:8]}.{ext}"
+
+        supabase = get_supabase()
+        supabase.storage.from_("posts").upload(
+            path=filename, file=resp.content,
+            file_options={"content-type": ct, "upsert": "true"},
+        )
+        return supabase.storage.from_("posts").get_public_url(filename)
+    except Exception as e:
+        logger.warning(f"  Failed to re-host image: {e}")
+        return ""
+
+
 async def _scrape_social_profile(url: str, platform: str) -> Dict:
     """Extract brand info from social media profiles via multiple strategies."""
     parsed = urlparse(url)
@@ -269,6 +295,13 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
         logger.info(f"  Final fallback description: '{description[:80]}'")
 
     combined_content = "\n".join(filter(None, [description, vision_analysis]))
+
+    # Re-host social avatar to Supabase so it doesn't expire / get blocked by CORS
+    if logo_url and 'cdninstagram.com' in logo_url:
+        rehosted = await _rehost_image_to_supabase(logo_url, username)
+        if rehosted:
+            logger.info(f"  ✅ Avatar re-hosted to Supabase: {rehosted[:80]}")
+            logo_url = rehosted
 
     logger.info(f"{'='*60}")
     logger.info(f"📱 SOCIAL PROFILE SCRAPE COMPLETE: @{username}")
