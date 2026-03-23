@@ -242,7 +242,7 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     else:
         logger.info(f"── STRATEGY 4: SKIPPED (no images and have good description) ──")
 
-    # ── Strategy 5: Playwright screenshot + Gemini Vision ──
+    # ── Strategy 5: Playwright screenshot + Gemini Vision + avatar extraction ──
     if not vision_analysis and platform == 'instagram':
         logger.info(f"── STRATEGY 5: Playwright headless browser screenshot ──")
         logger.info(f"  Reason: all prior strategies failed to get post images")
@@ -252,6 +252,17 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
             logger.info(f"  ✅ Playwright+Vision result: '{vision_analysis[:150]}...'")
         else:
             logger.info(f"  ❌ Playwright analysis returned nothing")
+
+    # ── Strategy 5b: Extract avatar via Playwright if logo_url is still empty/generic ──
+    is_likely_avatar = logo_url and ('profile_pic' in logo_url or '/t51.2885-19/' in logo_url)
+    if platform == 'instagram' and not is_likely_avatar:
+        logger.info(f"── STRATEGY 5b: Playwright avatar extraction for @{username} ──")
+        pw_avatar = await _extract_ig_avatar_via_playwright(username)
+        if pw_avatar:
+            logo_url = pw_avatar
+            logger.info(f"  ✅ Avatar found: {logo_url[:80]}")
+        else:
+            logger.info(f"  ❌ Could not extract avatar via Playwright")
 
     if not description or _is_generic_description(description, username, platform):
         description = vision_analysis or f"@{username} on {platform.capitalize()}"
@@ -650,6 +661,72 @@ Provide a concise 2-3 sentence description of the business. If you truly cannot 
     except Exception as e:
         logger.warning(f"  ❌ Vision analysis failed: {e}")
         return ''
+
+
+async def _extract_ig_avatar_via_playwright(username: str) -> str:
+    """Open Instagram profile in Playwright and extract the profile picture URL from DOM."""
+    try:
+        from playwright.async_api import async_playwright
+        import shutil
+
+        async with async_playwright() as p:
+            chromium_path = shutil.which('chromium') or shutil.which('chromium-browser') or shutil.which('google-chrome')
+            launch_kwargs = {
+                'headless': True,
+                'args': ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage',
+                         '--disable-gpu', '--single-process', '--no-zygote'],
+            }
+            if chromium_path:
+                launch_kwargs['executable_path'] = chromium_path
+
+            browser = await p.chromium.launch(**launch_kwargs)
+            try:
+                ctx = await browser.new_context(
+                    viewport={'width': 1280, 'height': 1200},
+                    user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15',
+                )
+                page = await ctx.new_page()
+                url = f"https://www.instagram.com/{username}/"
+                try:
+                    await page.goto(url, wait_until='domcontentloaded', timeout=15000)
+                except Exception:
+                    pass
+                await asyncio.sleep(3)
+
+                for sel in ['button:has-text("Not Now")', 'button:has-text("Not now")', '[aria-label="Close"]']:
+                    try:
+                        btn = page.locator(sel).first
+                        if await btn.is_visible(timeout=1000):
+                            await btn.click()
+                            await asyncio.sleep(0.5)
+                    except Exception:
+                        pass
+
+                # Instagram avatar: img[alt*="profile picture"] or header img with scontent URL
+                avatar_url = await page.evaluate("""() => {
+                    const imgs = document.querySelectorAll('img');
+                    for (const img of imgs) {
+                        const alt = (img.alt || '').toLowerCase();
+                        const src = img.src || '';
+                        if (alt.includes('profile picture') && src.includes('scontent')) return src;
+                    }
+                    // Fallback: first scontent img in header area that's small (avatar)
+                    for (const img of imgs) {
+                        const src = img.src || '';
+                        const w = img.naturalWidth || img.width || 0;
+                        if (src.includes('scontent') && w > 0 && w <= 300) return src;
+                    }
+                    return '';
+                }""")
+
+                if avatar_url:
+                    logger.info(f"  ✅ Playwright found IG avatar: {avatar_url[:80]}")
+                    return avatar_url
+            finally:
+                await browser.close()
+    except Exception as e:
+        logger.warning(f"  Playwright IG avatar extraction failed: {e}")
+    return ""
 
 
 async def _playwright_screenshot_and_analyze(username: str) -> str:
