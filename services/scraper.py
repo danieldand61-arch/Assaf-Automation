@@ -186,19 +186,15 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     elif html:
         logger.info(f"── STRATEGY 1.5: SKIPPED (not Instagram) ──")
 
-    # ── Strategy 2: Instagram web_profile_info API ──
+    # ── Strategy 2: Instagram mobile API (i.instagram.com — bypasses server blocks) ──
     if platform == 'instagram' and (not ig_data.get("post_images") or not description or _is_generic_description(description, username, platform)):
-        logger.info(f"── STRATEGY 2: Instagram web_profile_info API ──")
+        logger.info(f"── STRATEGY 2: Instagram mobile API (i.instagram.com) ──")
         try:
-            api_url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={username}"
+            api_url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
             async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
                 resp = await client.get(api_url, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    'User-Agent': 'Instagram 76.0.0.15.395 Android (24/7.0; 640dpi; 1440x2560; samsung; SM-G930F; herolte; samsungexynos8890; en_US; 138226743)',
                     'X-IG-App-ID': '936619743392459',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': '*/*',
-                    'Referer': f'https://www.instagram.com/{username}/',
-                    'X-ASBD-ID': '129477',
                 })
                 logger.info(f"  HTTP {resp.status_code}, body={len(resp.text)} bytes")
                 if resp.status_code == 200 and resp.text.strip().startswith('{'):
