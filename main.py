@@ -272,6 +272,14 @@ except Exception as e:
     logger.warning("⚠️ Graphic text generation will NOT be available!")
 
 try:
+    from routers import creative_gen
+    app.include_router(creative_gen.router)
+    logger.info("✅ Creative gen router registered")
+except Exception as e:
+    logger.error(f"❌ Creative gen router failed to load: {str(e)}")
+    logger.warning("⚠️ Creative generation will NOT be available!")
+
+try:
     from routers import subtitles
     app.include_router(subtitles.router)
     logger.info("✅ Subtitles router registered")

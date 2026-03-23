@@ -17,6 +17,7 @@ import AdAnalytics from '../pages/AdAnalytics'
 import AIAdvisor from '../pages/AIAdvisor'
 import { Connections } from '../pages/Connections'
 import Billing from '../pages/Billing'
+import GenerateCreative from '../pages/GenerateCreative'
 import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
@@ -24,7 +25,7 @@ import { useTheme } from '../contexts/ThemeContext'
 import { getJoyoTheme, animations } from '../styles/joyo-theme'
 import { getApiUrl } from '../lib/api'
 
-type TabType = 'dashboard' | 'social' | 'ads' | 'chat' | 'analyst' | 'advisor' | 'media' | 'video' | 'videogen' | 'library' | 'calendar' | 'billing' | 'integrations' | 'settings'
+type TabType = 'dashboard' | 'social' | 'creative' | 'ads' | 'chat' | 'analyst' | 'advisor' | 'media' | 'video' | 'videogen' | 'library' | 'calendar' | 'billing' | 'integrations' | 'settings'
 
 function _friendlyGenerateError(msg: string): string {
   const m = msg.toLowerCase()
@@ -56,7 +57,7 @@ export function MainWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>(() => {
     const params = new URLSearchParams(window.location.search)
     const tab = params.get('tab')
-    if (tab && ['dashboard','social','ads','chat','analyst','advisor','media','video','videogen','library','calendar','billing','integrations','settings'].includes(tab)) {
+    if (tab && ['dashboard','social','creative','ads','chat','analyst','advisor','media','video','videogen','library','calendar','billing','integrations','settings'].includes(tab)) {
       return tab as TabType
     }
     return 'dashboard'
@@ -66,7 +67,7 @@ export function MainWorkspace() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const tab = params.get('tab')
-    if (tab && tab !== activeTab && ['dashboard','social','ads','chat','analyst','advisor','media','video','videogen','library','calendar','billing','integrations','settings'].includes(tab)) {
+    if (tab && tab !== activeTab && ['dashboard','social','creative','ads','chat','analyst','advisor','media','video','videogen','library','calendar','billing','integrations','settings'].includes(tab)) {
       setActiveTab(tab as TabType)
     }
   }, [])
@@ -242,7 +243,7 @@ export function MainWorkspace() {
   }
 
   const pageTitles: Record<TabType, string> = {
-    dashboard: 'Dashboard', social: 'Post Generator', ads: 'Google Ads',
+    dashboard: 'Dashboard', social: 'Post Generator', creative: 'Creative Studio', ads: 'Google Ads',
     chat: 'AI Advisor & Analyst', analyst: 'Analyst', advisor: 'AI Advisor', media: 'Media Studio',
     video: 'Video Dubbing', videogen: 'Video Studio',
     library: 'Content Library', calendar: 'Calendar',
@@ -306,6 +307,7 @@ export function MainWorkspace() {
         {activeTab !== 'social' && activeTab !== 'videogen' && (
           <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto' }}>
             {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as TabType)} />}
+            {activeTab === 'creative' && <GenerateCreative />}
             {activeTab === 'ads' && <GoogleAdsGeneration />}
             {activeTab === 'analyst' && <AdAnalytics />}
             {activeTab === 'advisor' && <AIAdvisor />}
