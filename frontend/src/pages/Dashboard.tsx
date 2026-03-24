@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Send, Target, ArrowUp, ArrowDown, Film, Coins, Zap, MessageSquare, Image, Video, Megaphone, Lightbulb, TrendingUp, FileText, Rocket, Palette, BarChart3 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { useApp } from '../contexts/AppContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
 import { getApiUrl } from '../lib/api'
 
@@ -22,11 +23,11 @@ interface MetricCardProps {
 
 function MetricCard({ icon: Icon, label, value, sub, change, changeDir, color, delay = 0 }: MetricCardProps) {
   const { theme } = useTheme()
-  const t = getJoyoTheme(theme)
+  const th = getJoyoTheme(theme)
 
   return (
     <div style={{
-      background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
+      background: th.card, borderRadius: 16, border: `1px solid ${th.border}`,
       transition: 'all 0.25s ease', padding: '20px 22px', flex: 1, minWidth: 170,
       position: 'relative', overflow: 'hidden', animation: `fadeUp 0.5s ease ${delay}s both`
     }}>
@@ -38,14 +39,14 @@ function MetricCard({ icon: Icon, label, value, sub, change, changeDir, color, d
         }}>
           <Icon size={17} color={color} />
         </div>
-        <span style={{ fontSize: 12, color: t.textSecondary, fontWeight: 600 }}>{label}</span>
+        <span style={{ fontSize: 12, color: th.textSecondary, fontWeight: 600 }}>{label}</span>
       </div>
-      <div style={{ fontSize: 28, fontWeight: 800, color: t.text, letterSpacing: -1.2 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11.5, color: t.textMuted, marginTop: 4 }}>{sub}</div>}
+      <div style={{ fontSize: 28, fontWeight: 800, color: th.text, letterSpacing: -1.2 }}>{value}</div>
+      {sub && <div style={{ fontSize: 11.5, color: th.textMuted, marginTop: 4 }}>{sub}</div>}
       {change && (
         <div style={{
           display: 'flex', alignItems: 'center', gap: 4, marginTop: 6,
-          fontSize: 11.5, fontWeight: 600, color: changeDir === 'up' ? t.success : t.danger
+          fontSize: 11.5, fontWeight: 600, color: changeDir === 'up' ? th.success : th.danger
         }}>
           {changeDir === 'up' ? <ArrowUp size={13} /> : <ArrowDown size={13} />}
           {change}
@@ -56,19 +57,21 @@ function MetricCard({ icon: Icon, label, value, sub, change, changeDir, color, d
 }
 
 // Service label/icon/color mapping (same IDs as credits_usage.service_type)
-const SERVICE_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
-  social_posts:          { label: 'Social Posts',     icon: Send,      color: '#4A7CFF' },
-  image_generation:      { label: 'Image Generation', icon: Image,     color: '#8B5CF6' },
-  google_ads:            { label: 'Google Ads',       icon: Megaphone, color: '#10B981' },
-  video_dubbing:         { label: 'Video Dubbing',    icon: Video,     color: '#F59E0B' },
-  video_dubbing_actual:  { label: 'Video Dubbing',    icon: Video,     color: '#F59E0B' },
-  video_generation:      { label: 'Video Generation', icon: Film,      color: '#EC4899' },
-  gemini_chat:           { label: 'AI Chat',          icon: MessageSquare, color: '#14B8A6' },
-  chat:                  { label: 'AI Chat',          icon: MessageSquare, color: '#14B8A6' },
+const SERVICE_META_KEYS: Record<string, { labelKey: string; icon: React.ElementType; color: string }> = {
+  social_posts:          { labelKey: 'socialPosts',     icon: Send,      color: '#4A7CFF' },
+  image_generation:      { labelKey: 'imageGeneration', icon: Image,     color: '#8B5CF6' },
+  google_ads:            { labelKey: 'googleAds',       icon: Megaphone, color: '#10B981' },
+  video_dubbing:         { labelKey: 'videoDubbing',    icon: Video,     color: '#F59E0B' },
+  video_dubbing_actual:  { labelKey: 'videoDubbing',    icon: Video,     color: '#F59E0B' },
+  video_generation:      { labelKey: 'videoGeneration', icon: Film,      color: '#EC4899' },
+  gemini_chat:           { labelKey: 'aiChat',          icon: MessageSquare, color: '#14B8A6' },
+  chat:                  { labelKey: 'aiChat',          icon: MessageSquare, color: '#14B8A6' },
 }
 
-function getServiceMeta(key: string) {
-  return SERVICE_META[key] || { label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), icon: Zap, color: '#6B7280' }
+function getServiceMeta(key: string, t: (k: string) => string) {
+  const meta = SERVICE_META_KEYS[key]
+  if (meta) return { label: t(meta.labelKey), icon: meta.icon, color: meta.color }
+  return { label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), icon: Zap, color: '#6B7280' }
 }
 
 // ─── Usage Activity Chart (pure SVG) ────────────────────────────────
@@ -86,9 +89,9 @@ interface DayData {
   byService: Record<string, number>
 }
 
-function UsageChart({ history }: { history: HistoryRecord[] }) {
+function UsageChart({ history, title, t }: { history: HistoryRecord[]; title: string; t: (k: string) => string }) {
   const { theme } = useTheme()
-  const t = getJoyoTheme(theme)
+  const th = getJoyoTheme(theme)
   const [hover, setHover] = useState<number | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
 
@@ -137,11 +140,11 @@ function UsageChart({ history }: { history: HistoryRecord[] }) {
 
   return (
     <div style={{
-      background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
+      background: th.card, borderRadius: 16, border: `1px solid ${th.border}`,
       padding: '22px 24px', animation: 'fadeUp 0.5s ease 0.35s both'
     }}>
-      <h3 style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 12 }}>
-        Weekly Performance
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: th.text, marginBottom: 12 }}>
+        {title}
       </h3>
       <div style={{ position: 'relative', width: '100%', overflowX: 'auto' }}>
         <svg ref={svgRef} viewBox={`0 0 ${W} ${H + 30}`} style={{ width: '100%', height: 'auto', minHeight: 180 }}>
@@ -157,8 +160,8 @@ function UsageChart({ history }: { history: HistoryRecord[] }) {
             const y = PY + plotH - frac * plotH
             return (
               <g key={frac}>
-                <line x1={PX} y1={y} x2={PX + plotW} y2={y} stroke={t.border} strokeWidth={1} strokeDasharray={frac === 0 ? '' : '4,4'} />
-                <text x={PX - 6} y={y + 4} textAnchor="end" fontSize={10} fill={t.textMuted}>
+                <line x1={PX} y1={y} x2={PX + plotW} y2={y} stroke={th.border} strokeWidth={1} strokeDasharray={frac === 0 ? '' : '4,4'} />
+                <text x={PX - 6} y={y + 4} textAnchor="end" fontSize={10} fill={th.textMuted}>
                   {Math.round(maxCount * frac)}
                 </text>
               </g>
@@ -180,12 +183,12 @@ function UsageChart({ history }: { history: HistoryRecord[] }) {
             >
               <rect x={p.x - stepX / 2} y={PY} width={stepX} height={plotH} fill="transparent" />
               <circle cx={p.x} cy={p.y} r={hover === i ? 5.5 : 3.5}
-                fill={hover === i ? '#4A7CFF' : t.card}
+                fill={hover === i ? '#4A7CFF' : th.card}
                 stroke="#4A7CFF" strokeWidth={2}
                 style={{ transition: 'r 0.15s ease' }}
               />
               {/* X label */}
-              <text x={p.x} y={H + 16} textAnchor="middle" fontSize={9.5} fill={t.textMuted}>
+              <text x={p.x} y={H + 16} textAnchor="middle" fontSize={9.5} fill={th.textMuted}>
                 {i % 2 === 0 ? days[i].label : ''}
               </text>
             </g>
@@ -198,19 +201,18 @@ function UsageChart({ history }: { history: HistoryRecord[] }) {
             const lines = [
               `${d.label}: ${d.count} generation${d.count > 1 ? 's' : ''}`,
               `Credits: ${d.credits.toFixed(4)}`,
-              ...Object.entries(d.byService).map(([svc, cnt]) => `${getServiceMeta(svc).label}: ${cnt}`)
+              ...Object.entries(d.byService).map(([svc, cnt]) => `${getServiceMeta(svc, t).label}: ${cnt}`)
             ]
-            const tw = 180, th = 16 + lines.length * 15
+            const tw = 180, tooltipH = 16 + lines.length * 15
             const tx = Math.min(Math.max(p.x - tw / 2, 4), W - tw - 4)
-            // Flip tooltip below point if it would clip above chart
-            const above = p.y - th - 14
+            const above = p.y - tooltipH - 14
             const ty = above < 0 ? p.y + 14 : above
             return (
               <g>
-                <rect x={tx} y={ty} width={tw} height={th} rx={8} fill={t.card} stroke={t.border} strokeWidth={1} filter="drop-shadow(0 4px 8px rgba(0,0,0,0.15))" />
+                <rect x={tx} y={ty} width={tw} height={tooltipH} rx={8} fill={th.card} stroke={th.border} strokeWidth={1} filter="drop-shadow(0 4px 8px rgba(0,0,0,0.15))" />
                 {lines.map((ln, li) => (
                   <text key={li} x={tx + 10} y={ty + 14 + li * 15} fontSize={li === 0 ? 11 : 10}
-                    fontWeight={li === 0 ? 700 : 500} fill={li === 0 ? t.text : t.textSecondary}>
+                    fontWeight={li === 0 ? 700 : 500} fill={li === 0 ? th.text : th.textSecondary}>
                     {ln}
                   </text>
                 ))}
@@ -229,7 +231,8 @@ function buildRecommendations(
   services: Record<string, { count: number; cost: number }>,
   bal: { total_purchased: number; used: number; remaining: number } | undefined,
   totalGens: number,
-  t: any
+  th: any,
+  t: (k: string) => string
 ): { text: string; color: string; icon: any }[] {
   const recs: { text: string; color: string; icon: any }[] = []
 
@@ -240,41 +243,42 @@ function buildRecommendations(
   const videoCount = (services['video_dubbing']?.count || 0) + (services['video_dubbing_actual']?.count || 0)
 
   if (totalGens === 0) {
-    recs.push({ text: 'Create your first social post to see AI-powered recommendations here.', color: t.accent, icon: Rocket })
-    recs.push({ text: 'Set up your Brand Kit in Settings so AI can tailor content to your brand.', color: t.purple, icon: Palette })
-    recs.push({ text: 'Try Google Ads generator to build a complete RSA campaign strategy.', color: t.success, icon: Target })
+    recs.push({ text: t('recCreatePostDesc'), color: th.accent, icon: Rocket })
+    recs.push({ text: t('recSetupBrandKitDesc'), color: th.purple, icon: Palette })
+    recs.push({ text: t('recTryGoogleAdsDesc'), color: th.success, icon: Target })
+    recs.push({ text: t('recConnectSocialDesc'), color: th.accent, icon: Send })
     return recs
   }
 
   if (postCount > 0 && adsCount === 0) {
-    recs.push({ text: `You've created ${postCount} posts but haven't tried Google Ads yet — drive targeted traffic fast.`, color: t.success, icon: Target })
+    recs.push({ text: `You've created ${postCount} posts but haven't tried Google Ads yet — drive targeted traffic fast.`, color: th.success, icon: Target })
   }
   if (adsCount > 0 && postCount === 0) {
-    recs.push({ text: `You're running ${adsCount} ad campaigns — complement them with organic social posts for better ROI.`, color: t.accent, icon: Send })
+    recs.push({ text: `You're running ${adsCount} ad campaigns — complement them with organic social posts for better ROI.`, color: th.accent, icon: Send })
   }
   if (postCount > 5 && imgCount < postCount / 2) {
-    recs.push({ text: 'Posts with images get 2.3x more engagement. Try generating images for more of your posts.', color: t.purple, icon: Image })
+    recs.push({ text: 'Posts with images get 2.3x more engagement. Try generating images for more of your posts.', color: th.purple, icon: Image })
   }
   if (chatCount === 0) {
-    recs.push({ text: 'Use the AI Advisor to get marketing insights and content ideas tailored to your brand.', color: t.accent, icon: MessageSquare })
+    recs.push({ text: 'Use the AI Advisor to get marketing insights and content ideas tailored to your brand.', color: th.accent, icon: MessageSquare })
   }
   if (bal) {
     const pct = bal.remaining / (bal.total_purchased || 1)
     if (pct < 0.15 && bal.remaining > 0) {
-      recs.push({ text: `Only ${bal.remaining.toFixed(0)} credits left (${(pct * 100).toFixed(0)}%). Consider topping up soon.`, color: t.warning, icon: Coins })
+      recs.push({ text: `Only ${bal.remaining.toFixed(0)} credits left (${(pct * 100).toFixed(0)}%). Consider topping up soon.`, color: th.warning, icon: Coins })
     }
     if (pct > 0.8) {
-      recs.push({ text: `${(pct * 100).toFixed(0)}% credits remaining — great time to experiment with new content types.`, color: t.success, icon: Zap })
+      recs.push({ text: `${(pct * 100).toFixed(0)}% credits remaining — great time to experiment with new content types.`, color: th.success, icon: Zap })
     }
   }
   if (postCount >= 10) {
-    recs.push({ text: `${postCount} posts this month! Try scheduling posts in advance for consistent publishing.`, color: t.accent, icon: TrendingUp })
+    recs.push({ text: `${postCount} posts this month! Try scheduling posts in advance for consistent publishing.`, color: th.accent, icon: TrendingUp })
   }
   if (videoCount > 0) {
-    recs.push({ text: `${videoCount} videos translated — create short social clips from them for more reach.`, color: t.purple, icon: Film })
+    recs.push({ text: `${videoCount} videos translated — create short social clips from them for more reach.`, color: th.purple, icon: Film })
   }
   if (recs.length < 2) {
-    recs.push({ text: 'Consistency is key — aim to create content at least 3 times per week.', color: t.accent, icon: Lightbulb })
+    recs.push({ text: 'Consistency is key — aim to create content at least 3 times per week.', color: th.accent, icon: Lightbulb })
   }
 
   return recs.slice(0, 4)
@@ -291,11 +295,12 @@ interface CreditsSummary {
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const { user, session } = useAuth()
   const { theme } = useTheme()
+  const { t } = useApp()
   const [summary, setSummary] = useState<CreditsSummary | null>(null)
   const [history, setHistory] = useState<HistoryRecord[]>([])
   const [loading, setLoading] = useState(true)
 
-  const t = getJoyoTheme(theme)
+  const th = getJoyoTheme(theme)
 
   useEffect(() => {
     if (!session) return
@@ -314,7 +319,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       .finally(() => setLoading(false))
   }, [session])
 
-  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User'
+  const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || t('user')
 
   const bal = summary?.balance
   const u30 = summary?.usage_30_days
@@ -351,10 +356,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         <div style={{ position: 'absolute', top: -60, right: -40, width: 260, height: 260, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
         <div style={{ position: 'absolute', bottom: -30, left: '40%', width: 180, height: 180, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
         <h1 style={{ fontSize: 26, fontWeight: 800, color: 'white', marginBottom: 6 }}>
-          Welcome back, {userName}
+          {t('welcomeBack')} {userName}
         </h1>
         <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', marginBottom: 20 }}>
-          Your AI marketing platform is ready to create amazing content
+          {t('platformReady')}
         </p>
         <div style={{ display: 'flex', gap: 10 }}>
           <button onClick={() => onNavigate('social')} style={{
@@ -362,54 +367,54 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             border: 'none', background: 'white', color: '#4A7CFF', fontSize: 13.5, fontWeight: 700, cursor: 'pointer',
             boxShadow: '0 4px 16px rgba(0,0,0,0.15)'
           }}>
-            <Rocket size={16} /> Quick Start
+            <Rocket size={16} /> {t('quickStart')}
           </button>
           <button onClick={() => onNavigate('advisor')} style={{
             display: 'flex', alignItems: 'center', gap: 6, padding: '11px 20px', borderRadius: 12,
             border: '1px solid rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.1)', color: 'white', fontSize: 13, fontWeight: 600, cursor: 'pointer',
             backdropFilter: 'blur(8px)'
           }}>
-            <MessageSquare size={14} /> AI Advisor
+            <MessageSquare size={14} /> {t('aiAdvisor')}
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40, color: t.textMuted }}>Loading metrics...</div>
+        <div style={{ textAlign: 'center', padding: 40, color: th.textMuted }}>{t('loadingMetrics')}</div>
       ) : (
         <>
           {/* Metric cards row */}
           <div style={{ display: 'flex', gap: 14, marginBottom: 22, flexWrap: 'wrap' }}>
             <MetricCard
               icon={FileText}
-              label="Posts Created"
+              label={t('postsCreated')}
               value={totalGens.toString()}
-              sub="last 30 days"
-              color={t.accent}
+              sub={t('last30Days')}
+              color={th.accent}
               delay={0.05}
             />
             <MetricCard
               icon={Megaphone}
-              label="Active Campaigns"
+              label={t('activeCampaigns')}
               value={(mergedServices['google_ads']?.count || 0).toString()}
-              sub="Google Ads"
-              color={t.success}
+              sub={t('googleAds')}
+              color={th.success}
               delay={0.1}
             />
             <MetricCard
               icon={TrendingUp}
-              label="Total Reach"
+              label={t('totalReach')}
               value={totalGens > 0 ? `~${(totalGens * 150).toLocaleString()}` : '0'}
-              sub="estimated impressions"
-              color={t.purple}
+              sub={t('estimatedImpressions')}
+              color={th.purple}
               delay={0.15}
             />
             <MetricCard
               icon={Coins}
-              label="Credits"
+              label={t('credits')}
               value={bal?.remaining?.toFixed(0) || '0'}
-              sub={`${bal?.used?.toFixed(0) || '0'} used`}
-              color={t.warning}
+              sub={`${bal?.used?.toFixed(0) || '0'} ${t('used')}`}
+              color={th.warning}
               delay={0.2}
             />
           </div>
@@ -419,10 +424,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             <div style={{ flex: 2, minWidth: 400 }}>
               {totalGens === 0 ? (
                 <div style={{
-                  background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
+                  background: th.card, borderRadius: 16, border: `1px solid ${th.border}`,
                   padding: '22px 24px', position: 'relative', overflow: 'hidden', animation: 'fadeUp 0.5s ease 0.35s both'
                 }}>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 12 }}>Weekly Performance</h3>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: th.text, marginBottom: 12 }}>{t('weeklyPerformance')}</h3>
                   {/* Ghost Chart SVG */}
                   <div style={{ position: 'relative' }}>
                     <svg viewBox="0 0 700 200" style={{ width: '100%', height: 'auto', minHeight: 140, filter: 'blur(3px)', opacity: 0.3 }}>
@@ -436,31 +441,31 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                       <path d="M40,200 L40,170 L90,150 L140,160 L190,120 L240,130 L290,80 L340,90 L390,60 L440,70 L490,40 L540,55 L590,30 L640,45 L660,35 L660,200 Z" fill="url(#ghostGrad)" />
                     </svg>
                     <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-                      <BarChart3 size={28} style={{ color: t.accent, opacity: 0.8 }} />
-                      <p style={{ fontSize: 13, fontWeight: 600, color: t.text, textAlign: 'center' }}>Publish your first post to see engagement data here</p>
+                      <BarChart3 size={28} style={{ color: th.accent, opacity: 0.8 }} />
+                      <p style={{ fontSize: 13, fontWeight: 600, color: th.text, textAlign: 'center' }}>{t('publishFirstPost')}</p>
                       <button onClick={() => onNavigate('social')} style={{
                         padding: '8px 18px', borderRadius: 10, border: 'none',
-                        background: t.gradient1, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                        background: th.gradient1, color: 'white', fontSize: 12, fontWeight: 600, cursor: 'pointer'
                       }}>
-                        <Send size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />Create First Post
+                        <Send size={12} style={{ display: 'inline', verticalAlign: '-2px', marginRight: 6 }} />{t('createFirstPost')}
                       </button>
                     </div>
                   </div>
                 </div>
               ) : (
-                <UsageChart history={history} />
+                <UsageChart history={history} title={t('weeklyPerformance')} t={t} />
               )}
             </div>
             <div style={{ flex: 1, minWidth: 280 }}>
               <div style={{
-                background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
+                background: th.card, borderRadius: 16, border: `1px solid ${th.border}`,
                 padding: '22px 24px', height: '100%', animation: 'fadeUp 0.5s ease 0.35s both'
               }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: t.text, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Lightbulb size={16} color={t.warning} /> AI Recommendations
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: th.text, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Lightbulb size={16} color={th.warning} /> {t('aiRecommendations')}
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {buildRecommendations(mergedServices, bal, totalGens, t).map((rec, i) => {
+                  {buildRecommendations(mergedServices, bal, totalGens, th, t).map((rec, i) => {
                     const RecIcon = rec.icon
                     return (
                       <div key={i} style={{
@@ -474,7 +479,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                         }}>
                           <RecIcon size={14} color={rec.color} />
                         </div>
-                        <span style={{ fontSize: 12.5, color: t.textSecondary, lineHeight: 1.5 }}>{rec.text}</span>
+                        <span style={{ fontSize: 12.5, color: th.textSecondary, lineHeight: 1.5 }}>{rec.text}</span>
                       </div>
                     )
                   })}
@@ -488,13 +493,13 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       {/* Quick-action feature cards */}
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', animation: 'fadeUp 0.5s ease 0.4s both' }}>
         {[
-          { icon: Send, title: 'Post Generator', desc: 'AI captions + images for every platform', gradient: t.gradient1, to: 'social' },
-          { icon: Target, title: 'Google Ads', desc: 'Full campaign strategy & RSA assets', gradient: t.gradient2, to: 'ads' },
-          { icon: Image, title: 'Media Studio', desc: 'Templates, resize, background removal', gradient: t.gradient4, to: 'media' },
-          { icon: MessageSquare, title: 'AI Advisor', desc: 'Insights, analytics & recommendations', gradient: t.gradient3, to: 'chat' },
+          { icon: Send, title: t('postGenerator'), desc: t('postGeneratorDesc'), gradient: th.gradient1, to: 'social' },
+          { icon: Target, title: t('googleAds'), desc: t('googleAdsDesc'), gradient: th.gradient2, to: 'ads' },
+          { icon: Image, title: t('mediaStudio'), desc: t('mediaStudioDesc'), gradient: th.gradient4, to: 'media' },
+          { icon: MessageSquare, title: t('aiAdvisor'), desc: t('aiAdvisorDesc'), gradient: th.gradient3, to: 'chat' },
         ].map((f, i) => (
           <div key={i} onClick={() => onNavigate(f.to)} style={{
-            background: t.card, borderRadius: 16, border: `1px solid ${t.border}`,
+            background: th.card, borderRadius: 16, border: `1px solid ${th.border}`,
             transition: 'all 0.25s ease', flex: 1, minWidth: 190, padding: 20, cursor: 'pointer'
           }}>
             <div style={{
@@ -504,8 +509,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             }}>
               <f.icon size={20} color="white" />
             </div>
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: t.text, marginBottom: 4 }}>{f.title}</div>
-            <div style={{ fontSize: 12, color: t.textSecondary }}>{f.desc}</div>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: th.text, marginBottom: 4 }}>{f.title}</div>
+            <div style={{ fontSize: 12, color: th.textSecondary }}>{f.desc}</div>
           </div>
         ))}
       </div>

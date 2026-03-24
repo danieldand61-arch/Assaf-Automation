@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useApp } from '../contexts/AppContext'
 import { CreditCard, Zap, TrendingUp, Rocket, Loader2, Check, ExternalLink } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 
@@ -15,12 +16,13 @@ interface CreditPackage {
 
 const PACKAGE_STYLES: Record<string, { icon: typeof Zap; gradient: string; badge?: string }> = {
   starter: { icon: Zap, gradient: 'from-blue-500 to-cyan-500' },
-  growth: { icon: TrendingUp, gradient: 'from-violet-500 to-purple-600', badge: 'Popular' },
+  growth: { icon: TrendingUp, gradient: 'from-violet-500 to-purple-600', badge: 'popular' },
   scale: { icon: Rocket, gradient: 'from-amber-500 to-orange-600' },
 }
 
 export default function Billing() {
   const { session } = useAuth()
+  const { t } = useApp()
   const [packages, setPackages] = useState<CreditPackage[]>([])
   const [loading, setLoading] = useState(true)
   const [purchasing, setPurchasing] = useState<string | null>(null)
@@ -72,13 +74,13 @@ export default function Billing() {
       })
       if (!res.ok) {
         const err = await res.json()
-        alert(err.detail || 'Failed to create checkout')
+        alert(err.detail || t('failedToCreateCheckout'))
         return
       }
       const data = await res.json()
       if (data.url) window.location.href = data.url
     } catch (err: any) {
-      alert(err.message || 'Something went wrong')
+      alert(err.message || t('somethingWentWrong'))
     } finally {
       setPurchasing(null)
     }
@@ -103,8 +105,8 @@ export default function Billing() {
             <CreditCard className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Buy Credits</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Purchase credits to generate posts, videos, and more</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('buyCredits')}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t('purchaseCreditsDesc')}</p>
           </div>
         </div>
       </div>
@@ -116,8 +118,8 @@ export default function Billing() {
             <Check className="w-4 h-4 text-green-600" />
           </div>
           <div>
-            <p className="font-semibold text-green-800 dark:text-green-300 text-sm">Payment successful!</p>
-            <p className="text-green-600 dark:text-green-400 text-xs">Your credits have been added to your account.</p>
+            <p className="font-semibold text-green-800 dark:text-green-300 text-sm">{t('paymentSuccessful')}</p>
+            <p className="text-green-600 dark:text-green-400 text-xs">{t('creditsAddedToAccount')}</p>
           </div>
         </div>
       )}
@@ -126,7 +128,7 @@ export default function Billing() {
           <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center">
             <span className="text-amber-600 text-sm">!</span>
           </div>
-          <p className="text-amber-700 dark:text-amber-300 text-sm">Payment was cancelled. No charges were made.</p>
+          <p className="text-amber-700 dark:text-amber-300 text-sm">{t('paymentCancelled')}</p>
         </div>
       )}
 
@@ -135,11 +137,11 @@ export default function Billing() {
         <div className="mb-8 bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Current Balance</p>
-              <p className="text-3xl font-bold text-gray-900 dark:text-white">{Math.round(balance).toLocaleString()} <span className="text-base font-normal text-gray-400">credits</span></p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('currentBalance')}</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-white">{Math.round(balance).toLocaleString()} <span className="text-base font-normal text-gray-400">{t('creditsUnit')}</span></p>
             </div>
             <div className="text-right text-xs text-gray-400">
-              <p>~{Math.floor(balance / creditsPerPost).toLocaleString()} posts remaining</p>
+              <p>~{Math.floor(balance / creditsPerPost).toLocaleString()} {t('postsRemaining')}</p>
             </div>
           </div>
         </div>
@@ -167,7 +169,7 @@ export default function Billing() {
               {style.badge && (
                 <div className="absolute -top-3 left-1/2 -translate-x-1/2">
                   <span className="px-3 py-1 rounded-full text-xs font-bold bg-violet-500 text-white shadow-lg">
-                    {style.badge}
+                    {t(style.badge as any)}
                   </span>
                 </div>
               )}
@@ -182,25 +184,25 @@ export default function Billing() {
 
                 <div className="mb-4">
                   <span className="text-3xl font-bold text-gray-900 dark:text-white">${pkg.price}</span>
-                  <span className="text-sm text-gray-400 ml-1">one-time</span>
+                  <span className="text-sm text-gray-400 ml-1">{t('oneTime')}</span>
                 </div>
 
                 <ul className="space-y-2 mb-6 text-sm text-gray-600 dark:text-gray-300">
                   <li className="flex items-center gap-2">
                     <Check size={14} className="text-green-500" />
-                    {pkg.credits.toLocaleString()} credits
+                    {pkg.credits.toLocaleString()} {t('creditsUnit')}
                   </li>
                   <li className="flex items-center gap-2">
                     <Check size={14} className="text-green-500" />
-                    ~{approxPosts.toLocaleString()} posts
+                    ~{approxPosts.toLocaleString()} {t('postsLabel')}
                   </li>
                   <li className="flex items-center gap-2">
                     <Check size={14} className="text-green-500" />
-                    ~{approxVideos} videos (5s)
+                    ~{approxVideos} {t('videosLabel')}
                   </li>
                   <li className="flex items-center gap-2">
                     <Check size={14} className="text-green-500" />
-                    Invoice emailed automatically
+                    {t('invoiceEmailed')}
                   </li>
                 </ul>
 
@@ -214,9 +216,9 @@ export default function Billing() {
                   } disabled:opacity-40`}
                 >
                   {purchasing === pkg.id ? (
-                    <><Loader2 size={16} className="animate-spin" /> Processing...</>
+                    <><Loader2 size={16} className="animate-spin" /> {t('processing')}</>
                   ) : (
-                    <><ExternalLink size={14} /> Buy Now</>
+                    <><ExternalLink size={14} /> {t('buyNow')}</>
                   )}
                 </button>
               </div>
@@ -227,12 +229,11 @@ export default function Billing() {
 
       {/* FAQ */}
       <div className="bg-gray-50 dark:bg-gray-800/50 rounded-2xl border border-gray-200 dark:border-gray-700 p-6">
-        <h3 className="font-bold text-gray-900 dark:text-white mb-4">Frequently Asked Questions</h3>
+        <h3 className="font-bold text-gray-900 dark:text-white mb-4">{t('faq')}</h3>
         <div className="space-y-4 text-sm">
           {[
-            { q: 'How do credits work?', a: 'Credits are used for all AI operations — post generation, image creation, video generation, and AI advisor chats. Different operations cost different amounts.' },
-            { q: 'Do credits expire?', a: 'No, purchased credits never expire. Use them at your own pace.' },
-            { q: 'Will I get an invoice?', a: 'Yes, Stripe automatically sends an invoice/receipt to your email after each purchase.' },
+            { q: t('faqHowCredits'), a: t('faqHowCreditsAnswer') },
+            { q: t('faqRefund'), a: t('faqRefundAnswer') },
           ].map(({ q, a }) => (
             <div key={q}>
               <p className="font-semibold text-gray-700 dark:text-gray-300">{q}</p>

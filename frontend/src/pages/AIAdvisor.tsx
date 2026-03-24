@@ -2,17 +2,18 @@ import { useState, useRef, useEffect } from 'react'
 import { Send, Loader2, Sparkles, AlertTriangle, Trash2, Plus, MessageSquare, ChevronLeft, ChevronRight, BarChart3, Rocket, Target, Palette, Zap, ImagePlus, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { useApp } from '../contexts/AppContext'
 import { getJoyoTheme } from '../styles/joyo-theme'
 import { getApiUrl } from '../lib/api'
 
 interface Message { role: 'user' | 'assistant'; content: string; image?: string }
 interface ChatItem { id: string; title: string; created_at: string; updated_at: string; message_count?: number }
 
-const QUICK_ACTIONS = [
-  { icon: BarChart3, title: 'Analyze CAC', desc: 'Deep dive into acquisition costs & LTV metrics.', color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', prompt: 'Analyze my Customer Acquisition Cost (CAC)' },
-  { icon: Target, title: 'Retargeting', desc: 'Build a multi-channel conversion roadmap.', color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)', prompt: 'Develop a Re-targeting Roadmap' },
-  { icon: Palette, title: 'Brand Tone', desc: 'Refine your brand voice and consistency.', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', prompt: 'Audit my Brand Tone Consistency' },
-  { icon: Zap, title: 'Flywheel', desc: 'Identify scale loops and compounding growth.', color: '#10B981', bg: 'rgba(16,185,129,0.1)', prompt: 'Build a Growth Flywheel strategy' },
+const QUICK_ACTIONS_BASE = [
+  { icon: BarChart3, titleKey: 'qaAnalyzeCac' as const, descKey: 'qaAnalyzeCacDesc' as const, color: '#3B82F6', bg: 'rgba(59,130,246,0.1)', prompt: 'Analyze my Customer Acquisition Cost (CAC)' },
+  { icon: Target, titleKey: 'qaRetargeting' as const, descKey: 'qaRetargetingDesc' as const, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)', prompt: 'Develop a Re-targeting Roadmap' },
+  { icon: Palette, titleKey: 'qaBrandTone' as const, descKey: 'qaBrandToneDesc' as const, color: '#F59E0B', bg: 'rgba(245,158,11,0.1)', prompt: 'Audit my Brand Tone Consistency' },
+  { icon: Zap, titleKey: 'qaFlywheel' as const, descKey: 'qaFlywheelDesc' as const, color: '#10B981', bg: 'rgba(16,185,129,0.1)', prompt: 'Build a Growth Flywheel strategy' },
 ]
 
 function isRTL(text: string): boolean {
@@ -39,7 +40,8 @@ function renderMarkdown(text: string): string {
 export default function AIAdvisor() {
   const { session, user } = useAuth()
   const { theme } = useTheme()
-  const t = getJoyoTheme(theme)
+  const { t } = useApp()
+  const th = getJoyoTheme(theme)
   const api = getApiUrl()
   const isDark = theme === 'dark'
 
@@ -57,6 +59,8 @@ export default function AIAdvisor() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const headers = session ? { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' } : {}
+
+  const quickActions = QUICK_ACTIONS_BASE.map(a => ({ ...a, title: t(a.titleKey), desc: t(a.descKey) }))
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
@@ -108,7 +112,7 @@ export default function AIAdvisor() {
 
   const deleteChat = async (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm('Delete this chat?')) return
+    if (!confirm(t('deleteChat'))) return
     try {
       await fetch(`${api}/api/chats/${chatId}`, { method: 'DELETE', headers: headers as any })
       setChats(prev => prev.filter(c => c.id !== chatId))
@@ -120,7 +124,7 @@ export default function AIAdvisor() {
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('image/')) return
-    if (file.size > 10 * 1024 * 1024) { alert('Image must be under 10MB'); return }
+    if (file.size > 10 * 1024 * 1024) { alert(t('imageUnder10mb')); return }
     const reader = new FileReader()
     reader.onload = () => setAttachedImage(reader.result as string)
     reader.readAsDataURL(file)
@@ -146,7 +150,7 @@ export default function AIAdvisor() {
   const sendMessage = async (text: string) => {
     if ((!text.trim() && !attachedImage) || loading || !session) return
     const imageToSend = attachedImage
-    setMessages(prev => [...prev, { role: 'user', content: text.trim() || '(screenshot)', image: imageToSend || undefined }])
+    setMessages(prev => [...prev, { role: 'user', content: text.trim() || t('screenshot'), image: imageToSend || undefined }])
     setInput('')
     setAttachedImage(null)
     setLoading(true)
@@ -155,7 +159,7 @@ export default function AIAdvisor() {
       if (!cid) {
         const createRes = await fetch(`${api}/api/chats/create`, {
           method: 'POST', headers: headers as any,
-          body: JSON.stringify({ title: text.slice(0, 50) || 'Screenshot analysis' }),
+          body: JSON.stringify({ title: text.slice(0, 50) || t('screenshotAnalysis') }),
         })
         if (!createRes.ok) throw new Error(`Create chat failed: ${createRes.status}`)
         const createData = await createRes.json()
@@ -164,7 +168,7 @@ export default function AIAdvisor() {
         setActiveChatId(cid)
         fetchChats()
       }
-      const body: any = { content: text.trim() || 'Analyze this screenshot', mode: 'advisor' }
+      const body: any = { content: text.trim() || t('analyzeScreenshot'), mode: 'advisor' }
       if (imageToSend) body.image = imageToSend
       const msgRes = await fetch(`${api}/api/chats/${cid}/message`, {
         method: 'POST', headers: headers as any,
@@ -172,7 +176,7 @@ export default function AIAdvisor() {
       })
       if (!msgRes.ok) throw new Error(`Message failed: ${msgRes.status}`)
       const msgData = await msgRes.json()
-      const reply = msgData.assistant_message?.content || msgData.response || msgData.message || 'No response received.'
+      const reply = msgData.assistant_message?.content || msgData.response || msgData.message || t('noResponseReceived')
       setMessages(prev => [...prev, { role: 'assistant', content: reply }])
     } catch (e: any) {
       setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${e.message || 'Connection failed.'}` }])
@@ -198,40 +202,40 @@ export default function AIAdvisor() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
             <div style={{
               width: 36, height: 36, borderRadius: 10,
-              background: t.gradient1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: th.gradient1, display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
               <Sparkles size={18} color="#fff" />
             </div>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>AI Advisor</div>
-              <div style={{ fontSize: 11, color: t.textMuted, fontWeight: 500 }}>Strategic Suite</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: th.text, letterSpacing: -0.3 }}>{t('aiAdvisor')}</div>
+              <div style={{ fontSize: 11, color: th.textMuted, fontWeight: 500 }}>{t('strategicSuite')}</div>
             </div>
           </div>
 
           <button onClick={createNewChat} style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
             padding: '10px 14px', borderRadius: 10, border: `1px solid ${isDark ? '#2A2D3E' : '#E5E9F0'}`,
-            background: 'transparent', color: t.text, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+            background: 'transparent', color: th.text, fontSize: 13, fontWeight: 600, cursor: 'pointer',
             transition: 'all 0.15s',
           }}
             onMouseEnter={e => { e.currentTarget.style.background = isDark ? '#252838' : '#F7F8FB' }}
             onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
           >
-            <Plus size={15} /> New Chat
+            <Plus size={15} /> {t('newChat')}
           </button>
         </div>
 
         {/* Chat List */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '12px 8px' }}>
-          <div style={{ padding: '0 8px 8px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.2, color: t.textMuted }}>
-            Recent Chats
+          <div style={{ padding: '0 8px 8px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1.2, color: th.textMuted }}>
+            {t('recentChats')}
           </div>
           {loadingChats ? (
-            <div style={{ textAlign: 'center', padding: 24, color: t.textMuted, fontSize: 12 }}>
+            <div style={{ textAlign: 'center', padding: 24, color: th.textMuted, fontSize: 12 }}>
               <Loader2 size={16} className="animate-spin" style={{ display: 'inline-block' }} />
             </div>
           ) : chats.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 24, color: t.textMuted, fontSize: 12 }}>No chats yet</div>
+            <div style={{ textAlign: 'center', padding: 24, color: th.textMuted, fontSize: 12 }}>{t('noChatsYet')}</div>
           ) : (
             chats.map(chat => (
               <div key={chat.id} onClick={() => loadChat(chat.id)} style={{
@@ -242,20 +246,20 @@ export default function AIAdvisor() {
                 onMouseEnter={e => { if (activeChatId !== chat.id) e.currentTarget.style.background = isDark ? '#252838' : '#F7F8FB' }}
                 onMouseLeave={e => { if (activeChatId !== chat.id) e.currentTarget.style.background = 'transparent' }}
               >
-                <MessageSquare size={15} style={{ color: activeChatId === chat.id ? t.accent : t.textMuted, flexShrink: 0 }} />
+                <MessageSquare size={15} style={{ color: activeChatId === chat.id ? th.accent : th.textMuted, flexShrink: 0 }} />
                 <div style={{ flex: 1, overflow: 'hidden' }}>
                   <div style={{
                     fontSize: 13, fontWeight: activeChatId === chat.id ? 600 : 500,
-                    color: activeChatId === chat.id ? t.text : t.textSecondary,
+                    color: activeChatId === chat.id ? th.text : th.textSecondary,
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                  }}>{chat.title || 'Untitled'}</div>
-                  <div style={{ fontSize: 10, color: t.textMuted, marginTop: 2 }}>
+                  }}>{chat.title || t('untitled')}</div>
+                  <div style={{ fontSize: 10, color: th.textMuted, marginTop: 2 }}>
                     {new Date(chat.updated_at || chat.created_at).toLocaleDateString()}
                   </div>
                 </div>
                 <button onClick={(e) => deleteChat(chat.id, e)} style={{
                   padding: 4, border: 'none', background: 'transparent', cursor: 'pointer',
-                  borderRadius: 6, opacity: 0, transition: 'opacity 0.15s', color: t.danger,
+                  borderRadius: 6, opacity: 0, transition: 'opacity 0.15s', color: th.danger,
                 }}
                   onMouseEnter={e => (e.currentTarget.style.opacity = '1')}
                   onMouseLeave={e => (e.currentTarget.style.opacity = '0')}
@@ -274,14 +278,14 @@ export default function AIAdvisor() {
         }}>
           <div style={{
             width: 34, height: 34, borderRadius: '50%',
-            background: `${t.accent}20`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: t.accent, fontSize: 14, fontWeight: 700,
+            background: `${th.accent}20`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: th.accent, fontSize: 14, fontWeight: 700,
           }}>
             {userName.charAt(0).toUpperCase()}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: t.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
-            <div style={{ fontSize: 10, color: t.textMuted }}>Premium Account</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: th.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{userName}</div>
+            <div style={{ fontSize: 10, color: th.textMuted }}>{t('premiumAccount')}</div>
           </div>
         </div>
       </aside>
@@ -291,7 +295,7 @@ export default function AIAdvisor() {
         width: 20, display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: isDark ? '#1A1D2B' : '#fff', border: 'none',
         borderRight: `1px solid ${isDark ? '#2A2D3E' : '#E5E9F0'}`,
-        cursor: 'pointer', color: t.textMuted, transition: 'all 0.15s',
+        cursor: 'pointer', color: th.textMuted, transition: 'all 0.15s',
       }}>
         {sidebarOpen ? <ChevronLeft size={14} /> : <ChevronRight size={14} />}
       </button>
@@ -307,13 +311,13 @@ export default function AIAdvisor() {
           backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Sparkles size={18} style={{ color: t.accent }} />
-            <h2 style={{ fontSize: 16, fontWeight: 700, color: t.text, letterSpacing: -0.3 }}>
-              {activeChat?.title || 'Strategic Advisor'}
+            <Sparkles size={18} style={{ color: th.accent }} />
+            <h2 style={{ fontSize: 16, fontWeight: 700, color: th.text, letterSpacing: -0.3 }}>
+              {activeChat?.title || t('strategicAdvisor')}
             </h2>
           </div>
           {activeChatId && (
-            <span style={{ fontSize: 11, color: t.textMuted }}>
+            <span style={{ fontSize: 11, color: th.textMuted }}>
               {new Date(activeChat?.created_at || '').toLocaleDateString()}
             </span>
           )}
@@ -333,18 +337,18 @@ export default function AIAdvisor() {
                   <AlertTriangle size={16} style={{ color: '#F59E0B' }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: t.text }}>Ad Platforms Disconnected</div>
-                  <div style={{ fontSize: 12, color: t.textSecondary }}>Connect Meta & Google Ads for real-time campaign analysis.</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: th.text }}>{t('adPlatformsDisconnected')}</div>
+                  <div style={{ fontSize: 12, color: th.textSecondary }}>{t('reconnectAdsDesc')}</div>
                 </div>
               </div>
               <button style={{
                 padding: '8px 16px', borderRadius: 8, border: 'none',
-                background: t.accent, color: '#fff', fontSize: 12, fontWeight: 600,
+                background: th.accent, color: '#fff', fontSize: 12, fontWeight: 600,
                 cursor: 'pointer', whiteSpace: 'nowrap', transition: 'transform 0.1s',
               }}
                 onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.96)')}
                 onMouseUp={e => (e.currentTarget.style.transform = 'scale(1)')}
-              >Reconnect</button>
+              >{t('reconnect')}</button>
             </div>
           </div>
         )}
@@ -360,22 +364,21 @@ export default function AIAdvisor() {
                 background: isDark ? 'rgba(74,124,255,0.15)' : 'rgba(99,102,241,0.1)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 28,
               }}>
-                <Rocket size={36} style={{ color: t.accent }} />
+                <Rocket size={36} style={{ color: th.accent }} />
               </div>
 
               <h1 style={{
                 fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 900, textAlign: 'center',
-                color: t.text, marginBottom: 12, letterSpacing: -0.8, lineHeight: 1.15,
+                color: th.text, marginBottom: 12, letterSpacing: -0.8, lineHeight: 1.15,
               }}>
-                What's your strategic{' '}
-                <span style={{ color: t.accent }}>challenge</span>{' '}today?
+                {t('strategicChallenge')}
               </h1>
 
               <p style={{
-                fontSize: 15, color: t.textMuted, textAlign: 'center', maxWidth: 520,
+                fontSize: 15, color: th.textMuted, textAlign: 'center', maxWidth: 520,
                 lineHeight: 1.6, marginBottom: 40,
               }}>
-                Leverage AI-driven insights to optimize your growth loops, analyze acquisition efficiency, and refine your market positioning.
+                {t('leverageAi')}
               </p>
 
               {/* Quick Action Cards */}
@@ -383,7 +386,7 @@ export default function AIAdvisor() {
                 display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
                 gap: 12, width: '100%', maxWidth: 720,
               }}>
-                {QUICK_ACTIONS.map((action, i) => (
+                {quickActions.map((action, i) => (
                   <button key={i} onClick={() => sendMessage(action.prompt)} style={{
                     display: 'flex', flexDirection: 'column', padding: 18, borderRadius: 16,
                     background: isDark ? '#1E2130' : '#FFFFFF',
@@ -391,8 +394,8 @@ export default function AIAdvisor() {
                     cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s',
                   }}
                     onMouseEnter={e => {
-                      e.currentTarget.style.borderColor = `${t.accent}60`
-                      e.currentTarget.style.boxShadow = `0 8px 24px ${t.accent}12`
+                      e.currentTarget.style.borderColor = `${th.accent}60`
+                      e.currentTarget.style.boxShadow = `0 8px 24px ${th.accent}12`
                       e.currentTarget.style.transform = 'translateY(-2px)'
                     }}
                     onMouseLeave={e => {
@@ -408,8 +411,8 @@ export default function AIAdvisor() {
                     }}>
                       <action.icon size={18} style={{ color: action.color }} />
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>{action.title}</div>
-                    <div style={{ fontSize: 11, color: t.textMuted, lineHeight: 1.4 }}>{action.desc}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: th.text, marginBottom: 4 }}>{action.title}</div>
+                    <div style={{ fontSize: 11, color: th.textMuted, lineHeight: 1.4 }}>{action.desc}</div>
                   </button>
                 ))}
               </div>
@@ -424,12 +427,12 @@ export default function AIAdvisor() {
                     {msg.role === 'user' ? (
                       <div style={{
                         maxWidth: '75%', borderRadius: '18px 18px 4px 18px', overflow: 'hidden',
-                        background: t.accent, color: '#fff',
+                        background: th.accent, color: '#fff',
                       }}>
                         {msg.image && (
                           <img src={msg.image} alt="attachment" style={{ width: '100%', maxHeight: 300, objectFit: 'cover', display: 'block' }} />
                         )}
-                        {msg.content && msg.content !== '(screenshot)' && (
+                        {msg.content && msg.content !== t('screenshot') && (
                           <div style={{
                             padding: '12px 16px', fontSize: 13, lineHeight: 1.65,
                             direction: rtl ? 'rtl' : undefined, textAlign: rtl ? 'right' : undefined,
@@ -439,7 +442,7 @@ export default function AIAdvisor() {
                     ) : (
                       <div style={{
                         maxWidth: '82%', padding: '12px 16px', borderRadius: '18px 18px 18px 4px',
-                        background: isDark ? '#1E2130' : '#FFFFFF', color: t.text,
+                        background: isDark ? '#1E2130' : '#FFFFFF', color: th.text,
                         border: `1px solid ${isDark ? '#2A2D3E' : '#E5E9F0'}`, fontSize: 13, lineHeight: 1.65,
                         direction: rtl ? 'rtl' : undefined, textAlign: rtl ? 'right' : undefined,
                       }} dangerouslySetInnerHTML={{ __html: renderMarkdown(msg.content) }} />
@@ -455,8 +458,8 @@ export default function AIAdvisor() {
                     background: isDark ? '#1E2130' : '#FFFFFF', border: `1px solid ${isDark ? '#2A2D3E' : '#E5E9F0'}`,
                     display: 'flex', alignItems: 'center', gap: 8,
                   }}>
-                    <Loader2 size={16} className="animate-spin" style={{ color: t.accent }} />
-                    <span style={{ fontSize: 12, color: t.textMuted }}>Thinking...</span>
+                    <Loader2 size={16} className="animate-spin" style={{ color: th.accent }} />
+                    <span style={{ fontSize: 12, color: th.textMuted }}>{t('thinking')}</span>
                   </div>
                 </div>
               )}
@@ -490,7 +493,7 @@ export default function AIAdvisor() {
                   <button onClick={() => setAttachedImage(null)} style={{
                     position: 'absolute', top: -6, right: -6,
                     width: 20, height: 20, borderRadius: '50%', border: 'none',
-                    background: isDark ? '#374151' : '#E5E7EB', color: t.text,
+                    background: isDark ? '#374151' : '#E5E7EB', color: th.text,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer',
                   }}>
                     <X size={12} />
@@ -503,13 +506,13 @@ export default function AIAdvisor() {
               <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} style={{ display: 'none' }} />
               <button onClick={() => fileInputRef.current?.click()} style={{
                 width: 36, height: 36, borderRadius: 10, border: 'none', flexShrink: 0,
-                background: 'transparent', color: t.textMuted, cursor: 'pointer',
+                background: 'transparent', color: th.textMuted, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 transition: 'all 0.15s',
               }}
-                onMouseEnter={e => { e.currentTarget.style.background = isDark ? '#252838' : '#F0F2F5'; e.currentTarget.style.color = t.accent }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = t.textMuted }}
-                title="Attach screenshot"
+                onMouseEnter={e => { e.currentTarget.style.background = isDark ? '#252838' : '#F0F2F5'; e.currentTarget.style.color = th.accent }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = th.textMuted }}
+                title={t('attachScreenshot')}
               >
                 <ImagePlus size={18} />
               </button>
@@ -519,20 +522,20 @@ export default function AIAdvisor() {
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input) } }}
                 onPaste={handlePaste}
-                placeholder="Describe your challenge or ask for an analysis..."
+                placeholder={t('advisorPlaceholder')}
                 rows={1}
                 style={{
                   flex: 1, padding: '8px 8px', borderRadius: 10, fontSize: 13, outline: 'none',
-                  background: 'transparent', border: 'none', color: t.text, resize: 'none',
+                  background: 'transparent', border: 'none', color: th.text, resize: 'none',
                   lineHeight: 1.5, fontFamily: 'inherit', maxHeight: 120,
                 }}
               />
               <button onClick={() => sendMessage(input)} disabled={loading || (!input.trim() && !attachedImage)} style={{
                 width: 40, height: 40, borderRadius: 12, border: 'none', flexShrink: 0,
-                background: t.accent, color: '#fff', cursor: 'pointer',
+                background: th.accent, color: '#fff', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 opacity: loading || (!input.trim() && !attachedImage) ? 0.4 : 1,
-                transition: 'all 0.15s', boxShadow: `0 2px 8px ${t.accent}40`,
+                transition: 'all 0.15s', boxShadow: `0 2px 8px ${th.accent}40`,
               }}
                 onMouseDown={e => { if (!loading && (input.trim() || attachedImage)) e.currentTarget.style.transform = 'scale(0.92)' }}
                 onMouseUp={e => (e.currentTarget.style.transform = 'scale(1)')}
@@ -541,8 +544,8 @@ export default function AIAdvisor() {
               </button>
             </div>
           </div>
-          <p style={{ textAlign: 'center', fontSize: 10, color: t.textMuted, marginTop: 10, fontWeight: 500 }}>
-            AI Strategic Advisor provides insights — always verify mission-critical decisions.
+          <p style={{ textAlign: 'center', fontSize: 10, color: th.textMuted, marginTop: 10, fontWeight: 500 }}>
+            {t('advisorDisclaimer')}
           </p>
         </div>
       </main>

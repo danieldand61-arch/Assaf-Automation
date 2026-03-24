@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from 'react'
 import { ArrowLeft, Calendar, Send, Download, RefreshCw, Edit3, BookmarkPlus, Check, AlertTriangle, ImageOff, Wand2, Heart, MessageCircle, Share2, Bookmark, MoreHorizontal, ThumbsUp, Globe, Type } from 'lucide-react'
 import { useContentStore } from '../store/contentStore'
 import { useAuth } from '../contexts/AuthContext'
+import { useApp } from '../contexts/AppContext'
 import JSZip from 'jszip'
 import { saveAs } from 'file-saver'
 import { PostEditModal } from './PostEditModal'
@@ -10,19 +11,25 @@ import { GraphicTextModal } from './GraphicTextModal'
 import { PostToSocial } from './PostToSocial'
 import { SchedulePostModal } from './SchedulePostModal'
 import { getApiUrl } from '../lib/api'
+import type { TranslationKey } from '../i18n/translations'
 
-const PLATFORM_META: Record<string, { label: string; color: string; charLimit: number; icon: string }> = {
-  facebook:        { label: 'Facebook',        color: '#1877F2', charLimit: 1200, icon: 'f' },
-  instagram:       { label: 'Instagram',       color: '#E4405F', charLimit: 800,  icon: 'ig' },
-  linkedin:        { label: 'LinkedIn',        color: '#0A66C2', charLimit: 3000, icon: 'in' },
-  tiktok:          { label: 'TikTok',          color: '#010101', charLimit: 2200, icon: 'tk' },
-  x:               { label: 'X (Twitter)',     color: '#1DA1F2', charLimit: 280,  icon: 'x' },
-  google_business: { label: 'Google Business', color: '#4285F4', charLimit: 1500, icon: 'g' },
+const PLATFORM_DATA: Record<string, { color: string; charLimit: number; icon: string }> = {
+  facebook:        { color: '#1877F2', charLimit: 1200, icon: 'f' },
+  instagram:       { color: '#E4405F', charLimit: 800,  icon: 'ig' },
+  linkedin:        { color: '#0A66C2', charLimit: 3000, icon: 'in' },
+  tiktok:          { color: '#010101', charLimit: 2200, icon: 'tk' },
+  x:               { color: '#1DA1F2', charLimit: 280,  icon: 'x' },
+  google_business: { color: '#4285F4', charLimit: 1500, icon: 'g' },
 }
 
-const VARIANT_LABELS: Record<string, { label: string; emoji: string; color: string }> = {
-  storyteller: { label: 'Storyteller', emoji: '✨', color: '#8B5CF6' },
-  closer:      { label: 'Closer',      emoji: '🎯', color: '#EF4444' },
+const PLATFORM_LABEL_KEYS: Record<string, string> = {
+  facebook: 'platformFacebook', instagram: 'platformInstagram', linkedin: 'platformLinkedin',
+  tiktok: 'platformTiktok', x: 'platformX', google_business: 'platformGoogleBusiness',
+}
+
+const VARIANT_DATA: Record<string, { emoji: string; color: string; labelKey: string }> = {
+  storyteller: { emoji: '✨', color: '#8B5CF6', labelKey: 'storyteller' },
+  closer:      { emoji: '🎯', color: '#EF4444', labelKey: 'closer' },
 }
 
 function CharBar({ current, max }: { current: number; max: number }) {
@@ -65,12 +72,11 @@ function MediaElement({ url, className, style }: { url: string; className?: stri
   return <img src={url} alt="" className={className} style={style} />
 }
 
-function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImage }: { v: any; img: any; brandHandle: string; isExpanded: boolean; onToggle: () => void; onEditImage?: () => void }) {
+function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImage, t }: { v: any; img: any; brandHandle: string; isExpanded: boolean; onToggle: () => void; onEditImage?: () => void; t: (k: TranslationKey) => string }) {
   const TEXT_CLAMP = 120
   const needsTruncate = v.text.length > TEXT_CLAMP
   return (
     <div className="flex flex-col">
-      {/* IG Header */}
       <div className="flex items-center gap-2 px-3 py-2">
         <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600 p-[2px]">
           <div className="w-full h-full rounded-full bg-white dark:bg-gray-800" />
@@ -85,7 +91,7 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImag
           {!isVideoUrl(img.url) && (
             <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
-                <Edit3 size={12} /> Edit Image
+                <Edit3 size={12} /> {t('editImage')}
               </span>
             </div>
           )}
@@ -95,7 +101,6 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImag
           <ImageOff size={32} className="text-gray-300" />
         </div>
       )}
-      {/* IG Actions */}
       <div className="flex items-center gap-3 px-3 py-2">
         <Heart size={18} className="text-gray-800 dark:text-gray-200" />
         <MessageCircle size={18} className="text-gray-800 dark:text-gray-200" />
@@ -103,7 +108,6 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImag
         <div className="flex-1" />
         <Bookmark size={18} className="text-gray-800 dark:text-gray-200" />
       </div>
-      {/* IG Caption */}
       <div className="px-3 pb-2">
         <p className="text-[12px] text-gray-800 dark:text-gray-200 leading-relaxed">
           <span className="font-semibold mr-1">{brandHandle || 'yourbrand'}</span>
@@ -111,48 +115,46 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImag
         </p>
         {needsTruncate && (
           <button onClick={onToggle} className="text-[11px] text-gray-400 mt-0.5">
-            {isExpanded ? 'less' : 'more'}
+            {isExpanded ? t('less') : t('more')}
           </button>
         )}
         {v.hashtags?.length > 0 && (
-          <p className="text-[11px] text-blue-500 mt-1">{v.hashtags.map((t: string) => `#${t}`).join(' ')}</p>
+          <p className="text-[11px] text-blue-500 mt-1">{v.hashtags.map((tag: string) => `#${tag}`).join(' ')}</p>
         )}
       </div>
     </div>
   )
 }
 
-function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImage }: { v: any; img: any; brandHandle: string; isExpanded: boolean; onToggle: () => void; onEditImage?: () => void }) {
+function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImage, t }: { v: any; img: any; brandHandle: string; isExpanded: boolean; onToggle: () => void; onEditImage?: () => void; t: (k: TranslationKey) => string }) {
   const TEXT_CLAMP = 400
   const needsTruncate = v.text.length > TEXT_CLAMP
   return (
     <div className="flex flex-col">
-      {/* FB Header */}
       <div className="flex items-center gap-2 px-3 py-2.5">
         <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">
           {(brandHandle || 'B')[0].toUpperCase()}
         </div>
         <div>
-          <span className="text-xs font-semibold text-gray-900 dark:text-white block">{brandHandle || 'Your Brand'}</span>
+          <span className="text-xs font-semibold text-gray-900 dark:text-white block">{brandHandle || t('yourBrand')}</span>
           <div className="flex items-center gap-1 text-[10px] text-gray-400">
-            <span>Just now</span> · <Globe size={9} />
+            <span>{t('justNow')}</span> · <Globe size={9} />
           </div>
         </div>
         <div className="flex-1" />
         <MoreHorizontal size={14} className="text-gray-500" />
       </div>
-      {/* FB Text */}
       <div className="px-3 pb-2">
         <p className="text-[12px] text-gray-800 dark:text-gray-200 leading-relaxed whitespace-pre-wrap">
           {needsTruncate && !isExpanded ? v.text.slice(0, TEXT_CLAMP) + '...' : v.text}
         </p>
         {needsTruncate && (
           <button onClick={onToggle} className="text-[11px] text-blue-500 font-medium mt-0.5">
-            {isExpanded ? 'Show less' : 'See more'}
+            {isExpanded ? t('showLess') : t('seeMore')}
           </button>
         )}
         {v.hashtags?.length > 0 && (
-          <p className="text-[11px] text-blue-500 mt-1">{v.hashtags.map((t: string) => `#${t}`).join(' ')}</p>
+          <p className="text-[11px] text-blue-500 mt-1">{v.hashtags.map((tag: string) => `#${tag}`).join(' ')}</p>
         )}
       </div>
       {img?.url && !img.url.includes('placehold.co') ? (
@@ -161,7 +163,7 @@ function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImage
           {!isVideoUrl(img.url) && (
             <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
-                <Edit3 size={12} /> Edit Image
+                <Edit3 size={12} /> {t('editImage')}
               </span>
             </div>
           )}
@@ -171,23 +173,22 @@ function FacebookMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImage
           <ImageOff size={32} className="text-gray-300" />
         </div>
       )}
-      {/* FB Reactions */}
       <div className="flex items-center gap-4 px-3 py-2 border-t border-gray-100 dark:border-gray-700">
         <button className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-blue-500">
-          <ThumbsUp size={14} /> Like
+          <ThumbsUp size={14} /> {t('like')}
         </button>
         <button className="flex items-center gap-1 text-[11px] text-gray-500">
-          <MessageCircle size={14} /> Comment
+          <MessageCircle size={14} /> {t('comment')}
         </button>
         <button className="flex items-center gap-1 text-[11px] text-gray-500">
-          <Share2 size={14} /> Share
+          <Share2 size={14} /> {t('share')}
         </button>
       </div>
     </div>
   )
 }
 
-function GenericMockup({ v, img, meta, isExpanded, onToggle, onEditImage }: { v: any; img: any; meta: any; isExpanded: boolean; onToggle: () => void; onEditImage?: () => void }) {
+function GenericMockup({ v, img, meta, isExpanded, onToggle, onEditImage, t }: { v: any; img: any; meta: any; isExpanded: boolean; onToggle: () => void; onEditImage?: () => void; t: (k: TranslationKey) => string }) {
   const TEXT_CLAMP = 200
   const needsTruncate = v.text.length > TEXT_CLAMP
   return (
@@ -204,7 +205,7 @@ function GenericMockup({ v, img, meta, isExpanded, onToggle, onEditImage }: { v:
           {!isVideoUrl(img.url) && (
             <div className="absolute inset-0 bg-black/0 group-hover/img:bg-black/40 transition-all flex items-center justify-center opacity-0 group-hover/img:opacity-100">
               <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white/90 dark:bg-gray-800/90 backdrop-blur rounded-lg text-xs font-semibold text-gray-800 dark:text-gray-200 shadow">
-                <Edit3 size={12} /> Edit Image
+                <Edit3 size={12} /> {t('editImage')}
               </span>
             </div>
           )}
@@ -216,11 +217,11 @@ function GenericMockup({ v, img, meta, isExpanded, onToggle, onEditImage }: { v:
         </p>
         {needsTruncate && (
           <button onClick={onToggle} className="text-[11px] mt-0.5" style={{ color: meta.color }}>
-            {isExpanded ? 'Show less' : 'Read more'}
+            {isExpanded ? t('showLess') : t('readMore')}
           </button>
         )}
         {v.hashtags?.length > 0 && (
-          <p className="text-[11px] text-blue-500 mt-1">{v.hashtags.map((t: string) => `#${t}`).join(' ')}</p>
+          <p className="text-[11px] text-blue-500 mt-1">{v.hashtags.map((tag: string) => `#${tag}`).join(' ')}</p>
         )}
         {v.call_to_action && (
           <p className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 mt-1">{v.call_to_action}</p>
@@ -241,6 +242,7 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
   const { generatedContent: globalContent, updateVariation, updateImage, imageHistory, addToImageHistory } = useContentStore()
   const generatedContent = content || globalContent
   const { session } = useAuth()
+  const { t } = useApp()
 
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [editingImageIdx, setEditingImageIdx] = useState<number | null>(null)
@@ -265,7 +267,7 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
   const hasImages = !!(generatedContent?.images?.length)
 
   if (!generatedContent?.variations?.length || (!hasImages && !userMedia)) {
-    return <div className="text-center text-gray-500 py-20">No content generated yet</div>
+    return <div className="text-center text-gray-500 py-20">{t('noContentYet')}</div>
   }
 
   const variations = generatedContent.variations
@@ -347,8 +349,8 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
       })
       if (!res.ok) throw new Error('Save failed')
       setSavedToLibrary(prev => ({ ...prev, [idx]: true }))
-      setPublishedStatus(prev => ({ ...prev, [idx]: 'Saved to Library ✓' }))
-    } catch { alert('Failed to save') }
+      setPublishedStatus(prev => ({ ...prev, [idx]: t('savedToLibrary') }))
+    } catch { alert(t('failedToSave')) }
     finally { setSavingIdx(null) }
   }
 
@@ -388,7 +390,7 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
       }
     } catch (e) {
       console.error('Regenerate failed:', e)
-      alert('Failed to regenerate. Please try again.')
+      alert(t('failedToRegenerate'))
     } finally {
       setRegeneratingIdx(null)
     }
@@ -435,35 +437,36 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
           <button onClick={onBack}
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
           >
-            <ArrowLeft size={16} /> Back
+            <ArrowLeft size={16} /> {t('back')}
           </button>
         )}
         <div className="flex-1" />
         <button onClick={handleDownloadAll}
           className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
         >
-          <Download size={16} /> Download All
+          <Download size={16} /> {t('downloadAll')}
         </button>
         <button onClick={onReset}
           className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium text-white transition"
           style={{ background: 'linear-gradient(135deg, #4A7CFF, #7C3AED)' }}
         >
-          <RefreshCw size={16} /> New Generation
+          <RefreshCw size={16} /> {t('newGeneration')}
         </button>
       </div>
 
       {/* Platform Groups */}
       {Object.entries(platformGroups).map(([platform, indices]) => {
-        const meta = PLATFORM_META[platform] || PLATFORM_META.facebook
+        const pd = PLATFORM_DATA[platform] || PLATFORM_DATA.facebook
+        const platLabel = t((PLATFORM_LABEL_KEYS[platform] || 'platformFacebook') as TranslationKey)
+        const meta = { ...pd, label: platLabel }
         return (
           <div key={platform} className="space-y-3">
-            {/* Platform Section Header */}
             <div className="flex items-center gap-2">
               <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ background: meta.color }}>
                 {meta.label[0]}
               </div>
               <h3 className="text-sm font-bold text-gray-800 dark:text-gray-200">{meta.label}</h3>
-              <span className="text-xs text-gray-400">Choose Your Strategy</span>
+              <span className="text-xs text-gray-400">{t('chooseYourStrategy')}</span>
             </div>
 
             {/* Variant Cards Grid */}
@@ -475,7 +478,8 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
                 const overLimit = fullText.length > meta.charLimit
                 const status = publishedStatus[idx]
                 const vtype = v.variant_type || (idx % 2 === 0 ? 'storyteller' : 'closer')
-                const vtMeta = VARIANT_LABELS[vtype] || VARIANT_LABELS.storyteller
+                const vd = VARIANT_DATA[vtype] || VARIANT_DATA.storyteller
+                const vtMeta = { ...vd, label: t(vd.labelKey as TranslationKey) }
                 const isExpanded = expandedIdx[idx] || false
                 const isRegenerating = regeneratingIdx === idx
 
@@ -494,7 +498,7 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
                         onClick={() => handleRegenerate(idx)}
                         disabled={isRegenerating}
                         className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition disabled:opacity-40"
-                        title="Regenerate this variant"
+                        title={t('regenerate')}
                       >
                         <Wand2 size={14} className={`${isRegenerating ? 'animate-spin text-purple-500' : 'text-gray-400 hover:text-purple-500'}`} />
                       </button>
@@ -505,15 +509,15 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
                       {platform === 'instagram' ? (
                         <InstagramMockup v={v} img={img} brandHandle={brandHandle} isExpanded={isExpanded}
                           onToggle={() => setExpandedIdx(prev => ({ ...prev, [idx]: !isExpanded }))}
-                          onEditImage={!userMedia ? () => setEditingImageIdx(idx) : undefined} />
+                          onEditImage={!userMedia ? () => setEditingImageIdx(idx) : undefined} t={t} />
                       ) : platform === 'facebook' ? (
-                        <FacebookMockup v={v} img={img} brandHandle={brandName || 'Your Brand'} isExpanded={isExpanded}
+                        <FacebookMockup v={v} img={img} brandHandle={brandName || t('yourBrand')} isExpanded={isExpanded}
                           onToggle={() => setExpandedIdx(prev => ({ ...prev, [idx]: !isExpanded }))}
-                          onEditImage={!userMedia ? () => setEditingImageIdx(idx) : undefined} />
+                          onEditImage={!userMedia ? () => setEditingImageIdx(idx) : undefined} t={t} />
                       ) : (
                         <GenericMockup v={v} img={img} meta={meta} isExpanded={isExpanded}
                           onToggle={() => setExpandedIdx(prev => ({ ...prev, [idx]: !isExpanded }))}
-                          onEditImage={!userMedia ? () => setEditingImageIdx(idx) : undefined} />
+                          onEditImage={!userMedia ? () => setEditingImageIdx(idx) : undefined} t={t} />
                       )}
                     </div>
 
@@ -531,36 +535,36 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
                       <button onClick={() => setEditingIdx(idx)}
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
                       >
-                        <Edit3 size={11} /> Edit
+                        <Edit3 size={11} /> {t('edit')}
                       </button>
                       <button onClick={() => handleDownloadMedia(idx)}
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition"
                       >
-                        <Download size={11} /> Image
+                        <Download size={11} /> {t('image')}
                       </button>
                       {img?.url && !isVideoUrl(img.url) && !img.url.includes('placehold.co') && (
                         <button onClick={() => setAddTextIdx(idx)}
                           className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition">
-                          <Type size={11} /> Add Text
+                          <Type size={11} /> {t('addText')}
                         </button>
                       )}
                       <button onClick={() => handleSave(idx)} disabled={savingIdx === idx || savedToLibrary[idx] || (savingInProgress && !savedToLibrary[idx])}
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 hover:bg-purple-100 transition disabled:opacity-50"
                       >
                         {savedToLibrary[idx] ? <Check size={11} /> : <BookmarkPlus size={11} />}
-                        {savingIdx === idx || (savingInProgress && !savedToLibrary[idx]) ? 'Saving...' : savedToLibrary[idx] ? 'Saved' : 'Save'}
+                        {savingIdx === idx || (savingInProgress && !savedToLibrary[idx]) ? t('saving') : savedToLibrary[idx] ? t('saved') : t('save')}
                       </button>
                       <div className="flex-1" />
                       <button onClick={() => setSchedulingIdx(idx)}
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition"
                       >
-                        <Calendar size={11} /> Schedule
+                        <Calendar size={11} /> {t('schedule')}
                       </button>
                       <button onClick={() => setPostingIdx(idx)}
                         className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-medium rounded-lg text-white transition"
                         style={{ background: meta.color }}
                       >
-                        <Send size={11} /> Publish
+                        <Send size={11} /> {t('publish')}
                       </button>
                     </div>
                   </div>
@@ -602,7 +606,7 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
           onClose={(success?: boolean) => {
             if (success) {
               autoSaveToLibrary(postingIdx)
-              setPublishedStatus(prev => ({ ...prev, [postingIdx!]: 'Published ✓' }))
+              setPublishedStatus(prev => ({ ...prev, [postingIdx!]: t('publishedSuccess') }))
             }
             setPostingIdx(null)
           }}
@@ -615,7 +619,7 @@ export function PreviewSection({ onReset, onBack, content, autoSaveResults }: Pr
           onClose={(success?: boolean) => {
             if (success) {
               autoSaveToLibrary(schedulingIdx)
-              setPublishedStatus(prev => ({ ...prev, [schedulingIdx!]: 'Scheduled ✓' }))
+              setPublishedStatus(prev => ({ ...prev, [schedulingIdx!]: t('scheduledSuccess') }))
             }
             setSchedulingIdx(null)
           }}

@@ -22,36 +22,25 @@ import { useContentStore } from '../store/contentStore'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
+import { useApp } from '../contexts/AppContext'
+import type { TranslationKey } from '../i18n/translations'
 import { getJoyoTheme, animations } from '../styles/joyo-theme'
 import { getApiUrl } from '../lib/api'
 
 type TabType = 'dashboard' | 'brandkit' | 'social' | 'creative' | 'ads' | 'chat' | 'analyst' | 'advisor' | 'media' | 'video' | 'videogen' | 'library' | 'calendar' | 'billing' | 'integrations' | 'settings'
 
-function _friendlyGenerateError(msg: string): string {
+function _friendlyGenerateError(msg: string, t: (key: TranslationKey) => string): string {
   const m = msg.toLowerCase()
-  if (m.includes('429') || m.includes('rate limit') || m.includes('too many'))
-    return 'AI service is temporarily overloaded. Please wait a moment and try again.'
-  if (m.includes('timeout') || m.includes('timed out'))
-    return 'Generation took too long. Please try again with a shorter prompt or fewer variations.'
-  if (m.includes('quota') || m.includes('billing'))
-    return 'AI service quota reached. Please contact support.'
-  if (m.includes('credit') || m.includes('balance'))
-    return 'Not enough credits. Please top up your balance.'
-  if (m.includes('could not analyze') || m.includes('scrape'))
-    return 'Could not analyze the website. Please check the URL and try again.'
-  if (m.includes('blocked') || m.includes('safety'))
-    return 'Content was blocked by AI safety filters. Try adjusting your prompt.'
-  if (m.includes('failed to fetch') || m.includes('networkerror'))
-    return 'Network error. Please check your connection and try again.'
+  if (m.includes('429') || m.includes('rate limit') || m.includes('too many')) return t('errRateLimit')
+  if (m.includes('timeout') || m.includes('timed out')) return t('errTimeout')
+  if (m.includes('quota') || m.includes('billing')) return t('errQuota')
+  if (m.includes('credit') || m.includes('balance')) return t('errCredits')
+  if (m.includes('could not analyze') || m.includes('scrape')) return t('errAnalyze')
+  if (m.includes('blocked') || m.includes('safety')) return t('errBlocked')
+  if (m.includes('failed to fetch') || m.includes('networkerror')) return t('errNetwork')
   return msg
 }
 type SocialScreen = 'form' | 'generating' | 'results'
-
-/* ── Platform display info for loading screen ─────────────────── */
-const PLATFORM_LABELS: Record<string, string> = {
-  facebook: 'Facebook', instagram: 'Instagram', linkedin: 'LinkedIn',
-  tiktok: 'TikTok', x: 'X (Twitter)', google_business: 'Google Business',
-}
 
 export function MainWorkspace() {
   const [activeTab, setActiveTab] = useState<TabType>(() => {
@@ -78,6 +67,12 @@ export function MainWorkspace() {
   const { loading } = useAccount()
   const { session } = useAuth()
   const { theme } = useTheme()
+  const { t } = useApp()
+
+  const platformLabels: Record<string, string> = {
+    facebook: t('platformFacebook'), instagram: t('platformInstagram'), linkedin: t('platformLinkedin'),
+    tiktok: t('platformTiktok'), x: t('platformX'), google_business: t('platformGoogleBusiness'),
+  }
 
   // Social post generator state
   const [socialScreen, setSocialScreen] = useState<SocialScreen>('form')
@@ -91,7 +86,7 @@ export function MainWorkspace() {
   const JoyoTheme = getJoyoTheme(theme)
 
   const handleGenerate = async (data: GenerateFormData) => {
-    if (!session) { setGenerateError('Please sign in to generate content'); return }
+    if (!session) { setGenerateError(t('pleaseSignIn')); return }
 
     // Save form for "Back" button
     savedFormRef.current = data
@@ -206,7 +201,7 @@ export function MainWorkspace() {
       if (msg.toLowerCase().includes('credit') || msg.toLowerCase().includes('balance') || msg.toLowerCase().includes('402')) {
         setShowCreditsPopup(true)
       } else {
-        setGenerateError(_friendlyGenerateError(msg))
+        setGenerateError(_friendlyGenerateError(msg, t))
       }
       setSocialScreen('form')
     }
@@ -243,11 +238,11 @@ export function MainWorkspace() {
   }
 
   const pageTitles: Record<TabType, string> = {
-    dashboard: 'Home', brandkit: 'Brand Kit', social: 'Post Generator', creative: 'Creative Studio', ads: 'Google Ads',
-    chat: 'AI Advisor & Analyst', analyst: 'Analyst', advisor: 'AI Advisor', media: 'Media Studio',
-    video: 'Video Dubbing', videogen: 'Video Studio',
-    library: 'Content Library', calendar: 'Calendar',
-    billing: 'Buy Credits', integrations: 'Integrations', settings: 'Settings',
+    dashboard: t('navHome'), brandkit: t('navBrandKit'), social: t('navPostGenerator'), creative: t('navCreativeStudio'), ads: t('navGoogleAds'),
+    chat: t('aiAdvisorAnalyst'), analyst: t('navAnalyst'), advisor: t('navAIAdvisor'), media: t('navMediaStudio'),
+    video: t('aiDubbing'), videogen: t('navVideoStudio'),
+    library: t('navContentLibrary'), calendar: t('navCalendar'),
+    billing: t('navBilling'), integrations: t('navIntegrations'), settings: t('navSettings'),
   }
 
   if (showConnectTools) {
@@ -278,7 +273,7 @@ export function MainWorkspace() {
                     <span className="text-red-500 text-lg">!</span>
                   </div>
                   <div className="flex-1">
-                    <p className="font-semibold text-red-800 dark:text-red-300 text-sm">Generation failed</p>
+                    <p className="font-semibold text-red-800 dark:text-red-300 text-sm">{t('generationFailed')}</p>
                     <p className="text-red-600 dark:text-red-400 text-sm mt-0.5">{generateError}</p>
                   </div>
                   <button onClick={() => setGenerateError('')} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
@@ -311,7 +306,7 @@ export function MainWorkspace() {
             {activeTab === 'ads' && <GoogleAdsGeneration />}
             {activeTab === 'analyst' && <AdAnalytics />}
             {activeTab === 'advisor' && <AIAdvisor />}
-            {activeTab === 'media' && <PlaceholderPage title="Media Studio" description="Create, edit, and manage your visual content — templates, batch resize, background removal, and more." />}
+            {activeTab === 'media' && <PlaceholderPage title={t('mediaStudio')} description={t('mediaStudioDesc')} />}
             {activeTab === 'video' && <VideoTranslation />}
             {activeTab === 'library' && <Library onSendToPostGenerator={handleSendVideoToPostGenerator} />}
             {activeTab === 'calendar' && <Scheduled />}
@@ -333,22 +328,22 @@ export function MainWorkspace() {
               <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center mx-auto mb-4">
                 <span className="text-2xl">⚡</span>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Out of Credits</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('outOfCredits')}</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                You don't have enough credits to complete this action. Purchase more credits to continue.
+                {t('outOfCreditsDesc')}
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowCreditsPopup(false)}
                   className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-gray-600 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all"
                 >
-                  Later
+                  {t('later')}
                 </button>
                 <button
                   onClick={() => { setShowCreditsPopup(false); setActiveTab('billing') }}
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white text-sm font-bold hover:from-violet-700 hover:to-blue-700 transition-all shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
                 >
-                  Buy Credits
+                  {t('buyCredits')}
                 </button>
               </div>
             </div>
@@ -362,25 +357,20 @@ export function MainWorkspace() {
 
 /* ── Placeholder page for upcoming sections ──────────────────── */
 function PlaceholderPage({ title, description }: { title: string; description: string }) {
+  const { t } = useApp()
   return (
     <div className="flex flex-col items-center justify-center text-center" style={{ minHeight: '50vh' }}>
       <Sparkles size={48} className="text-blue-500 mb-4" />
       <h2 className="text-2xl font-bold text-gray-800 dark:text-white mb-2">{title}</h2>
       <p className="text-gray-500 dark:text-gray-400 max-w-md">{description}</p>
       <span className="mt-4 px-4 py-1.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-        Coming Soon
+        {t('comingSoonPlaceholder')}
       </span>
     </div>
   )
 }
 
 /* ── Screen 2: Generating ────────────────────────────────────── */
-const GENERATION_STEPS = [
-  { label: 'Analyzing Brief', icon: FileSearch, description: 'Scanning website & keywords' },
-  { label: 'Rendering Visuals', icon: Palette, description: 'Generating AI images' },
-  { label: 'Finalizing', icon: FileCheck, description: 'Polishing content & hashtags' },
-]
-
 function GeneratingScreen({
   progress, platformStatus, theme
 }: {
@@ -388,7 +378,19 @@ function GeneratingScreen({
   platformStatus: Record<string, 'pending' | 'done'>
   theme: any
 }) {
+  const { t } = useApp()
   const activeStep = progress < 35 ? 0 : progress < 75 ? 1 : 2
+
+  const GENERATION_STEPS = [
+    { label: t('analyzingBrief'), icon: FileSearch, description: t('scanningWebsite') },
+    { label: t('renderingVisuals'), icon: Palette, description: t('generatingAiImages') },
+    { label: t('finalizing'), icon: FileCheck, description: t('polishingContent') },
+  ]
+
+  const platformLabels: Record<string, string> = {
+    facebook: t('platformFacebook'), instagram: t('platformInstagram'), linkedin: t('platformLinkedin'),
+    tiktok: t('platformTiktok'), x: t('platformX'), google_business: t('platformGoogleBusiness'),
+  }
 
   return (
     <div className="flex flex-col items-center justify-center" style={{ minHeight: '60vh' }}>
@@ -397,10 +399,10 @@ function GeneratingScreen({
       </div>
 
       <h2 className="text-2xl font-bold mb-1" style={{ color: theme.text }}>
-        Creating your posts...
+        {t('creatingYourPosts')}
       </h2>
       <p className="text-sm mb-10" style={{ color: theme.textSecondary }}>
-        AI is crafting optimized content for each platform
+        {t('aiCraftingContent')}
       </p>
 
       {/* 3-step progress */}
@@ -467,10 +469,10 @@ function GeneratingScreen({
               <Loader2 size={16} className="animate-spin shrink-0" style={{ color: theme.accent }} />
             )}
             <span className="text-sm font-medium" style={{ color: theme.text }}>
-              {PLATFORM_LABELS[platform] || platform}
+              {platformLabels[platform] || platform}
             </span>
             {status === 'done' && (
-              <span className="ml-auto text-[11px] text-green-500 font-semibold">ready!</span>
+              <span className="ml-auto text-[11px] text-green-500 font-semibold">{t('ready')}</span>
             )}
           </div>
         ))}

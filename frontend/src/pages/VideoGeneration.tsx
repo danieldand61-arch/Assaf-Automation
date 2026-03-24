@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useApp } from '../contexts/AppContext'
 import { Download, Send, Play, Loader2, Film, ImageIcon, Wand2, Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 import { SubtitlePicker, type SubtitleStyle, type SubtitleLang } from '../components/SubtitlePicker'
@@ -33,6 +34,7 @@ const CREDITS_PER_SEC: Record<string, number> = {
 
 export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }: VideoGenerationProps) {
   const { session } = useAuth()
+  const { t } = useApp()
   const [mode, setMode] = useState<GenerationMode>('text')
 
   const [prompt, setPrompt] = useState('')
@@ -90,7 +92,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
         const response = await fetch(`${API_URL}/api/video-gen/status/${taskId}`, {
           headers: { Authorization: `Bearer ${session?.access_token}` },
         })
-        if (!response.ok) throw new Error('Failed to get status')
+        if (!response.ok) throw new Error(t('failedToGetStatus'))
         const data = await response.json()
         setCurrentTask(prev => ({ ...prev!, ...data }))
         if (data.status === 'IN_PROGRESS') {
@@ -104,11 +106,11 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       }
     }
     poll()
-  }, [session])
+  }, [session, t])
 
   const handleGenerate = async () => {
-    if (!prompt.trim()) { setError('Please enter a prompt'); return }
-    if (mode === 'image' && !imageUrl.trim()) { setError('Please enter an image URL'); return }
+    if (!prompt.trim()) { setError(t('pleaseEnterPrompt')); return }
+    if (mode === 'image' && !imageUrl.trim()) { setError(t('pleaseEnterImageUrl')); return }
 
     setIsGenerating(true)
     setError('')
@@ -132,7 +134,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
       if (!response.ok) {
         const err = await response.json()
-        throw new Error(err.detail || 'Failed to generate video')
+        throw new Error(err.detail || t('failedToGenerateVideo'))
       }
 
       const data = await response.json()
@@ -165,8 +167,8 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
         }),
       })
       if (res.ok) setSavedToLibrary(true)
-      else setError('Failed to save to library')
-    } catch { setError('Failed to save to library') }
+      else setError(t('failedToSaveToLibrary'))
+    } catch { setError(t('failedToSaveToLibrary')) }
   }
 
   const handleAddSubtitles = async () => {
@@ -180,12 +182,12 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.detail || 'Failed to add subtitles')
+        throw new Error(err.detail || t('failedToAddSubtitles'))
       }
       const data = await res.json()
       setSubtitledVideoUrl(data.video_url)
     } catch (e: any) {
-      setError(e.message || 'Failed to add subtitles')
+      setError(e.message || t('failedToAddSubtitles'))
     } finally {
       setIsAddingSubtitles(false)
     }
@@ -216,8 +218,8 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             <Film className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Video Studio</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Kling 3.0 AI — Generate UGC & promotional videos</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('videoStudio')}</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t('videoStudioDesc')}</p>
           </div>
         </div>
       </div>
@@ -235,7 +237,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              <Wand2 size={16} /> Text to Video
+              <Wand2 size={16} /> {t('textToVideo')}
             </button>
             <button
               onClick={() => setMode('image')}
@@ -245,22 +247,22 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                   : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
               }`}
             >
-              <ImageIcon size={16} /> Image to Video
+              <ImageIcon size={16} /> {t('imageToVideo')}
             </button>
           </div>
 
           {/* Prompt */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
             <div>
-              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Prompt</label>
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('prompt')}</label>
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 maxLength={2000}
                 rows={4}
                 placeholder={mode === 'text'
-                  ? 'A person holding a product and talking to camera in a natural UGC style...'
-                  : 'Animate the product — slowly rotate with particles around it...'}
+                  ? t('promptPlaceholderText')
+                  : t('promptPlaceholderImage')}
                 className="w-full mt-2 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none resize-none transition"
               />
               <div className="text-[11px] text-gray-400 mt-1 text-right">{prompt.length}/2000</div>
@@ -268,12 +270,12 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
             {mode === 'image' && (
               <div>
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Image URL</label>
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('imageUrl')}</label>
                 <input
                   type="url"
                   value={imageUrl}
                   onChange={(e) => setImageUrl(e.target.value)}
-                  placeholder="https://example.com/product.jpg"
+                  placeholder={t('imageUrlPlaceholder')}
                   className="w-full mt-2 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition"
                 />
               </div>
@@ -282,7 +284,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
           {/* Settings */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-4">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Settings</h3>
+            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('settings')}</h3>
 
             {/* Quality */}
             <div className="flex gap-2">
@@ -296,7 +298,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                       : 'border-gray-200 dark:border-gray-600 text-gray-500 hover:border-gray-300'
                   }`}
                 >
-                  {q === 'pro' ? 'Pro Quality' : 'Standard'}
+                  {q === 'pro' ? t('proQuality') : t('standard')}
                 </button>
               ))}
             </div>
@@ -305,7 +307,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             <div>
               <div className="flex items-center justify-between mb-2">
                 <span className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300">
-                  <Clock size={14} /> Duration
+                  <Clock size={14} /> {t('duration')}
                 </span>
                 <span className="text-sm font-bold text-gray-900 dark:text-white">{duration}s</span>
               </div>
@@ -326,7 +328,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             {mode === 'text' && (
               <div>
                 <span className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300 mb-2">
-                  <Maximize size={14} /> Aspect Ratio
+                  <Maximize size={14} /> {t('aspectRatio')}
                 </span>
                 <div className="flex gap-2">
                   {['16:9', '9:16', '1:1'].map(ar => (
@@ -357,7 +359,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             >
               <span className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 {sound ? <Volume2 size={16} className="text-violet-500" /> : <VolumeX size={16} />}
-                Audio Generation
+                {t('audioGeneration')}
               </span>
               <div className={`w-10 h-5 rounded-full transition-all relative ${sound ? 'bg-violet-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${sound ? 'left-5' : 'left-0.5'}`} />
@@ -368,8 +370,8 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
           {/* Cost & Generate */}
           <div className="bg-gradient-to-r from-violet-50 to-blue-50 dark:from-violet-900/20 dark:to-blue-900/20 rounded-2xl border border-violet-200 dark:border-violet-800 p-5">
             <div className="flex justify-between items-center mb-4">
-              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Estimated Cost</span>
-              <span className="text-xl font-bold text-violet-600 dark:text-violet-400">{estimatedCredits} credits</span>
+              <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{t('estimatedCost')}</span>
+              <span className="text-xl font-bold text-violet-600 dark:text-violet-400">{estimatedCredits} {t('creditsUnit')}</span>
             </div>
             <button
               onClick={handleGenerate}
@@ -377,9 +379,9 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
               className="w-full bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white px-6 py-3.5 rounded-xl font-bold text-sm transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
             >
               {isGenerating ? (
-                <><Loader2 size={18} className="animate-spin" /> Generating...</>
+                <><Loader2 size={18} className="animate-spin" /> {t('generatingVideo')}</>
               ) : (
-                <><Play size={18} /> Generate Video</>
+                <><Play size={18} /> {t('generateVideo')}</>
               )}
             </button>
           </div>
@@ -401,12 +403,12 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-blue-600 flex items-center justify-center mb-6">
                 <Loader2 size={28} className="text-white animate-spin" />
               </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Generating Your Video</h3>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{t('generatingYourVideo')}</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 text-center max-w-sm">
-                {fakeProgress < 20 ? 'Initializing Kling 3.0 engine...'
-                  : fakeProgress < 50 ? 'Generating frames and scene composition...'
-                  : fakeProgress < 80 ? 'Rendering video and applying effects...'
-                  : 'Finalizing and encoding your video...'}
+                {fakeProgress < 20 ? t('videoStageInit')
+                  : fakeProgress < 50 ? t('videoStageFrames')
+                  : fakeProgress < 80 ? t('videoStageRender')
+                  : t('videoStageFinalize')}
               </p>
               <div className="w-full max-w-xs mb-2">
                 <div className="h-2.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
@@ -417,7 +419,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                 </div>
               </div>
               <p className="text-sm font-semibold text-violet-600 dark:text-violet-400">{fakeProgress}%</p>
-              <p className="text-[11px] text-gray-400 mt-2">Task: {currentTask.task_id}</p>
+              <p className="text-[11px] text-gray-400 mt-2">{t('task')}{currentTask.task_id}</p>
             </div>
           )}
 
@@ -427,14 +429,14 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
               <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
                 <span className="text-2xl">⚠️</span>
               </div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">Generation Failed</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 text-center max-w-md mb-4">{currentTask.error_message || 'Unknown error'}</p>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{t('videoFailed')}</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-300 text-center max-w-md mb-4">{currentTask.error_message || t('unknownError')}</p>
               <button
                 onClick={() => { setCurrentTask(null); setFakeProgress(0) }}
                 className="px-5 py-2 rounded-xl text-sm font-medium text-white transition"
                 style={{ background: 'linear-gradient(135deg, #4A7CFF, #7C3AED)' }}
               >
-                Try Again
+                {t('tryAgain')}
               </button>
             </div>
           )}
@@ -455,7 +457,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
               <div className="p-5 space-y-3">
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Credits used: <strong className="text-gray-900 dark:text-white">{currentTask.consumed_credits || currentTask.estimated_credits}</strong></span>
+                  <span className="text-gray-500">{t('creditsUsed')}<strong className="text-gray-900 dark:text-white">{currentTask.consumed_credits || currentTask.estimated_credits}</strong></span>
                   {currentTask.created_at && (
                     <span className="text-gray-400">{new Date(currentTask.created_at).toLocaleString()}</span>
                   )}
@@ -466,7 +468,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                     onClick={() => handleDownload(subtitledVideoUrl || currentTask.video_urls![0])}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold text-sm transition-all"
                   >
-                    <Download size={16} /> Download MP4
+                    <Download size={16} /> {t('downloadMp4')}
                   </button>
                   <button
                     onClick={handleSaveToLibrary}
@@ -477,14 +479,14 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                         : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200'
                     }`}
                   >
-                    {savedToLibrary ? <><CheckCircle2 size={16} /> Saved</> : <><FolderDown size={16} /> Save to Library</>}
+                    {savedToLibrary ? <><CheckCircle2 size={16} /> {t('saved')}</> : <><FolderDown size={16} /> {t('saveToLibrary')}</>}
                   </button>
                   {onSendToPostGenerator && (
                     <button
                       onClick={() => onSendToPostGenerator(subtitledVideoUrl || currentTask.video_urls![0], prompt)}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-semibold text-sm transition-all shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
                     >
-                      <Send size={16} /> Send to Post Generator
+                      <Send size={16} /> {t('sendToPostGenerator')}
                     </button>
                   )}
                 </div>
@@ -501,7 +503,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                   onRevert={() => setSubtitledVideoUrl(null)}
                 />
                 <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-2 text-center">
-                  Videos are stored in the library for 7 days. Download to keep permanently.
+                  {t('videoStorageNote')}
                 </p>
               </div>
             </div>
@@ -513,16 +515,16 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
               <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-100 to-blue-100 dark:from-violet-900/30 dark:to-blue-900/30 flex items-center justify-center mb-6 rotate-3">
                 <Film size={36} className="text-violet-500" />
               </div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Create Your First Video</h3>
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('createFirstVideo')}</h3>
               <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-sm mb-6">
-                Write a prompt describing your video, adjust settings, and hit Generate. Your AI-powered video will appear here.
+                {t('createFirstVideoDesc')}
               </p>
               <div className="grid grid-cols-2 gap-3 w-full max-w-sm">
                 {[
-                  { icon: '🎤', label: 'UGC Reviews', desc: 'Person talking to camera' },
-                  { icon: '📦', label: 'Product Demos', desc: 'Showcase & unboxing' },
-                  { icon: '🎬', label: 'Promo Clips', desc: 'Ad-style short videos' },
-                  { icon: '✨', label: 'Social Stories', desc: 'Quick story-format' },
+                  { icon: '🎤', label: t('ugcReviews'), desc: t('ugcReviewsDesc') },
+                  { icon: '📦', label: t('productDemos'), desc: t('productDemosDesc') },
+                  { icon: '🎬', label: t('promoClips'), desc: t('promoClipsDesc') },
+                  { icon: '✨', label: t('socialStories'), desc: t('socialStoriesDesc') },
                 ].map(item => (
                   <div key={item.label} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 border border-gray-100 dark:border-gray-600">
                     <span className="text-lg">{item.icon}</span>

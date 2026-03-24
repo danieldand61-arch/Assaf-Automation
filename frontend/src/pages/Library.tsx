@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useApp } from '../contexts/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { SavedPostsLibrary } from '../components/SavedPostsLibrary'
 import { Archive, MessageSquare } from 'lucide-react'
@@ -21,6 +22,7 @@ interface ChatMessage {
 
 function ChatHistoryTab() {
   const { session } = useAuth()
+  const { t } = useApp()
   const [chats, setChats] = useState<ChatItem[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedChat, setExpandedChat] = useState<string | null>(null)
@@ -67,9 +69,9 @@ function ChatHistoryTab() {
       <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
         <MessageSquare className="w-8 h-8 text-purple-500" />
       </div>
-      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Chat History Yet</h3>
+      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('noChatHistoryYet')}</h3>
       <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-        Start a conversation with the AI Advisor to see your chat history here
+        {t('noChatHistoryDesc')}
       </p>
     </div>
   )
@@ -84,7 +86,7 @@ function ChatHistoryTab() {
               <MessageSquare size={18} className="text-purple-500" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">{chat.title || 'Untitled Chat'}</h3>
+              <h3 className="text-sm font-bold text-gray-900 dark:text-white truncate">{chat.title || t('untitledChat')}</h3>
               <p className="text-[11px] text-gray-400 mt-0.5">{new Date(chat.updated_at || chat.created_at).toLocaleDateString()} · {new Date(chat.updated_at || chat.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
             </div>
             <svg className={`w-4 h-4 text-gray-400 transition-transform ${expandedChat === chat.id ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -96,7 +98,7 @@ function ChatHistoryTab() {
               {loadingMessages === chat.id ? (
                 <div className="flex justify-center py-4"><div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500" /></div>
               ) : (messages[chat.id] || []).length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">No messages</p>
+                <p className="text-xs text-gray-400 text-center py-4">{t('noMessages')}</p>
               ) : (
                 (messages[chat.id] || []).map(msg => (
                   <div key={msg.id} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -124,6 +126,7 @@ interface LibraryProps {
 
 export function Library({ onSendToPostGenerator }: LibraryProps) {
   const { user } = useAuth()
+  const { t } = useApp()
   const navigate = useNavigate()
   const [tab, setTab] = useState<'posts' | 'chats'>('posts')
 
@@ -138,12 +141,12 @@ export function Library({ onSendToPostGenerator }: LibraryProps) {
         <button onClick={() => setTab('posts')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${
             tab === 'posts' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
-          <Archive size={16} /> Saved Posts
+          <Archive size={16} /> {t('savedPosts')}
         </button>
         <button onClick={() => setTab('chats')}
           className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition ${
             tab === 'chats' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
-          <MessageSquare size={16} /> AI Chat History
+          <MessageSquare size={16} /> {t('aiChatHistory')}
         </button>
       </div>
 

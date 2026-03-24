@@ -1,5 +1,6 @@
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
+import { useApp } from '../contexts/AppContext'
 import { useNavigate } from 'react-router-dom'
 import { ScheduledPosts } from '../components/ScheduledPosts'
 import { ArrowLeft } from 'lucide-react'
@@ -7,6 +8,7 @@ import { ArrowLeft } from 'lucide-react'
 export function Scheduled() {
   const { user } = useAuth()
   const { activeAccount } = useAccount()
+  const { t } = useApp()
   const navigate = useNavigate()
 
   if (!user) {
@@ -24,18 +26,18 @@ export function Scheduled() {
             className="mb-4 flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span className="font-medium">Back to Home</span>
+            <span className="font-medium">{t('backToHome')}</span>
           </button>
 
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            📅 Scheduled Posts
+            📅 {t('scheduledPosts')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Posts that are scheduled for publishing or already published
+            {t('scheduledPostsDesc')}
           </p>
           {activeAccount && (
             <p className="text-sm text-purple-600 dark:text-purple-400 mt-2">
-              Current account: <strong>{activeAccount.name}</strong>
+              {t('currentAccount')}: <strong>{activeAccount.name}</strong>
             </p>
           )}
         </div>

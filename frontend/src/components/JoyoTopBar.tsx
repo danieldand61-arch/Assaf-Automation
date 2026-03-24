@@ -15,7 +15,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
   const { activeAccount, accounts, switchAccount } = useAccount()
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const { language, setLanguage } = useApp()
+  const { language, setLanguage, t } = useApp()
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [langMenuOpen, setLangMenuOpen] = useState(false)
@@ -83,7 +83,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
               }}
             >
               <Building2 size={14} />
-              {activeAccount?.name || 'Select Account'}
+              {activeAccount?.name || t('selectAccount')}
               <ChevronDown size={14} />
             </button>
 
@@ -166,7 +166,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
             justifyContent: 'center',
             color: JoyoTheme.textMuted,
           }}
-          title="Settings"
+          title={t('navSettings')}
         >
           <Settings size={18} />
         </button>
@@ -187,7 +187,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
               justifyContent: 'center',
               color: JoyoTheme.textMuted,
             }}
-            title={language === 'en' ? 'Language' : 'שפה'}
+            title={t('language')}
           >
             <Globe size={18} />
           </button>
@@ -321,7 +321,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
                   }}
                 >
                   <LogOut size={14} />
-                  Sign Out
+                  {t('signOut')}
                 </button>
               </div>
             </>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
+import { useApp } from '../contexts/AppContext'
 import { getApiUrl } from '../lib/api'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -111,6 +112,7 @@ const ADVERTISING_PLATFORMS: Platform[] = [
 export function Connections() {
   const { user, session } = useAuth()
   const { activeAccount } = useAccount()
+  const { t } = useApp()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   
@@ -139,7 +141,7 @@ export function Connections() {
     const googleAdsOAuth = searchParams.get('google_ads_oauth')
     
     if (success) {
-      setSuccessMessage(`${success.charAt(0).toUpperCase() + success.slice(1)} connected successfully!`)
+      setSuccessMessage(`${success.charAt(0).toUpperCase() + success.slice(1)} ${t('connectedSuccessfully')}`)
       // Clear URL parameters
       window.history.replaceState({}, '', '/app?tab=integrations')
     }
@@ -238,7 +240,7 @@ export function Connections() {
   }
 
   const handleDisconnectMetaAds = async () => {
-    if (!confirm('Are you sure you want to disconnect Meta Ads?')) return
+    if (!confirm(t('disconnectConfirm') + ' Meta Ads?')) return
     try {
       const apiUrl = getApiUrl()
       await fetch(`${apiUrl}/api/social/connections/meta_ads`, {
@@ -247,7 +249,7 @@ export function Connections() {
       setMetaAdsConnected(false)
       setMetaAdAccounts([])
       setMetaSelectedAccount('')
-      setSuccessMessage('Meta Ads disconnected successfully')
+      setSuccessMessage('Meta Ads ' + t('disconnectedSuccessfully'))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to disconnect Meta Ads')
     }
@@ -296,7 +298,7 @@ export function Connections() {
   }
 
   const handleDisconnect = async (platformId: string) => {
-    if (!confirm(`Are you sure you want to disconnect ${platformId}?`)) {
+    if (!confirm(t('disconnectConfirm') + ` ${platformId}?`)) {
       return
     }
     
@@ -311,7 +313,7 @@ export function Connections() {
       
       if (!response.ok) throw new Error('Failed to disconnect')
       
-      setSuccessMessage(`${platformId.charAt(0).toUpperCase() + platformId.slice(1)} disconnected successfully`)
+      setSuccessMessage(`${platformId.charAt(0).toUpperCase() + platformId.slice(1)} ${t('disconnectedSuccessfully')}`)
       fetchConnections()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to disconnect')
@@ -342,12 +344,12 @@ export function Connections() {
 
   const handleConnectGoogleAds = async () => {
     if (!googleAdsCustomerIdInput) {
-      setError('Please enter Customer ID')
+      setError(t('pleaseEnterCustomerId'))
       return
     }
 
     if (!googleAdsRefreshToken) {
-      setError('OAuth token missing. Please try connecting again.')
+      setError(t('oauthTokenMissing'))
       return
     }
     
@@ -376,7 +378,7 @@ export function Connections() {
       const data = await response.json()
       setGoogleAdsConnected(true)
       setGoogleAdsCustomerId(googleAdsCustomerIdInput)
-      setSuccessMessage(`Google Ads connected successfully! Found ${data.campaigns_count} campaigns.`)
+      setSuccessMessage(`${t('googleAdsConnectedSuccess')} ${data.campaigns_count} ${t('campaigns')}.`)
       setShowGoogleAdsModal(false)
       setGoogleAdsRefreshToken('')
       setGoogleAdsCustomerIdInput('')
@@ -394,7 +396,7 @@ export function Connections() {
   }
 
   const handleDisconnectGoogleAds = async () => {
-    if (!confirm('Are you sure you want to disconnect Google Ads?')) {
+    if (!confirm(t('disconnectConfirm') + ' Google Ads?')) {
       return
     }
     
@@ -411,7 +413,7 @@ export function Connections() {
       
       setGoogleAdsConnected(false)
       setGoogleAdsCustomerId('')
-      setSuccessMessage('Google Ads disconnected successfully')
+      setSuccessMessage('Google Ads ' + t('disconnectedSuccessfully'))
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to disconnect Google Ads')
     }
@@ -428,10 +430,10 @@ export function Connections() {
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-          Social Media Connections
+          {t('socialMediaConnections')}
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Connect your social media accounts to start publishing
+          {t('connectSocialDesc')}
         </p>
       </div>
 
@@ -463,10 +465,10 @@ export function Connections() {
             </svg>
             <div>
               <h3 className="font-semibold text-yellow-900 dark:text-yellow-200">
-                No business account selected
+                {t('noBusinessAccount')}
               </h3>
               <p className="text-sm text-yellow-800 dark:text-yellow-300 mt-1">
-                Please create or select a business account first to manage social media connections.
+                {t('noBusinessAccountDesc')}
               </p>
             </div>
           </div>
@@ -482,7 +484,7 @@ export function Connections() {
         <>
           {/* Social Media Section */}
           <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Social Media</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{t('socialMedia')}</h2>
             <div className="space-y-4">
               {SOCIAL_MEDIA_PLATFORMS.map((platform) => {
                 const connection = getConnection(platform.id)
@@ -511,7 +513,7 @@ export function Connections() {
                           {connection && (
                             <div className="mt-2 text-sm">
                               <p className="text-gray-700 dark:text-gray-300">
-                                Connected as: <span className="font-medium">{connection.platform_username}</span>
+                                {t('connectedAs')}: <span className="font-medium">{connection.platform_username}</span>
                               </p>
                               {connection.platform_profile_url && (
                                 <a
@@ -520,7 +522,7 @@ export function Connections() {
                                   rel="noopener noreferrer"
                                   className="text-blue-600 dark:text-blue-400 hover:underline"
                                 >
-                                  View Profile
+                                  {t('viewProfile')}
                                 </a>
                               )}
                             </div>
@@ -536,13 +538,13 @@ export function Connections() {
                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                               </svg>
-                              Connected
+                              {t('connected')}
                             </span>
                             <button
                               onClick={() => handleDisconnect(platform.id)}
                               className="px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg font-semibold transition-all"
                             >
-                              Disconnect
+                              {t('disconnect')}
                             </button>
                           </>
                         ) : (
@@ -558,12 +560,12 @@ export function Connections() {
                                 }
                               `}
                             >
-                              Connect
+                              {t('connect')}
                             </button>
 
                             {!platform.enabled && (
                               <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
-                                Coming soon
+                                {t('comingSoon')}
                               </span>
                             )}
                           </>
@@ -578,7 +580,7 @@ export function Connections() {
 
           {/* Advertising Platforms Section */}
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">Advertising Platforms</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{t('advertisingPlatforms')}</h2>
             <div className="space-y-4">
               {ADVERTISING_PLATFORMS.map((platform) => {
                 const isGoogle = platform.id === 'google_ads'
@@ -606,12 +608,12 @@ export function Connections() {
                               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                               </svg>
-                              Connected
+                              {t('connected')}
                             </span>
                             <button
                               onClick={isGoogle ? handleDisconnectGoogleAds : handleDisconnectMetaAds}
                               className="px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800 rounded-lg font-semibold transition-all">
-                              Disconnect
+                              {t('disconnect')}
                             </button>
                           </>
                         ) : (
@@ -627,7 +629,7 @@ export function Connections() {
                                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                               </svg>
                             )}
-                            {isGoogle ? 'Sign in with Google' : 'Connect Meta Ads'}
+                            {isGoogle ? t('signInWithGoogle') : t('connectMetaAds')}
                           </button>
                         )}
                       </div>
@@ -636,7 +638,7 @@ export function Connections() {
                     {isMeta && isConn && metaAdAccounts.length > 1 && (
                       <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
                         <div className="flex items-center gap-3">
-                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">Ad Account:</label>
+                          <label className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">{t('adAccount')}:</label>
                           <select
                             value={metaSelectedAccount}
                             onChange={async (e) => {
@@ -658,7 +660,7 @@ export function Connections() {
                           >
                             {metaAdAccounts.map((a: any) => (
                               <option key={a.id} value={a.id}>
-                                {a.name || a.id} {a.currency ? `(${a.currency})` : ''} {a.account_status === 1 ? '' : '⚠️ inactive'}
+                                {a.name || a.id} {a.currency ? `(${a.currency})` : ''} {a.account_status === 1 ? '' : `⚠️ ${t('inactive')}`}
                               </option>
                             ))}
                           </select>
@@ -681,7 +683,7 @@ export function Connections() {
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  Connect Google Ads Account
+                  {t('connectGoogleAdsAccount')}
                 </h3>
                 <button
                   onClick={() => {
@@ -706,10 +708,10 @@ export function Connections() {
                   </svg>
                   <div>
                     <h4 className="font-semibold text-green-900 dark:text-green-200 mb-1">
-                      ✅ Google authentication successful!
+                      {t('googleAuthSuccess')}
                     </h4>
                     <p className="text-sm text-green-800 dark:text-green-300">
-                      Now enter your Google Ads Customer ID to complete the connection.
+                      {t('enterCustomerIdDesc')}
                     </p>
                   </div>
                 </div>
@@ -720,7 +722,7 @@ export function Connections() {
                 {/* Customer ID */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Customer ID *
+                    {t('customerId')} *
                   </label>
                   <input
                     type="text"
@@ -731,7 +733,7 @@ export function Connections() {
                     disabled={isConnectingGoogleAds}
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    10-digit number without dashes. Find it in Google Ads top-right corner.
+                    {t('customerIdHint')}
                   </p>
                 </div>
 
@@ -743,12 +745,12 @@ export function Connections() {
                     </svg>
                     <div>
                       <h4 className="font-semibold text-blue-900 dark:text-blue-200 mb-1">
-                        Where to find Customer ID?
+                        {t('whereToFindCustomerId')}
                       </h4>
                       <ol className="text-sm text-blue-800 dark:text-blue-300 space-y-1 list-decimal list-inside">
-                        <li>Open <a href="https://ads.google.com" target="_blank" rel="noopener noreferrer" className="underline">Google Ads</a></li>
-                        <li>Look at the top-right corner for "XXX-XXX-XXXX"</li>
-                        <li>Remove dashes and enter here (e.g., 1234567890)</li>
+                        <li>{t('customerIdStep1')}</li>
+                        <li>{t('customerIdStep2')}</li>
+                        <li>{t('customerIdStep3')}</li>
                       </ol>
                     </div>
                   </div>
@@ -765,7 +767,7 @@ export function Connections() {
                     className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                     disabled={isConnectingGoogleAds}
                   >
-                    Cancel
+                    {t('cancel')}
                   </button>
                   <button
                     onClick={handleConnectGoogleAds}
@@ -778,10 +780,10 @@ export function Connections() {
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
-                        Connecting...
+                        {t('connecting')}
                       </>
                     ) : (
-                      'Connect Google Ads'
+                      t('connectGoogleAds')
                     )}
                   </button>
                 </div>

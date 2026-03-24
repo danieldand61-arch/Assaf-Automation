@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
+import { useApp } from '../contexts/AppContext'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { CreditsUsage } from './CreditsUsage'
 import { ArrowLeft, Loader2, Globe } from 'lucide-react'
@@ -11,6 +12,7 @@ type Tab = 'brandkit' | 'profile' | 'accounts' | 'credits'
 export function Settings() {
   const { user } = useAuth()
   const { activeAccount } = useAccount()
+  const { t } = useApp()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<Tab>('brandkit')
@@ -35,12 +37,12 @@ export function Settings() {
     if (error) {
       // You can use toast notifications here
       console.error('Connection error:', error)
-      alert(`Connection failed: ${error}`)
+      alert(`${t('connectionFailed')}: ${error}`)
     }
     
     if (success) {
       console.log('Connection successful:', success)
-      alert(`Successfully connected ${success}!`)
+      alert(`${t('successfullyConnected')} ${success}!`)
     }
   }, [searchParams])
 
@@ -52,7 +54,7 @@ export function Settings() {
   const tabs = [
     {
       id: 'brandkit' as Tab,
-      name: 'Brand Kit',
+      name: t('brandKit'),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
@@ -61,7 +63,7 @@ export function Settings() {
     },
     {
       id: 'credits' as Tab,
-      name: 'Credits Usage',
+      name: t('creditsUsage'),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -70,7 +72,7 @@ export function Settings() {
     },
     {
       id: 'profile' as Tab,
-      name: 'Profile',
+      name: t('profile'),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -79,7 +81,7 @@ export function Settings() {
     },
     {
       id: 'accounts' as Tab,
-      name: 'Business Accounts',
+      name: t('businessAccounts'),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -99,18 +101,18 @@ export function Settings() {
               className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-lg transition flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
             >
               <ArrowLeft className="w-5 h-5" />
-              <span className="font-medium">Back to App</span>
+              <span className="font-medium">{t('backToApp')}</span>
             </button>
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Settings
+            {t('settingsTitle')}
           </h1>
           <p className="text-gray-600 dark:text-gray-400">
-            Manage your account settings and preferences
+            {t('settingsDesc')}
           </p>
           {activeAccount && (
             <p className="text-sm text-purple-600 dark:text-purple-400 mt-2">
-              Current account: <strong>{activeAccount.name}</strong>
+              {t('currentAccount')}: <strong>{activeAccount.name}</strong>
             </p>
           )}
         </div>
@@ -165,6 +167,7 @@ export function Settings() {
 function BrandKitTab() {
   const { activeAccount, updateAccount } = useAccount()
   const { session } = useAuth()
+  const { t } = useApp()
   const [name, setName] = useState('')
   const [industry, setIndustry] = useState('')
   const [description, setDescription] = useState('')
@@ -223,7 +226,7 @@ function BrandKitTab() {
       setWebsiteUrl(url)
     } catch (err) {
       console.error('Re-analyze error:', err)
-      alert('Could not analyze website. Check console for details.')
+      alert(t('couldNotAnalyze'))
     } finally { setAnalyzing(false) }
   }
 
@@ -249,7 +252,7 @@ function BrandKitTab() {
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
-    } catch { alert('Failed to save') }
+    } catch { alert(t('failedToSave')) }
     finally { setSaving(false) }
   }
 
@@ -257,15 +260,15 @@ function BrandKitTab() {
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
-      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">Brand Kit</h2>
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-1">{t('brandKit')}</h2>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        This data is used by AI when generating posts, ads, and images for your brand.
+        {t('brandKitSubDesc')}
       </p>
 
       <div className="space-y-5">
         {/* Re-analyze URL */}
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Website URL</label>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('websiteUrlLabel')}</label>
           <div className="flex gap-2">
             <input value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} className={fieldCls + ' flex-1'} placeholder="yourbusiness.com" />
             <button onClick={handleReAnalyze} disabled={analyzing || !websiteUrl.trim()}
@@ -273,41 +276,41 @@ function BrandKitTab() {
               style={{ background: 'linear-gradient(135deg, #4A7CFF, #8B5CF6)' }}
             >
               {analyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Globe className="w-4 h-4" />}
-              {analyzing ? 'Analyzing...' : 'Re-analyze'}
+              {analyzing ? t('analyzing') : t('reAnalyze')}
             </button>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Business Name</label>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('businessName')}</label>
             <input value={name} onChange={e => setName(e.target.value)} className={fieldCls} />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Industry</label>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('industry')}</label>
             <input value={industry} onChange={e => setIndustry(e.target.value)} className={fieldCls} />
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Description</label>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('description')}</label>
           <textarea value={description} onChange={e => setDescription(e.target.value)} rows={2} className={fieldCls + ' resize-none'} />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Brand Voice</label>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('brandVoiceLabel')}</label>
             <select value={voice} onChange={e => setVoice(e.target.value)} className={fieldCls}>
-              <option value="professional">Professional</option>
-              <option value="casual">Casual / Friendly</option>
-              <option value="luxury">Luxury / Premium</option>
-              <option value="playful">Playful / Fun</option>
-              <option value="authoritative">Authoritative / Expert</option>
-              <option value="balanced">Balanced</option>
+              <option value="professional">{t('professional')}</option>
+              <option value="casual">{t('casualFriendly')}</option>
+              <option value="luxury">{t('luxuryPremium')}</option>
+              <option value="playful">{t('playfulFun')}</option>
+              <option value="authoritative">{t('authoritativeExpert')}</option>
+              <option value="balanced">{t('balanced')}</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Logo URL</label>
+            <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('logoUrl')}</label>
             <div className="flex items-center gap-2">
               {logoUrl && (
                 <img
@@ -324,7 +327,7 @@ function BrandKitTab() {
 
         {/* Colors */}
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Brand Colors</label>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('brandColors2')}</label>
           <div className="flex items-center gap-2 flex-wrap">
             {colors.map((c, i) => (
               <div key={i} className="flex items-center gap-1 px-2 py-1 rounded-lg border border-gray-200 dark:border-gray-600">
@@ -334,17 +337,17 @@ function BrandKitTab() {
                 <button onClick={() => setColors(colors.filter((_, j) => j !== i))} className="text-gray-400 hover:text-red-500 text-xs">&times;</button>
               </div>
             ))}
-            <button onClick={() => setColors([...colors, '#000000'])} className="text-xs text-blue-500 hover:text-blue-600 font-medium">+ Add</button>
+            <button onClick={() => setColors([...colors, '#000000'])} className="text-xs text-blue-500 hover:text-blue-600 font-medium">{t('addColor')}</button>
           </div>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Products / Services (comma-separated)</label>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('productsServices')}</label>
           <input value={products} onChange={e => setProducts(e.target.value)} className={fieldCls} placeholder="Product A, Service B, ..." />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Key Features (comma-separated)</label>
+          <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('keyFeatures')}</label>
           <input value={features} onChange={e => setFeatures(e.target.value)} className={fieldCls} placeholder="Fast delivery, 24/7 support, ..." />
         </div>
 
@@ -352,7 +355,7 @@ function BrandKitTab() {
           className="w-full py-3 rounded-xl text-sm font-bold text-white transition disabled:opacity-50"
           style={{ background: saved ? '#10B981' : 'linear-gradient(135deg, #4A7CFF, #8B5CF6)' }}
         >
-          {saving ? 'Saving...' : saved ? 'Saved ✓' : 'Save Brand Kit'}
+          {saving ? t('savingBrandKit') : saved ? t('savedBrandKit') : t('saveBrandKit')}
         </button>
       </div>
     </div>
@@ -361,10 +364,11 @@ function BrandKitTab() {
 
 // Credits Tab (uses existing CreditsUsage component)
 function CreditsTab() {
+  const { t } = useApp()
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-        Credits Usage & Billing
+        {t('creditsUsageBilling')}
       </h2>
       <CreditsUsage />
     </div>
@@ -374,18 +378,19 @@ function CreditsTab() {
 // Profile Tab
 function ProfileTab() {
   const { user } = useAuth()
+  const { t } = useApp()
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-        Profile Settings
+        {t('profileSettings')}
       </h2>
 
       <div className="space-y-6">
         {/* User Info */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Email
+            {t('email')}
           </label>
           <input
             type="email"
@@ -394,14 +399,14 @@ function ProfileTab() {
             className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
           />
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Email cannot be changed
+            {t('emailCannotChange')}
           </p>
         </div>
 
         {/* Full Name */}
         <div>
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-            Full Name
+            {t('fullName')}
           </label>
           <input
             type="text"
@@ -419,11 +424,8 @@ function ProfileTab() {
             </svg>
             <div>
               <h3 className="font-semibold text-blue-900 dark:text-blue-200">
-                More settings coming soon!
+                {t('moreSettingsSoon')}
               </h3>
-              <p className="text-sm text-blue-800 dark:text-blue-300 mt-1">
-                Profile editing, password change, and notification preferences will be available in the next update.
-              </p>
             </div>
           </div>
         </div>
@@ -436,6 +438,7 @@ function ProfileTab() {
 
 function DeleteAccountSection() {
   const { session, signOut } = useAuth()
+  const { t } = useApp()
   const [showConfirm, setShowConfirm] = useState(false)
   const [confirmText, setConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
@@ -452,36 +455,36 @@ function DeleteAccountSection() {
       await signOut()
     } catch (err) {
       console.error('Delete account error:', err)
-      alert('Failed to delete account. Please try again.')
+      alert(t('failedToDeleteAccount'))
     } finally { setDeleting(false) }
   }
 
   return (
     <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-      <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2">Danger Zone</h3>
+      <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2">{t('dangerZone')}</h3>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-        Once you delete your account, all your data will be permanently removed. This action cannot be undone.
+        {t('deleteAccountWarning')}
       </p>
       {!showConfirm ? (
         <button onClick={() => setShowConfirm(true)}
           className="px-5 py-2.5 rounded-xl text-sm font-semibold text-red-600 border-2 border-red-300 dark:border-red-700 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
-          Delete My Account
+          {t('deleteMyAccount')}
         </button>
       ) : (
         <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-5 space-y-4">
           <p className="text-sm font-semibold text-red-700 dark:text-red-300">
-            Are you absolutely sure? This will permanently delete:
+            {t('areYouSure')}
           </p>
           <ul className="text-sm text-red-600 dark:text-red-400 list-disc list-inside space-y-1">
-            <li>Your user account and profile</li>
-            <li>All business accounts you own</li>
-            <li>All generated content and saved posts</li>
-            <li>All social media connections</li>
-            <li>All credits and usage history</li>
+            <li>{t('deleteItemAccount')}</li>
+            <li>{t('deleteItemBusiness')}</li>
+            <li>{t('deleteItemContent')}</li>
+            <li>{t('deleteItemSocial')}</li>
+            <li>{t('deleteItemCredits')}</li>
           </ul>
           <div>
             <label className="block text-xs font-semibold text-red-700 dark:text-red-300 mb-1">
-              Type DELETE to confirm
+              {t('typeDeleteConfirm')}
             </label>
             <input value={confirmText} onChange={e => setConfirmText(e.target.value)}
               placeholder="DELETE"
@@ -490,11 +493,11 @@ function DeleteAccountSection() {
           <div className="flex gap-3">
             <button onClick={handleDelete} disabled={confirmText !== 'DELETE' || deleting}
               className="px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition">
-              {deleting ? 'Deleting...' : 'Permanently Delete Account'}
+              {deleting ? t('deleting') : t('permanentlyDeleteAccount')}
             </button>
             <button onClick={() => { setShowConfirm(false); setConfirmText('') }}
               className="px-5 py-2.5 rounded-xl text-sm font-semibold text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
-              Cancel
+              {t('cancel')}
             </button>
           </div>
         </div>
@@ -506,11 +509,12 @@ function DeleteAccountSection() {
 // Accounts Tab
 function AccountsTab() {
   const { accounts } = useAccount()
+  const { t } = useApp()
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
       <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
-        Business Accounts
+        {t('businessAccounts')}
       </h2>
 
       <div className="space-y-4">
@@ -530,14 +534,14 @@ function AccountsTab() {
               )}
             </div>
             <span className="text-sm text-green-600 dark:text-green-400 font-medium">
-              Active
+              {t('active')}
             </span>
           </div>
         ))}
 
         {accounts.length === 0 && (
           <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            No business accounts found
+            {t('noBusinessAccountsFound')}
           </div>
         )}
 
@@ -549,11 +553,8 @@ function AccountsTab() {
             </svg>
             <div>
               <h3 className="font-semibold text-blue-900 dark:text-blue-200">
-                Account management coming soon!
+                {t('accountManagementSoon')}
               </h3>
-              <p className="text-sm text-blue-800 dark:text-blue-300 mt-1">
-                Create, edit, and delete business accounts. Switch between accounts easily.
-              </p>
             </div>
           </div>
         </div>

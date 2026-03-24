@@ -2,42 +2,44 @@ import { useState } from 'react'
 import { Loader2, Download, Sparkles, RotateCcw, Palette } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
+import { useApp } from '../contexts/AppContext'
 import { getApiUrl } from '../lib/api'
 
 const STYLE_OPTIONS = [
-  { id: 'modern', label: 'Modern', emoji: '🔵' },
-  { id: 'minimal', label: 'Minimal', emoji: '⚪' },
-  { id: 'bold', label: 'Bold', emoji: '🔴' },
-  { id: 'luxury', label: 'Luxury', emoji: '✨' },
-  { id: 'playful', label: 'Playful', emoji: '🟡' },
+  { id: 'modern', key: 'styleModern' as const, emoji: '🔵' },
+  { id: 'minimal', key: 'styleMinimal' as const, emoji: '⚪' },
+  { id: 'bold', key: 'styleBold' as const, emoji: '🔴' },
+  { id: 'luxury', key: 'styleLuxury' as const, emoji: '✨' },
+  { id: 'playful', key: 'stylePlayful' as const, emoji: '🟡' },
 ]
 
 const BG_OPTIONS = [
-  { id: '', label: 'Auto' },
-  { id: 'sand', label: 'Sand' },
-  { id: 'marble', label: 'Marble' },
-  { id: 'fabric', label: 'Fabric' },
-  { id: 'gradient', label: 'Gradient' },
-  { id: 'solid', label: 'Solid' },
-  { id: 'nature', label: 'Nature' },
+  { id: '', key: 'bgAuto' as const },
+  { id: 'sand', key: 'bgSand' as const },
+  { id: 'marble', key: 'bgMarble' as const },
+  { id: 'fabric', key: 'bgFabric' as const },
+  { id: 'gradient', key: 'bgGradient' as const },
+  { id: 'solid', key: 'bgSolid' as const },
+  { id: 'nature', key: 'bgNature' as const },
 ]
 
 const SIZE_OPTIONS = [
-  { id: '1080x1080', label: 'Square 1:1' },
-  { id: '1080x1350', label: 'Portrait 4:5' },
-  { id: '1080x1920', label: 'Story 9:16' },
-  { id: '1200x628', label: 'Landscape 2:1' },
+  { id: '1080x1080', key: 'sizeSquare' as const },
+  { id: '1080x1350', key: 'sizePortrait' as const },
+  { id: '1080x1920', key: 'sizeStory' as const },
+  { id: '1200x628', key: 'sizeLandscape' as const },
 ]
 
 export default function GenerateCreative() {
   const { session } = useAuth()
   const { activeAccount } = useAccount()
+  const { t } = useApp()
 
   const bk = activeAccount?.metadata?.brand_kit || {}
 
   const [headline, setHeadline] = useState('')
   const [subheadline, setSubheadline] = useState('')
-  const [ctaText, setCtaText] = useState('Shop Now')
+  const [ctaText, setCtaText] = useState('')
   const [productDesc, setProductDesc] = useState('')
   const [style, setStyle] = useState('modern')
   const [bgStyle, setBgStyle] = useState('')
@@ -53,8 +55,8 @@ export default function GenerateCreative() {
   const brandColors = bk.brand_colors || activeAccount?.brand_colors || []
 
   const handleGenerate = async () => {
-    if (!headline.trim()) { setError('Headline is required'); return }
-    if (!session) { setError('Please sign in'); return }
+    if (!headline.trim()) { setError(t('headlineRequired')); return }
+    if (!session) { setError(t('pleaseSignIn')); return }
     setError('')
     setLoading(true)
     setResults([])
@@ -66,7 +68,7 @@ export default function GenerateCreative() {
         body: JSON.stringify({
           headline: headline.trim(),
           subheadline: subheadline.trim() || undefined,
-          cta_text: ctaText.trim() || 'Shop Now',
+          cta_text: ctaText.trim() || t('shopNow'),
           product_description: productDesc.trim() || undefined,
           brand_name: brandName || undefined,
           brand_colors: brandColors.length ? brandColors : undefined,
@@ -118,8 +120,8 @@ export default function GenerateCreative() {
           <Palette size={20} className="text-white" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Generate Creative</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Create professional ad images with embedded text</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('creativeStudio')}</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('creativeStudioDesc')}</p>
         </div>
       </div>
 
@@ -139,27 +141,27 @@ export default function GenerateCreative() {
             )}
 
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Headline *</label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('headline')} *</label>
               <input value={headline} onChange={e => setHeadline(e.target.value)} className={fieldCls} placeholder="Experience the Freedom of Step" />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Subheadline</label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('subheadline')}</label>
               <input value={subheadline} onChange={e => setSubheadline(e.target.value)} className={fieldCls} placeholder="Move Naturally Daily" />
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Product / Visual Description</label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('productDescription')}</label>
               <textarea value={productDesc} onChange={e => setProductDesc(e.target.value)} rows={2} className={fieldCls + ' resize-none'} placeholder="Minimalist barefoot shoes on sand, beige and brown tones" />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">CTA Button Text</label>
-                <input value={ctaText} onChange={e => setCtaText(e.target.value)} className={fieldCls} placeholder="Shop Now" />
+                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('ctaButtonText')}</label>
+                <input value={ctaText} onChange={e => setCtaText(e.target.value)} className={fieldCls} placeholder={t('shopNow')} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Variations</label>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('variations')}</label>
                 <select value={count} onChange={e => setCount(Number(e.target.value))} className={fieldCls}>
                   <option value={1}>1</option>
                   <option value={2}>2</option>
@@ -171,12 +173,12 @@ export default function GenerateCreative() {
 
             {/* Style */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Style</label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('style')}</label>
               <div className="flex flex-wrap gap-1.5">
                 {STYLE_OPTIONS.map(s => (
                   <button key={s.id} onClick={() => setStyle(s.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${style === s.id ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-                    {s.emoji} {s.label}
+                    {s.emoji} {t(s.key)}
                   </button>
                 ))}
               </div>
@@ -184,12 +186,12 @@ export default function GenerateCreative() {
 
             {/* Background */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Background</label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('background')}</label>
               <div className="flex flex-wrap gap-1.5">
                 {BG_OPTIONS.map(b => (
                   <button key={b.id} onClick={() => setBgStyle(b.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${bgStyle === b.id ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-                    {b.label}
+                    {t(b.key)}
                   </button>
                 ))}
               </div>
@@ -197,12 +199,12 @@ export default function GenerateCreative() {
 
             {/* Size */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">Size</label>
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('size')}</label>
               <div className="flex flex-wrap gap-1.5">
                 {SIZE_OPTIONS.map(s => (
                   <button key={s.id} onClick={() => setAspectRatio(s.id)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${aspectRatio === s.id ? 'bg-violet-600 text-white shadow-md' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}>
-                    {s.label}
+                    {t(s.key)}
                   </button>
                 ))}
               </div>
@@ -211,14 +213,14 @@ export default function GenerateCreative() {
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" checked={includeProduct} onChange={e => setIncludeProduct(e.target.checked)}
                 className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500" />
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Include product visual</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('includeProductVisual')}</span>
             </label>
 
             {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}
 
             <button onClick={handleGenerate} disabled={loading || !headline.trim()}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-bold text-sm transition-all disabled:opacity-50 shadow-lg shadow-violet-200 dark:shadow-violet-900/30">
-              {loading ? <><Loader2 size={16} className="animate-spin" /> Generating...</> : <><Sparkles size={16} /> Generate Creative</>}
+              {loading ? <><Loader2 size={16} className="animate-spin" /> {t('generatingVideo')}</> : <><Sparkles size={16} /> {t('creativeStudio')}</>}
             </button>
           </div>
         </div>
@@ -228,8 +230,8 @@ export default function GenerateCreative() {
           {loading && (
             <div className="flex flex-col items-center justify-center py-20">
               <Loader2 size={40} className="animate-spin text-violet-500 mb-4" />
-              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">Creating {count} ad creative{count > 1 ? 's' : ''}...</p>
-              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">This may take 15-30 seconds</p>
+              <p className="text-sm font-semibold text-gray-500 dark:text-gray-400">{t('creatingAdCreatives')}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t('thisMayTake')}</p>
             </div>
           )}
 
@@ -238,17 +240,17 @@ export default function GenerateCreative() {
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-100 to-blue-100 dark:from-violet-900/30 dark:to-blue-900/30 flex items-center justify-center mb-4">
                 <Palette size={28} className="text-violet-500" />
               </div>
-              <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300 mb-1">Your creatives will appear here</h3>
-              <p className="text-sm text-gray-400 dark:text-gray-500 max-w-sm">Fill in the brief on the left and hit Generate to create professional ad images</p>
+              <h3 className="text-lg font-bold text-gray-700 dark:text-gray-300 mb-1">{t('yourCreativesHere')}</h3>
+              <p className="text-sm text-gray-400 dark:text-gray-500 max-w-sm">{t('fillBriefDesc')}</p>
             </div>
           )}
 
           {!loading && results.length > 0 && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">{results.length} Creative{results.length > 1 ? 's' : ''} Generated</h3>
+                <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">{results.length} {t('creativesGenerated')}</h3>
                 <button onClick={handleGenerate} className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700">
-                  <RotateCcw size={13} /> Regenerate
+                  <RotateCcw size={13} /> {t('regenerate')}
                 </button>
               </div>
               <div className={`grid gap-4 ${results.length === 1 ? 'grid-cols-1 max-w-md' : 'grid-cols-1 md:grid-cols-2'}`}>
