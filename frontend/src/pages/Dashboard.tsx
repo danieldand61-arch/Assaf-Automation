@@ -68,7 +68,7 @@ const SERVICE_META_KEYS: Record<string, { labelKey: string; icon: React.ElementT
   chat:                  { labelKey: 'aiChat',          icon: MessageSquare, color: '#14B8A6' },
 }
 
-function getServiceMeta(key: string, t: (k: string) => string) {
+function getServiceMeta(key: string, t: (k: any) => string) {
   const meta = SERVICE_META_KEYS[key]
   if (meta) return { label: t(meta.labelKey), icon: meta.icon, color: meta.color }
   return { label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), icon: Zap, color: '#6B7280' }
@@ -89,7 +89,7 @@ interface DayData {
   byService: Record<string, number>
 }
 
-function UsageChart({ history, title, t }: { history: HistoryRecord[]; title: string; t: (k: string) => string }) {
+function UsageChart({ history, title, t }: { history: HistoryRecord[]; title: string; t: (k: any) => string }) {
   const { theme } = useTheme()
   const th = getJoyoTheme(theme)
   const [hover, setHover] = useState<number | null>(null)
@@ -232,7 +232,7 @@ function buildRecommendations(
   bal: { total_purchased: number; used: number; remaining: number } | undefined,
   totalGens: number,
   th: any,
-  t: (k: string) => string
+  t: (k: any) => string
 ): { text: string; color: string; icon: any }[] {
   const recs: { text: string; color: string; icon: any }[] = []
 

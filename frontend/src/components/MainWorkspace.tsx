@@ -69,11 +69,6 @@ export function MainWorkspace() {
   const { theme } = useTheme()
   const { t } = useApp()
 
-  const platformLabels: Record<string, string> = {
-    facebook: t('platformFacebook'), instagram: t('platformInstagram'), linkedin: t('platformLinkedin'),
-    tiktok: t('platformTiktok'), x: t('platformX'), google_business: t('platformGoogleBusiness'),
-  }
-
   // Social post generator state
   const [socialScreen, setSocialScreen] = useState<SocialScreen>('form')
   const [progress, setProgress] = useState(0)
