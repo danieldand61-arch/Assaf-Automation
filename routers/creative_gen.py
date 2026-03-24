@@ -1,17 +1,20 @@
 """
 Generate Creative — produces professional ad images with embedded graphic text.
-Structured prompts enforce: logo placement, headline hierarchy, product focus, CTA button, clean backgrounds.
+Two-step pipeline:
+  1. LLM generates headline + subheadline from product description (+ optional user image)
+  2. Image model creates the final ad creative with embedded text
 """
 import asyncio
 import base64
 import io
 import logging
 import os
+import httpx
 from typing import List, Optional
 
 import google.generativeai as genai
 from fastapi import APIRouter, Depends, HTTPException
-from PIL import Image
+from PIL import Image as PILImage
 from pydantic import BaseModel
 
 from middleware.auth import get_current_user
@@ -20,24 +23,91 @@ from services.credits_service import check_balance, record_usage
 router = APIRouter(prefix="/api/creative", tags=["creative"])
 logger = logging.getLogger(__name__)
 
-MODEL_NAME = "gemini-3.1-flash-image-preview"
+IMAGE_MODEL = "gemini-3.1-flash-image-preview"
+TEXT_MODEL = "gemini-2.5-flash"
 CREDITS_PER_CREATIVE = 30
 
 
 class CreativeRequest(BaseModel):
-    headline: str
-    subheadline: Optional[str] = None
+    product_description: str
+    user_image_url: Optional[str] = None
     cta_text: str = "Shop Now"
-    product_description: Optional[str] = None
     brand_name: Optional[str] = None
     brand_colors: Optional[List[str]] = None
     logo_url: Optional[str] = None
-    style: str = "modern"  # modern, minimal, bold, luxury, playful
+    style: str = "modern"
     aspect_ratio: str = "1080x1080"
-    include_product_image: bool = True
-    background_style: Optional[str] = None  # sand, marble, fabric, gradient, etc.
+    background_style: Optional[str] = None
     count: int = 2
 
+
+# ── Step 1: Generate marketing copy ─────────────────────────────
+
+async def _generate_copy(req: CreativeRequest, api_key: str) -> dict:
+    """Use LLM to generate headline + subheadline from product description and optional image."""
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel(TEXT_MODEL)
+
+    brand_ctx = f'Brand: "{req.brand_name}". ' if req.brand_name else ""
+    colors_ctx = f"Brand colors: {', '.join(req.brand_colors[:4])}. " if req.brand_colors else ""
+
+    prompt_text = f"""You are an elite advertising copywriter. Generate a punchy headline and subheadline for a social media ad creative.
+
+{brand_ctx}{colors_ctx}
+Product/Visual: {req.product_description}
+CTA: {req.cta_text}
+
+RULES:
+- Headline: 3-7 words, bold, attention-grabbing, makes people stop scrolling
+- Subheadline: 5-12 words, supports the headline, adds context or emotion
+- Do NOT use generic phrases like "Shop Now" or "Buy Today" in the headline
+- Make it feel premium and professional
+- Output ONLY two lines, nothing else:
+HEADLINE: <your headline>
+SUBHEADLINE: <your subheadline>"""
+
+    parts = [prompt_text]
+
+    if req.user_image_url:
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                img_resp = await client.get(req.user_image_url)
+                if img_resp.status_code == 200:
+                    img_data = img_resp.content
+                    mime = img_resp.headers.get("content-type", "image/jpeg")
+                    parts = [
+                        prompt_text,
+                        {"mime_type": mime, "data": base64.b64encode(img_data).decode()},
+                    ]
+                    logger.info("Attached user image to copy generation")
+        except Exception as e:
+            logger.warning(f"Could not fetch user image for copy: {e}")
+
+    try:
+        resp = await asyncio.to_thread(
+            model.generate_content, parts, generation_config={"temperature": 0.8}
+        )
+        text = resp.text.strip()
+        headline, subheadline = _parse_copy(text)
+        return {"headline": headline, "subheadline": subheadline}
+    except Exception as e:
+        logger.error(f"Copy generation failed: {e}")
+        return {"headline": "Discover Something New", "subheadline": "Premium quality, crafted for you"}
+
+
+def _parse_copy(text: str) -> tuple[str, str]:
+    headline = "Discover Something New"
+    subheadline = "Premium quality, crafted for you"
+    for line in text.split("\n"):
+        line = line.strip()
+        if line.upper().startswith("HEADLINE:"):
+            headline = line.split(":", 1)[1].strip().strip('"')
+        elif line.upper().startswith("SUBHEADLINE:"):
+            subheadline = line.split(":", 1)[1].strip().strip('"')
+    return headline, subheadline
+
+
+# ── Step 2: Generate creative image ─────────────────────────────
 
 @router.post("/generate")
 async def generate_creative(req: CreativeRequest, current_user: dict = Depends(get_current_user)):
@@ -52,16 +122,37 @@ async def generate_creative(req: CreativeRequest, current_user: dict = Depends(g
     if not api_key:
         raise HTTPException(status_code=500, detail="AI service not configured")
 
+    copy = await _generate_copy(req, api_key)
+    logger.info(f"Generated copy: {copy}")
+
     genai.configure(api_key=api_key)
-    model = genai.GenerativeModel(MODEL_NAME)
+    model = genai.GenerativeModel(IMAGE_MODEL)
+
+    user_image_data = None
+    if req.user_image_url:
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                img_resp = await client.get(req.user_image_url)
+                if img_resp.status_code == 200:
+                    user_image_data = {
+                        "data": base64.b64encode(img_resp.content).decode(),
+                        "mime": img_resp.headers.get("content-type", "image/jpeg"),
+                    }
+        except Exception as e:
+            logger.warning(f"Could not fetch user image: {e}")
 
     async def _gen_one(idx: int) -> dict:
-        prompt = _build_creative_prompt(req, idx)
+        prompt = _build_creative_prompt(req, copy, idx, has_user_image=user_image_data is not None)
+
+        parts = [prompt]
+        if user_image_data:
+            parts.append({"mime_type": user_image_data["mime"], "data": user_image_data["data"]})
+
         last_err = None
         for attempt in range(3):
             try:
                 resp = await asyncio.to_thread(
-                    model.generate_content, prompt,
+                    model.generate_content, parts,
                     generation_config={"temperature": 0.7 + idx * 0.05}
                 )
                 img_b64 = _extract_image(resp, req.aspect_ratio)
@@ -70,11 +161,11 @@ async def generate_creative(req: CreativeRequest, current_user: dict = Depends(g
                         await record_usage(
                             user_id=user_id, service_type="creative_generation",
                             input_tokens=0, output_tokens=0, total_tokens=0,
-                            model_name=MODEL_NAME, metadata={"idx": idx + 1},
+                            model_name=IMAGE_MODEL, metadata={"idx": idx + 1},
                         )
                     except Exception:
                         pass
-                    return {"url": img_b64, "index": idx}
+                    return {"url": img_b64, "index": idx, "headline": copy["headline"], "subheadline": copy["subheadline"]}
                 last_err = "No image in response"
             except Exception as e:
                 last_err = str(e)
@@ -87,7 +178,10 @@ async def generate_creative(req: CreativeRequest, current_user: dict = Depends(g
     tasks = [_gen_one(i) for i in range(req.count)]
     results = await asyncio.gather(*tasks)
 
-    return {"creatives": sorted(results, key=lambda r: r["index"])}
+    return {
+        "creatives": sorted(results, key=lambda r: r["index"]),
+        "copy": copy,
+    }
 
 
 STYLE_GUIDES = {
@@ -108,13 +202,12 @@ BACKGROUND_GUIDES = {
 }
 
 
-def _build_creative_prompt(req: CreativeRequest, variation_idx: int) -> str:
+def _build_creative_prompt(req: CreativeRequest, copy: dict, variation_idx: int, has_user_image: bool = False) -> str:
     w, h = map(int, req.aspect_ratio.split("x"))
     ar = f"{w}:{h}" if w == h else ("4:5" if h > w else "16:9")
 
     style_desc = STYLE_GUIDES.get(req.style, STYLE_GUIDES["modern"])
     bg_desc = BACKGROUND_GUIDES.get(req.background_style or "", "choose the best background that complements the product and style")
-
     colors = ", ".join(req.brand_colors[:4]) if req.brand_colors else "choose a professional harmonious palette"
 
     variation_twists = [
@@ -129,18 +222,22 @@ def _build_creative_prompt(req: CreativeRequest, variation_idx: int) -> str:
     if req.brand_name:
         logo_instruction = f'Place the brand name "{req.brand_name}" in the top-left corner as a small, elegant text logo.'
 
-    product_instruction = ""
-    if req.include_product_image and req.product_description:
-        product_instruction = f"""PRODUCT VISUAL:
+    image_instruction = ""
+    if has_user_image:
+        image_instruction = f"""USER-PROVIDED IMAGE:
+I have attached a product/reference image. You MUST incorporate this image prominently into the ad creative.
+The attached image should be the main visual — integrate it naturally into the design.
+Product context: {req.product_description}"""
+    elif req.product_description:
+        image_instruction = f"""PRODUCT VISUAL:
 The main visual focus should be a realistic, premium-looking depiction of: {req.product_description}
-Make the product the hero of the composition — it should be the first thing the eye is drawn to.
-The product should look photorealistic and professionally shot/styled."""
+Make the product the hero of the composition."""
 
     return f"""You are an elite advertising art director at a top creative agency. Create a SINGLE, COMPLETE, READY-TO-PUBLISH ad creative image.
 
 DESIGN BRIEF:
-- Headline: "{req.headline}"
-{f'- Subheadline: "{req.subheadline}"' if req.subheadline else ''}
+- Headline: "{copy['headline']}"
+- Subheadline: "{copy['subheadline']}"
 - CTA Button: "{req.cta_text}"
 {f'- Brand: "{req.brand_name}"' if req.brand_name else ''}
 
@@ -151,14 +248,14 @@ ASPECT RATIO: {ar} ({req.aspect_ratio}px)
 
 {logo_instruction}
 
-{product_instruction}
+{image_instruction}
 
 LAYOUT DIRECTION FOR THIS VARIATION: {twist}
 
 MANDATORY DESIGN STRUCTURE (follow this exactly):
 1. TOP-LEFT: Brand name/logo — small, subtle, professional
 2. HEADLINE: Large, bold, impossible to miss — clear visual hierarchy
-3. SUBHEADLINE (if provided): Smaller supporting text below headline
+3. SUBHEADLINE: Smaller supporting text below headline
 4. PRODUCT/VISUAL: Central focus element that draws the eye
 5. CTA BUTTON: Bold rectangular button at the bottom with the CTA text, high contrast
 6. BACKGROUND: Clean/textured background ({bg_desc}) — NO clutter
@@ -167,22 +264,18 @@ TYPOGRAPHY RULES:
 - Maximum 2 font styles (bold headline + clean body)
 - Headline font size must be at least 3x the subheadline size
 - All text must have excellent contrast and be instantly readable
-- Text alignment should feel intentional and designed
 
 CRITICAL QUALITY STANDARDS:
 - This must look like a $5,000+ agency-produced ad creative
 - Professional spacing, alignment, and visual balance
-- NO pixelation, NO amateur layout, NO cluttered composition
 - The CTA button must look clickable and prominent
 - Maximum 25 words total on the entire image
 
 ABSOLUTELY FORBIDDEN:
 - No "Option A/B/C" labels
 - No resolution text or dimensions on the image
-- No platform names
-- No meta-commentary
+- No platform names or meta-commentary
 - No watermarks
-- No stock photo aesthetics — this is DESIGNED, not photographed (unless product requires it)
 
 Generate ONE complete ad creative image at {ar} aspect ratio."""
 
@@ -208,7 +301,7 @@ def _extract_image(response, image_size: str) -> str | None:
                     pass
 
             try:
-                img = Image.open(io.BytesIO(raw))
+                img = PILImage.open(io.BytesIO(raw))
             except Exception:
                 continue
 
@@ -225,10 +318,10 @@ def _extract_image(response, image_size: str) -> str | None:
                     new_h = int(img.width / target_ratio)
                     top = (img.height - new_h) // 2
                     img = img.crop((0, top, img.width, top + new_h))
-                img = img.resize((w, h), Image.Resampling.LANCZOS)
+                img = img.resize((w, h), PILImage.Resampling.LANCZOS)
 
             if img.mode in ("RGBA", "LA", "P"):
-                bg = Image.new("RGB", img.size, (255, 255, 255))
+                bg = PILImage.new("RGB", img.size, (255, 255, 255))
                 if img.mode == "P":
                     img = img.convert("RGBA")
                 bg.paste(img, mask=img.split()[-1] if img.mode == "RGBA" else None)

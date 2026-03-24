@@ -587,6 +587,12 @@ export const translations = {
     placeholderHeadline: "Experience the Freedom of Step",
     placeholderSubheadline: "Move Naturally Daily",
     placeholderProduct: "Minimalist barefoot shoes on sand, beige and brown tones",
+    productDescRequired: "Product description is required",
+    aiWillGenerateCopy: "AI will automatically generate headline and subheadline from your description",
+    referenceImage: "Reference Image (Optional)",
+    uploadProductImage: "Upload product or reference image",
+    imageOptionalHint: "If provided, the image will be incorporated into the creative",
+    aiGeneratedCopy: "AI-Generated Copy",
 
     // SavedPostsLibrary
     contentLibrary: "Content Library",
@@ -1224,6 +1230,12 @@ export const translations = {
     placeholderHeadline: "חווה את חופש הצעד",
     placeholderSubheadline: "נע בטבעיות כל יום",
     placeholderProduct: "נעלי מינימליסט על חול, גוונים בז' וחום",
+    productDescRequired: "תיאור מוצר נדרש",
+    aiWillGenerateCopy: "AI ייצור אוטומטית כותרת וכותרת משנה מהתיאור שלך",
+    referenceImage: "תמונת התייחסות (אופציונלי)",
+    uploadProductImage: "העלה תמונת מוצר או התייחסות",
+    imageOptionalHint: "אם תספק תמונה, היא תשולב בקריאייטיב",
+    aiGeneratedCopy: "טקסט שנוצר ב-AI",
 
     // SavedPostsLibrary
     contentLibrary: "ספריית תוכן",

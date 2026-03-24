@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Loader2, Download, Sparkles, RotateCcw, Palette } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Loader2, Download, Sparkles, RotateCcw, Palette, Upload, X, ImageIcon } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { useApp } from '../contexts/AppContext'
@@ -34,48 +34,89 @@ export default function GenerateCreative() {
   const { session } = useAuth()
   const { activeAccount } = useAccount()
   const { t } = useApp()
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const bk = activeAccount?.metadata?.brand_kit || {}
 
-  const [headline, setHeadline] = useState('')
-  const [subheadline, setSubheadline] = useState('')
-  const [ctaText, setCtaText] = useState('')
   const [productDesc, setProductDesc] = useState('')
+  const [ctaText, setCtaText] = useState('')
+  const [userImageUrl, setUserImageUrl] = useState('')
+  const [userImagePreview, setUserImagePreview] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [style, setStyle] = useState('modern')
   const [bgStyle, setBgStyle] = useState('')
   const [aspectRatio, setAspectRatio] = useState('1080x1080')
-  const [includeProduct, setIncludeProduct] = useState(true)
   const [count, setCount] = useState(2)
 
   const [loading, setLoading] = useState(false)
-  const [results, setResults] = useState<{ url: string; index: number; error?: string }[]>([])
+  const [results, setResults] = useState<{ url: string; index: number; error?: string; headline?: string; subheadline?: string }[]>([])
+  const [generatedCopy, setGeneratedCopy] = useState<{ headline: string; subheadline: string } | null>(null)
   const [error, setError] = useState('')
 
   const brandName = bk.business_name || activeAccount?.name || ''
   const brandColors = bk.brand_colors || activeAccount?.brand_colors || []
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !session) return
+    if (!file.type.startsWith('image/')) { setError(t('uploadImageAlert')); return }
+    if (file.size > 10 * 1024 * 1024) { setError(t('imageSizeAlert')); return }
+
+    setUploadingImage(true)
+    setError('')
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`${getApiUrl()}/api/upload/image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: formData,
+      })
+      if (!res.ok) throw new Error('Upload failed')
+      const data = await res.json()
+      setUserImageUrl(data.url)
+      setUserImagePreview(URL.createObjectURL(file))
+    } catch {
+      setUserImagePreview('')
+      const reader = new FileReader()
+      reader.onload = () => {
+        const dataUrl = reader.result as string
+        setUserImageUrl(dataUrl)
+        setUserImagePreview(dataUrl)
+      }
+      reader.readAsDataURL(file)
+    } finally {
+      setUploadingImage(false)
+    }
+  }
+
+  const clearImage = () => {
+    setUserImageUrl('')
+    setUserImagePreview('')
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
   const handleGenerate = async () => {
-    if (!headline.trim()) { setError(t('headlineRequired')); return }
+    if (!productDesc.trim()) { setError(t('productDescRequired')); return }
     if (!session) { setError(t('pleaseSignIn')); return }
     setError('')
     setLoading(true)
     setResults([])
+    setGeneratedCopy(null)
 
     try {
       const res = await fetch(`${getApiUrl()}/api/creative/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({
-          headline: headline.trim(),
-          subheadline: subheadline.trim() || undefined,
+          product_description: productDesc.trim(),
+          user_image_url: userImageUrl || undefined,
           cta_text: ctaText.trim() || t('shopNow'),
-          product_description: productDesc.trim() || undefined,
           brand_name: brandName || undefined,
           brand_colors: brandColors.length ? brandColors : undefined,
           logo_url: bk.logo_url || activeAccount?.logo_url || undefined,
           style,
           aspect_ratio: aspectRatio,
-          include_product_image: includeProduct,
           background_style: bgStyle || undefined,
           count,
         }),
@@ -86,6 +127,7 @@ export default function GenerateCreative() {
       }
       const data = await res.json()
       setResults(data.creatives || [])
+      if (data.copy) setGeneratedCopy(data.copy)
     } catch (e: any) {
       setError(e.message || 'Failed to generate')
     } finally {
@@ -95,14 +137,8 @@ export default function GenerateCreative() {
 
   const handleDownload = async (url: string, idx: number) => {
     try {
-      let blob: Blob
-      if (url.startsWith('data:')) {
-        const r = await fetch(url)
-        blob = await r.blob()
-      } else {
-        const r = await fetch(url)
-        blob = await r.blob()
-      }
+      const r = await fetch(url)
+      const blob = await r.blob()
       const a = document.createElement('a')
       a.href = URL.createObjectURL(blob)
       a.download = `creative_${idx + 1}.jpg`
@@ -126,10 +162,9 @@ export default function GenerateCreative() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Form — left 2 cols */}
+        {/* Form */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-lg border border-gray-100 dark:border-gray-700 space-y-4">
-            {/* Brand pill */}
             {brandName && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-violet-50 dark:bg-violet-900/20 rounded-lg w-fit">
                 {bk.logo_url && <img src={bk.logo_url} alt="" className="w-5 h-5 rounded object-contain" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />}
@@ -140,19 +175,32 @@ export default function GenerateCreative() {
               </div>
             )}
 
+            {/* Product Description — required */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('headline')} *</label>
-              <input value={headline} onChange={e => setHeadline(e.target.value)} className={fieldCls} placeholder={t('placeholderHeadline')} />
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('productDescription')} *</label>
+              <textarea value={productDesc} onChange={e => setProductDesc(e.target.value)} rows={3} className={fieldCls + ' resize-none'} placeholder={t('placeholderProduct')} />
+              <p className="text-[10px] text-gray-400 mt-1">{t('aiWillGenerateCopy')}</p>
             </div>
 
+            {/* Image Upload — optional */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('subheadline')}</label>
-              <input value={subheadline} onChange={e => setSubheadline(e.target.value)} className={fieldCls} placeholder={t('placeholderSubheadline')} />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('productDescription')}</label>
-              <textarea value={productDesc} onChange={e => setProductDesc(e.target.value)} rows={2} className={fieldCls + ' resize-none'} placeholder={t('placeholderProduct')} />
+              <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('referenceImage')}</label>
+              {userImagePreview ? (
+                <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600">
+                  <img src={userImagePreview} alt="" className="w-full max-h-40 object-cover" />
+                  <button onClick={clearImage} className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/60 flex items-center justify-center text-white hover:bg-black/80">
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => fileRef.current?.click()} disabled={uploadingImage}
+                  className="w-full flex items-center justify-center gap-2 py-4 border-2 border-dashed border-gray-200 dark:border-gray-600 rounded-xl text-xs font-medium text-gray-400 hover:border-violet-400 hover:text-violet-500 transition">
+                  {uploadingImage ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+                  {t('uploadProductImage')}
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              <p className="text-[10px] text-gray-400 mt-1">{t('imageOptionalHint')}</p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -163,10 +211,7 @@ export default function GenerateCreative() {
               <div>
                 <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('variations')}</label>
                 <select value={count} onChange={e => setCount(Number(e.target.value))} className={fieldCls}>
-                  <option value={1}>1</option>
-                  <option value={2}>2</option>
-                  <option value={3}>3</option>
-                  <option value={4}>4</option>
+                  {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               </div>
             </div>
@@ -210,22 +255,16 @@ export default function GenerateCreative() {
               </div>
             </div>
 
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" checked={includeProduct} onChange={e => setIncludeProduct(e.target.checked)}
-                className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500" />
-              <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{t('includeProductVisual')}</span>
-            </label>
-
             {error && <p className="text-xs text-red-500 font-semibold">{error}</p>}
 
-            <button onClick={handleGenerate} disabled={loading || !headline.trim()}
+            <button onClick={handleGenerate} disabled={loading || !productDesc.trim()}
               className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-bold text-sm transition-all disabled:opacity-50 shadow-lg shadow-violet-200 dark:shadow-violet-900/30">
               {loading ? <><Loader2 size={16} className="animate-spin" /> {t('generatingVideo')}</> : <><Sparkles size={16} /> {t('creativeStudio')}</>}
             </button>
           </div>
         </div>
 
-        {/* Results — right 3 cols */}
+        {/* Results */}
         <div className="lg:col-span-3">
           {loading && (
             <div className="flex flex-col items-center justify-center py-20">
@@ -247,6 +286,15 @@ export default function GenerateCreative() {
 
           {!loading && results.length > 0 && (
             <div className="space-y-4">
+              {/* AI-generated copy display */}
+              {generatedCopy && (
+                <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-4 border border-violet-200 dark:border-violet-800">
+                  <p className="text-[10px] font-bold text-violet-500 uppercase tracking-wider mb-1">{t('aiGeneratedCopy')}</p>
+                  <p className="text-sm font-bold text-gray-900 dark:text-white">{generatedCopy.headline}</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400">{generatedCopy.subheadline}</p>
+                </div>
+              )}
+
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-gray-700 dark:text-gray-300">{results.length} {t('creativesGenerated')}</h3>
                 <button onClick={handleGenerate} className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700">
