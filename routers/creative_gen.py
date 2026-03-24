@@ -98,7 +98,7 @@ SUBHEADLINE: <your subheadline>"""
 
     try:
         resp = await asyncio.to_thread(
-            model.generate_content, parts, generation_config={"temperature": 0.8}
+            model.generate_content, parts, generation_config={"temperature": 0.7}
         )
         text = resp.text.strip()
         headline, subheadline = _parse_copy(text)
@@ -155,7 +155,7 @@ async def generate_creative(req: CreativeRequest, current_user: dict = Depends(g
             try:
                 resp = await asyncio.to_thread(
                     model.generate_content, parts,
-                    generation_config={"temperature": 0.7 + idx * 0.05}
+                    generation_config={"temperature": 0.7}
                 )
                 img_b64 = _extract_image(resp, req.aspect_ratio)
                 if img_b64:
