@@ -37,7 +37,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem('language', language)
     document.documentElement.lang = language
-    document.documentElement.dir = language === 'he' ? 'rtl' : 'ltr'
+    document.documentElement.dir = 'ltr'
   }, [language])
 
   const toggleTheme = () => {
