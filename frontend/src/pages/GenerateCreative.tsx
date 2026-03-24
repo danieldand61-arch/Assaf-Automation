@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { Loader2, Download, Sparkles, RotateCcw, Palette, Upload, X, ImageIcon } from 'lucide-react'
+import { Loader2, Download, Sparkles, RotateCcw, Palette, Upload, X } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { useApp } from '../contexts/AppContext'
