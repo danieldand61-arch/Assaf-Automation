@@ -28,6 +28,28 @@ TEXT_MODEL = "gemini-2.5-flash"
 CREDITS_PER_CREATIVE = 30
 
 
+async def _resolve_image(url: str) -> dict | None:
+    """Resolve image from URL or data URI to {data: base64, mime: str}."""
+    if not url:
+        return None
+    if url.startswith("data:"):
+        try:
+            header, b64 = url.split(",", 1)
+            mime = header.split(";")[0].split(":")[1] if ":" in header else "image/jpeg"
+            return {"data": b64, "mime": mime}
+        except Exception:
+            return None
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                mime = resp.headers.get("content-type", "image/jpeg")
+                return {"data": base64.b64encode(resp.content).decode(), "mime": mime}
+    except Exception as e:
+        logger.warning(f"Could not fetch image {url[:80]}: {e}")
+    return None
+
+
 class CreativeRequest(BaseModel):
     product_description: str
     user_image_url: Optional[str] = None
@@ -69,19 +91,10 @@ SUBHEADLINE: <your subheadline>"""
     parts = [prompt_text]
 
     if req.user_image_url:
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                img_resp = await client.get(req.user_image_url)
-                if img_resp.status_code == 200:
-                    img_data = img_resp.content
-                    mime = img_resp.headers.get("content-type", "image/jpeg")
-                    parts = [
-                        prompt_text,
-                        {"mime_type": mime, "data": base64.b64encode(img_data).decode()},
-                    ]
-                    logger.info("Attached user image to copy generation")
-        except Exception as e:
-            logger.warning(f"Could not fetch user image for copy: {e}")
+        img = await _resolve_image(req.user_image_url)
+        if img:
+            parts = [prompt_text, {"mime_type": img["mime"], "data": img["data"]}]
+            logger.info("Attached user image to copy generation")
 
     try:
         resp = await asyncio.to_thread(
@@ -128,18 +141,7 @@ async def generate_creative(req: CreativeRequest, current_user: dict = Depends(g
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(IMAGE_MODEL)
 
-    user_image_data = None
-    if req.user_image_url:
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                img_resp = await client.get(req.user_image_url)
-                if img_resp.status_code == 200:
-                    user_image_data = {
-                        "data": base64.b64encode(img_resp.content).decode(),
-                        "mime": img_resp.headers.get("content-type", "image/jpeg"),
-                    }
-        except Exception as e:
-            logger.warning(f"Could not fetch user image: {e}")
+    user_image_data = await _resolve_image(req.user_image_url) if req.user_image_url else None
 
     async def _gen_one(idx: int) -> dict:
         prompt = _build_creative_prompt(req, copy, idx, has_user_image=user_image_data is not None)
