@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useApp } from '../contexts/AppContext'
 import { getApiUrl } from '../lib/api'
 import { Archive, Calendar, Trash2, RefreshCw, Send, X, Wand2, Download } from 'lucide-react'
 import { SchedulePostModal } from './SchedulePostModal'
@@ -33,9 +34,9 @@ interface SavedPost {
   expires_at?: string
 }
 
-function getHook(text: string): string {
+function getHook(text: string, fallback: string): string {
   const first = text.split(/[.\n!?]/)[0]?.trim()
-  return first?.length > 80 ? first.slice(0, 80) + '...' : first || 'Untitled Post'
+  return first?.length > 80 ? first.slice(0, 80) + '...' : first || fallback
 }
 
 interface SavedPostsLibraryProps {
@@ -44,6 +45,7 @@ interface SavedPostsLibraryProps {
 
 export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryProps) {
   const { session } = useAuth()
+  const { t } = useApp()
   const [posts, setPosts] = useState<SavedPost[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedPost, setSelectedPost] = useState<SavedPost | null>(null)
@@ -70,14 +72,14 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
   }
 
   const handleDelete = async (postId: string) => {
-    if (!confirm('Delete this post from library?')) return
+    if (!confirm(t('deletePostConfirm'))) return
     try {
       const res = await fetch(`${getApiUrl()}/api/saved-posts/${postId}`, {
         method: 'DELETE', headers: { 'Authorization': `Bearer ${session?.access_token}` }
       })
       if (!res.ok) throw new Error('Failed')
       setPosts(posts.filter(p => p.id !== postId))
-    } catch { alert('Failed to delete post') }
+    } catch { alert(t('failedToDeletePost')) }
   }
 
   if (loading) return (
@@ -91,9 +93,9 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
       <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center">
         <Archive className="w-8 h-8 text-purple-500" />
       </div>
-      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">No Saved Posts Yet</h3>
+      <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('noSavedPostsYet')}</h3>
       <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">
-        Save posts from the content generator to schedule and publish them later
+        {t('noSavedPostsDesc')}
       </p>
     </div>
   )
@@ -103,9 +105,9 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Archive size={20} className="text-purple-500" /> Content Library
+            <Archive size={20} className="text-purple-500" /> {t('contentLibrary')}
           </h2>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{posts.length} saved {posts.length === 1 ? 'post' : 'posts'}</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{posts.length} {t('savedPostCount')} {posts.length === 1 ? t('post') : t('posts')}</p>
         </div>
         <button onClick={fetchPosts} className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
           <RefreshCw className="w-4 h-4 text-gray-500" />
@@ -114,7 +116,7 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {posts.map((post) => {
-          const hook = getHook(post.text)
+          const hook = getHook(post.text, t('untitledPost'))
           const isVideo = post.is_video || post.image_url?.includes('.mp4') || post.image_url?.includes('video')
           return (
             <div key={post.id}
@@ -133,10 +135,10 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                         </div>
                       </div>
                       <div className="absolute top-2 right-2 flex gap-1">
-                        <span className="bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-bold">VIDEO</span>
+                        <span className="bg-black/70 text-white px-2 py-0.5 rounded text-[10px] font-bold">{t('video')}</span>
                         {post.expires_at && (
                           <span className="bg-orange-500/90 text-white px-2 py-0.5 rounded text-[10px] font-bold">
-                            {Math.max(0, Math.ceil((new Date(post.expires_at).getTime() - Date.now()) / 86400000))}d left
+                            {Math.max(0, Math.ceil((new Date(post.expires_at).getTime() - Date.now()) / 86400000))}{t('daysLeft')}
                           </span>
                         )}
                       </div>
@@ -184,11 +186,11 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                   <div className="flex gap-1.5">
                     <button onClick={e => { e.stopPropagation(); setSelectedPost(post); setIsPublishing(true) }}
                       className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition">
-                      <Send size={10} /> Publish
+                      <Send size={10} /> {t('publish')}
                     </button>
                     <button onClick={e => { e.stopPropagation(); setSelectedPost(post); setIsScheduling(true) }}
                       className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-semibold rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 transition">
-                      <Calendar size={10} /> Schedule
+                      <Calendar size={10} /> {t('schedule')}
                     </button>
                     <button onClick={e => { e.stopPropagation(); handleDelete(post.id) }}
                       className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
@@ -215,7 +217,7 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
           isOpen
           onClose={() => { setIsPublishing(false); setSelectedPost(null) }}
           prefilledData={{
-            text: `${selectedPost.text}${selectedPost.hashtags?.length ? '\n\n' + selectedPost.hashtags.map(t => `#${t}`).join(' ') : ''}${selectedPost.call_to_action ? '\n\n' + selectedPost.call_to_action : ''}`,
+            text: `${selectedPost.text}${selectedPost.hashtags?.length ? '\n\n' + selectedPost.hashtags.map(tag => `#${tag}`).join(' ') : ''}${selectedPost.call_to_action ? '\n\n' + selectedPost.call_to_action : ''}`,
             imageUrl: selectedPost.image_url
           }}
         />
@@ -229,7 +231,7 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
               {/* Header */}
               <div className="flex items-center justify-between p-5 border-b dark:border-gray-700">
-                <h3 className="font-bold text-gray-900 dark:text-white text-lg">Post Preview</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white text-lg">{t('postPreview')}</h3>
                 <button onClick={() => setPreviewPost(null)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">
                   <X size={18} className="text-gray-500" />
                 </button>
@@ -249,8 +251,8 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
 
                 {isVid && p.expires_at && (
                   <div className="flex items-center gap-2 text-xs text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-3 py-2 rounded-lg">
-                    <span className="font-bold">{Math.max(0, Math.ceil((new Date(p.expires_at).getTime() - Date.now()) / 86400000))} days left</span>
-                    <span className="text-orange-500">— video expires after 7 days. Download to keep.</span>
+                    <span className="font-bold">{Math.max(0, Math.ceil((new Date(p.expires_at).getTime() - Date.now()) / 86400000))} {t('daysLeftFull')}</span>
+                    <span className="text-orange-500">{t('videoExpiresNote')}</span>
                   </div>
                 )}
 
@@ -279,7 +281,7 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                   </div>
                 )}
 
-                <div className="text-xs text-gray-400">Saved {new Date(p.saved_at).toLocaleString()}</div>
+                <div className="text-xs text-gray-400">{t('savedAt')} {new Date(p.saved_at).toLocaleString()}</div>
               </div>
 
               {/* Actions */}
@@ -290,7 +292,7 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                     onClick={() => { onSendToPostGenerator(subtitledUrl || p.image_url, p.text); setPreviewPost(null) }}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-700 hover:to-blue-700 text-white font-semibold text-sm transition-all shadow-lg"
                   >
-                    <Wand2 size={14} /> Send to Post Generator
+                    <Wand2 size={14} /> {t('sendToPostGenerator')}
                   </button>
                 )}
                 {p.image_url && (
@@ -308,26 +310,26 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                     }}
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-semibold text-sm transition-all"
                   >
-                    <Download size={14} /> Download
+                    <Download size={14} /> {t('download')}
                   </button>
                 )}
                 <button
                   onClick={() => { setPreviewPost(null); setSelectedPost({ ...p, image_url: subtitledUrl || p.image_url }); setIsPublishing(true) }}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 font-semibold text-sm hover:bg-blue-100 transition"
                 >
-                  <Send size={14} /> Publish Now
+                  <Send size={14} /> {t('publishNow')}
                 </button>
                 <button
                   onClick={() => { setPreviewPost(null); setSelectedPost({ ...p, image_url: subtitledUrl || p.image_url }); setIsScheduling(true) }}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 font-semibold text-sm hover:bg-purple-100 transition"
                 >
-                  <Calendar size={14} /> Schedule
+                  <Calendar size={14} /> {t('schedule')}
                 </button>
                 <button
                   onClick={() => { setPreviewPost(null); handleDelete(p.id) }}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 font-semibold text-sm transition"
                 >
-                  <Trash2 size={14} /> Delete
+                  <Trash2 size={14} /> {t('delete')}
                 </button>
                 </div>
 
@@ -354,7 +356,7 @@ export function SavedPostsLibrary({ onSendToPostGenerator }: SavedPostsLibraryPr
                         const data = await res.json()
                         setSubtitledUrl(data.video_url)
                       } catch (e: any) {
-                        alert(e.message || 'Failed to add subtitles')
+                        alert(e.message || t('failedToAddSubtitles'))
                       } finally {
                         setIsAddingSubtitles(false)
                       }

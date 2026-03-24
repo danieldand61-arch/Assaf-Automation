@@ -142,17 +142,17 @@ export default function GenerateCreative() {
 
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('headline')} *</label>
-              <input value={headline} onChange={e => setHeadline(e.target.value)} className={fieldCls} placeholder="Experience the Freedom of Step" />
+              <input value={headline} onChange={e => setHeadline(e.target.value)} className={fieldCls} placeholder={t('placeholderHeadline')} />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('subheadline')}</label>
-              <input value={subheadline} onChange={e => setSubheadline(e.target.value)} className={fieldCls} placeholder="Move Naturally Daily" />
+              <input value={subheadline} onChange={e => setSubheadline(e.target.value)} className={fieldCls} placeholder={t('placeholderSubheadline')} />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('productDescription')}</label>
-              <textarea value={productDesc} onChange={e => setProductDesc(e.target.value)} rows={2} className={fieldCls + ' resize-none'} placeholder="Minimalist barefoot shoes on sand, beige and brown tones" />
+              <textarea value={productDesc} onChange={e => setProductDesc(e.target.value)} rows={2} className={fieldCls + ' resize-none'} placeholder={t('placeholderProduct')} />
             </div>
 
             <div className="grid grid-cols-2 gap-3">

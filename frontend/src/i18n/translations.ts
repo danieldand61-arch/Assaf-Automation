@@ -582,6 +582,58 @@ export const translations = {
 
     // Misc
     shopNow: "Shop Now",
+
+    // Creative placeholders
+    placeholderHeadline: "Experience the Freedom of Step",
+    placeholderSubheadline: "Move Naturally Daily",
+    placeholderProduct: "Minimalist barefoot shoes on sand, beige and brown tones",
+
+    // SavedPostsLibrary
+    contentLibrary: "Content Library",
+    savedPostCount: "saved",
+    post: "post",
+    posts: "posts",
+    untitledPost: "Untitled Post",
+    deletePostConfirm: "Delete this post from library?",
+    failedToDeletePost: "Failed to delete post",
+    noSavedPostsYet: "No Saved Posts Yet",
+    noSavedPostsDesc: "Save posts from the content generator to schedule and publish them later",
+    video: "VIDEO",
+    daysLeft: "d left",
+    postPreview: "Post Preview",
+    daysLeftFull: "days left",
+    videoExpiresNote: "— video expires after 7 days. Download to keep.",
+    savedAt: "Saved",
+    download: "Download",
+    publishNow: "Publish Now",
+    delete: "Delete",
+
+    // ScheduledPosts
+    scheduledPostsTitle: "Scheduled Posts",
+    trackScheduledDesc: "Track posts that are scheduled for publishing or already published",
+    pendingLabel: "Pending",
+    publishingLabel: "Publishing",
+    publishedLabel: "Published",
+    failedLabel: "Failed",
+    cancelledLabel: "Cancelled",
+    pendingColon: "Pending:",
+    willBePostedAt: "Will be posted at scheduled time",
+    publishedColon: "Published:",
+    alreadyPosted: "Already posted to platforms",
+    refresh: "Refresh",
+    newestFirst: "Newest First",
+    oldestFirst: "Oldest First",
+    noScheduledPostsYet: "No scheduled posts yet",
+    noFilteredPosts: "No posts",
+    cancelScheduledPost: "Cancel scheduled post",
+    cancelScheduledConfirm: "Are you sure you want to cancel this scheduled post?",
+    scheduledCancelled: "Scheduled post cancelled",
+    failedToCancelPost: "Failed to cancel post",
+    moreCount: "more",
+    postAlt: "Post",
+    errorPrefix: "Error:",
+    publishedAt: "Published at:",
+    allFilter: "All",
   },
 
   he: {
@@ -1167,6 +1219,58 @@ export const translations = {
 
     // Misc
     shopNow: "קנה עכשיו",
+
+    // Creative placeholders
+    placeholderHeadline: "חווה את חופש הצעד",
+    placeholderSubheadline: "נע בטבעיות כל יום",
+    placeholderProduct: "נעלי מינימליסט על חול, גוונים בז' וחום",
+
+    // SavedPostsLibrary
+    contentLibrary: "ספריית תוכן",
+    savedPostCount: "שמורים",
+    post: "פוסט",
+    posts: "פוסטים",
+    untitledPost: "פוסט ללא כותרת",
+    deletePostConfirm: "למחוק את הפוסט מהספרייה?",
+    failedToDeletePost: "מחיקת הפוסט נכשלה",
+    noSavedPostsYet: "אין פוסטים שמורים עדיין",
+    noSavedPostsDesc: "שמור פוסטים ממחולל התוכן כדי לתזמן ולפרסם אותם מאוחר יותר",
+    video: "וידאו",
+    daysLeft: "י' נותרו",
+    postPreview: "תצוגה מקדימה",
+    daysLeftFull: "ימים נותרו",
+    videoExpiresNote: "— הוידאו פג תוקף לאחר 7 ימים. הורד כדי לשמור.",
+    savedAt: "נשמר",
+    download: "הורד",
+    publishNow: "פרסם עכשיו",
+    delete: "מחק",
+
+    // ScheduledPosts
+    scheduledPostsTitle: "פוסטים מתוזמנים",
+    trackScheduledDesc: "עקוב אחר פוסטים שמתוזמנים לפרסום או שכבר פורסמו",
+    pendingLabel: "ממתין",
+    publishingLabel: "מפרסם",
+    publishedLabel: "פורסם",
+    failedLabel: "נכשל",
+    cancelledLabel: "בוטל",
+    pendingColon: "ממתין:",
+    willBePostedAt: "יפורסם בזמן המתוזמן",
+    publishedColon: "פורסם:",
+    alreadyPosted: "כבר פורסם בפלטפורמות",
+    refresh: "רענן",
+    newestFirst: "חדש ביותר",
+    oldestFirst: "ישן ביותר",
+    noScheduledPostsYet: "אין פוסטים מתוזמנים עדיין",
+    noFilteredPosts: "אין פוסטים",
+    cancelScheduledPost: "בטל פוסט מתוזמן",
+    cancelScheduledConfirm: "האם אתה בטוח שברצונך לבטל את הפוסט המתוזמן?",
+    scheduledCancelled: "הפוסט המתוזמן בוטל",
+    failedToCancelPost: "ביטול הפוסט נכשל",
+    moreCount: "עוד",
+    postAlt: "פוסט",
+    errorPrefix: "שגיאה:",
+    publishedAt: "פורסם ב:",
+    allFilter: "הכל",
   }
 }
 
