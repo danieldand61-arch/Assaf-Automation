@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Building2, ChevronDown, Bell, LogOut, Sun, Moon, Globe } from 'lucide-react'
+import { Building2, ChevronDown, Bell, LogOut, Sun, Moon, Globe, Settings } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useTheme } from '../contexts/ThemeContext'
@@ -8,9 +8,10 @@ import { getJoyoTheme } from '../styles/joyo-theme'
 
 interface JoyoTopBarProps {
   title: string
+  onNavigate?: (tab: string) => void
 }
 
-export function JoyoTopBar({ title }: JoyoTopBarProps) {
+export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
   const { activeAccount, accounts, switchAccount } = useAccount()
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
@@ -148,6 +149,26 @@ export function JoyoTopBar({ title }: JoyoTopBarProps) {
           position: 'relative'
         }}>
           <Bell size={18} />
+        </button>
+
+        {/* Settings */}
+        <button
+          onClick={() => onNavigate?.('settings')}
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 10,
+            border: `1px solid ${JoyoTheme.border}`,
+            background: JoyoTheme.card,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: JoyoTheme.textMuted,
+          }}
+          title="Settings"
+        >
+          <Settings size={18} />
         </button>
 
         {/* Language Toggle */}

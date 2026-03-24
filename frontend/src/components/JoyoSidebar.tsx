@@ -1,7 +1,7 @@
 import { 
-  LayoutDashboard, Send, Megaphone, MessageSquare, Image, Film, 
-  FileText, Calendar, Link2, Settings, Menu, CreditCard,
-  Sparkles, BarChart3, Palette
+  Home, Send, Megaphone, MessageSquare, Image, Film, 
+  FileText, Calendar, Link2, Menu, CreditCard,
+  Sparkles, BarChart3, Palette, Brush
 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useApp } from '../contexts/AppContext'
@@ -16,17 +16,17 @@ interface JoyoSidebarProps {
 }
 
 const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: boolean; badgeKey?: TranslationKey }[] = [
-  { id: 'dashboard',    labelKey: 'navDashboard',       icon: LayoutDashboard },
+  { id: 'dashboard',    labelKey: 'navHome',             icon: Home },
+  { id: 'brandkit',     labelKey: 'navBrandKit',         icon: Brush },
   { id: 'social',       labelKey: 'navPostGenerator',   icon: Send },
   { id: 'creative',     labelKey: 'navCreativeStudio',  icon: Palette },
   { id: 'videogen',     labelKey: 'navVideoStudio',     icon: Film },
-  { id: 'analyst',      labelKey: 'navAnalyst',          icon: BarChart3 },
-  { id: 'advisor',      labelKey: 'navAIAdvisor',       icon: MessageSquare },
   { id: 'library',      labelKey: 'navContentLibrary',  icon: FileText },
   { id: 'calendar',     labelKey: 'navCalendar',        icon: Calendar },
+  { id: 'analyst',      labelKey: 'navAnalyst',          icon: BarChart3 },
+  { id: 'advisor',      labelKey: 'navAIAdvisor',       icon: MessageSquare },
   { id: 'billing',      labelKey: 'navBilling',          icon: CreditCard },
   { id: 'integrations', labelKey: 'navIntegrations',    icon: Link2 },
-  { id: 'settings',     labelKey: 'navSettings',        icon: Settings },
   { id: 'ads',          labelKey: 'navGoogleAds',       icon: Megaphone, disabled: true, badgeKey: 'comingSoon' },
   { id: 'media',        labelKey: 'navMediaStudio',     icon: Image, disabled: true, badgeKey: 'comingSoon' },
 ]

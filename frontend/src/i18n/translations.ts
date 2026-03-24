@@ -5,7 +5,9 @@ export const translations = {
     poweredBy: "AI-Powered Marketing Automation",
 
     // Sidebar / Nav
-    navDashboard: "Dashboard",
+    navHome: "Home",
+    navDashboard: "Home",
+    navBrandKit: "Brand Kit",
     navGoogleAds: "Google Ads",
     navPostGenerator: "Post Generator",
     navCreativeStudio: "Creative Studio",
@@ -120,7 +122,9 @@ export const translations = {
     poweredBy: "אוטומציה שיווקית מבוססת AI",
 
     // Sidebar / Nav
-    navDashboard: "לוח בקרה",
+    navHome: "דף הבית",
+    navDashboard: "דף הבית",
+    navBrandKit: "ערכת מותג",
     navGoogleAds: "Google Ads",
     navPostGenerator: "מחולל פוסטים",
     navCreativeStudio: "סטודיו קריאייטיב",
