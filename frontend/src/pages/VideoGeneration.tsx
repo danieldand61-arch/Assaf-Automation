@@ -40,12 +40,12 @@ const CREDITS_PER_SEC: Record<string, number> = {
 }
 
 const AVATARS = [
-  { id: 'alex', name: 'Alex', gender: 'male', style: 'casual', emoji: '👨‍💼' },
-  { id: 'sarah', name: 'Sarah', gender: 'female', style: 'professional', emoji: '👩‍💻' },
-  { id: 'jordan', name: 'Jordan', gender: 'neutral', style: 'creative', emoji: '🧑‍🎤' },
-  { id: 'maya', name: 'Maya', gender: 'female', style: 'friendly', emoji: '👩‍🦰' },
-  { id: 'david', name: 'David', gender: 'male', style: 'authoritative', emoji: '👨‍🏫' },
-  { id: 'lisa', name: 'Lisa', gender: 'female', style: 'energetic', emoji: '💁‍♀️' },
+  { id: 'young-woman', name: 'Sofia', desc: 'young woman, mid-20s, friendly smile, casual look', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face', style: 'friendly' },
+  { id: 'young-man', name: 'Marcus', desc: 'young man, late-20s, confident look, modern style', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face', style: 'confident' },
+  { id: 'pro-woman', name: 'Elena', desc: 'professional woman, early-30s, business attire, warm expression', img: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&h=200&fit=crop&crop=face', style: 'professional' },
+  { id: 'creative-man', name: 'Jordan', desc: 'creative man, mid-20s, casual streetwear, energetic vibe', img: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&h=200&fit=crop&crop=face', style: 'creative' },
+  { id: 'mature-woman', name: 'Diana', desc: 'mature woman, 40s, elegant, authoritative yet approachable', img: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face', style: 'authoritative' },
+  { id: 'chill-man', name: 'Liam', desc: 'relaxed man, early-30s, casual, genuine and trustworthy look', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=face', style: 'casual' },
 ]
 
 const STYLE_CARDS: { id: VideoStyle; icon: typeof Film; gradient: string }[] = [
@@ -185,6 +185,20 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
     poll()
   }, [session, t])
 
+  const buildFinalPrompt = () => {
+    let p = prompt.trim()
+    if (videoStyle === 'ugc') {
+      const avatar = AVATARS.find(a => a.id === selectedAvatar)
+      const personDesc = avatar ? avatar.desc : (customAvatarUrl ? customAvatarUrl : 'a young, friendly person')
+      p = `UGC-style video: ${personDesc} speaking directly to camera in a natural, authentic way. They are talking about: ${p}. The person should look directly at the camera, use natural hand gestures, and feel like a real social media review or testimonial. Natural lighting, casual setting.`
+    } else if (videoStyle === 'product') {
+      p = `Cinematic product showcase video: ${p}. Professional product photography in motion, smooth camera movements, studio-quality lighting, clean background. Focus on the product details, textures, and premium feel.`
+    } else if (videoStyle === 'cinematic') {
+      p = `Cinematic atmospheric mood video: ${p}. Dramatic lighting, slow motion elements, rich color grading, emotional storytelling. Suitable for text overlays and brand storytelling.`
+    }
+    return p
+  }
+
   const handleGenerate = async () => {
     if (!prompt.trim()) { setError(t('pleaseEnterPrompt')); return }
     if (mode === 'image' && !imageUrl.trim()) { setError(t('pleaseEnterImageUrl')); return }
@@ -195,8 +209,9 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
     setSavedToLibrary(false)
     setSubtitledVideoUrl(null)
 
+    const finalPrompt = buildFinalPrompt()
     const endpoint = mode === 'text' ? 'text-to-video' : 'image-to-video'
-    const body: any = { prompt, duration, sound, quality, aspect_ratio: aspectRatio }
+    const body: any = { prompt: finalPrompt, duration, sound, quality, aspect_ratio: aspectRatio }
     if (mode === 'image') body.image_url = imageUrl
 
     try {
@@ -442,16 +457,18 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                 <button
                   key={avatar.id}
                   onClick={() => { setSelectedAvatar(avatar.id); setCustomAvatarUrl('') }}
-                  className={`relative rounded-2xl border-2 p-5 text-center transition-all ${
+                  className={`relative rounded-2xl border-2 p-4 text-center transition-all ${
                     selected
-                      ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20'
+                      ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-lg shadow-violet-100 dark:shadow-violet-900/20'
                       : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300'
                   }`}
                 >
                   {selected && <CheckCircle2 size={16} className="absolute top-2 right-2 text-violet-500" />}
-                  <div className="w-14 h-14 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center mx-auto mb-3 text-2xl">
-                    {avatar.emoji}
-                  </div>
+                  <img
+                    src={avatar.img}
+                    alt={avatar.name}
+                    className="w-16 h-16 rounded-full object-cover mx-auto mb-2 ring-2 ring-white dark:ring-gray-700 shadow"
+                  />
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{avatar.name}</p>
                   <p className="text-[10px] text-gray-400 capitalize">{avatar.style}</p>
                 </button>
@@ -459,19 +476,19 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             })}
           </div>
 
-          {/* Custom upload */}
+          {/* Custom avatar description */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-600 p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                 <Upload size={18} className="text-gray-400" />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{t('uploadCustomAvatar')}</p>
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{t('customAvatarDesc')}</p>
                 <input
-                  type="url"
+                  type="text"
                   value={customAvatarUrl}
                   onChange={(e) => { setCustomAvatarUrl(e.target.value); setSelectedAvatar('') }}
-                  placeholder={t('avatarUrlPlaceholder')}
+                  placeholder={t('customAvatarPlaceholder')}
                   className="w-full mt-1.5 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition"
                 />
               </div>
