@@ -73,6 +73,10 @@ async def _generate_copy(req: CreativeRequest, api_key: str) -> dict:
     brand_ctx = f'Brand: "{req.brand_name}". ' if req.brand_name else ""
     colors_ctx = f"Brand colors: {', '.join(req.brand_colors[:4])}. " if req.brand_colors else ""
 
+    import re
+    has_hebrew = bool(re.search(r'[\u0590-\u05FF]', req.product_description + (req.cta_text or '')))
+    lang_instruction = "- IMPORTANT: Write headline and subheadline in Hebrew (עברית). The user input is in Hebrew." if has_hebrew else ""
+
     prompt_text = f"""You are an elite advertising copywriter. Generate a punchy headline and subheadline for a social media ad creative.
 
 {brand_ctx}{colors_ctx}
@@ -84,6 +88,7 @@ RULES:
 - Subheadline: 5-12 words, supports the headline, adds context or emotion
 - Do NOT use generic phrases like "Shop Now" or "Buy Today" in the headline
 - Make it feel premium and professional
+{lang_instruction}
 - Output ONLY two lines, nothing else:
 HEADLINE: <your headline>
 SUBHEADLINE: <your subheadline>"""
