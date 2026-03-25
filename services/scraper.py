@@ -186,21 +186,29 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     elif html:
         logger.info(f"── STRATEGY 1.5: SKIPPED (not Instagram) ──")
 
-    # ── Strategy 2: Instagram web_profile_info API ──
+    # ── Strategy 2: Instagram API (try www first, then mobile i.instagram.com) ──
     if platform == 'instagram' and (not ig_data.get("post_images") or not description or _is_generic_description(description, username, platform)):
-        logger.info(f"── STRATEGY 2: Instagram web_profile_info API ──")
-        try:
-            api_url = f"https://www.instagram.com/api/v1/users/web_profile_info/?username={username}"
-            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
-                resp = await client.get(api_url, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                    'X-IG-App-ID': '936619743392459',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': '*/*',
-                    'Referer': f'https://www.instagram.com/{username}/',
-                    'X-ASBD-ID': '129477',
-                })
-                logger.info(f"  HTTP {resp.status_code}, body={len(resp.text)} bytes")
+        logger.info(f"── STRATEGY 2: Instagram API ──")
+        resp = None
+        api_attempts = [
+            ("www", f"https://www.instagram.com/api/v1/users/web_profile_info/?username={username}", {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'X-IG-App-ID': '936619743392459',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': '*/*',
+                'Referer': f'https://www.instagram.com/{username}/',
+                'X-ASBD-ID': '129477',
+            }),
+            ("mobile", f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}", {
+                'User-Agent': 'Instagram 76.0.0.15.395 Android (24/7.0; 640dpi; 1440x2560; samsung; SM-G930F; herolte; samsungexynos8890; en_US; 138226743)',
+                'X-IG-App-ID': '936619743392459',
+            }),
+        ]
+        for api_label, api_url, api_headers in api_attempts:
+            try:
+                async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                    resp = await client.get(api_url, headers=api_headers)
+                logger.info(f"  [{api_label}] HTTP {resp.status_code}, body={len(resp.text)} bytes")
                 if resp.status_code == 200 and resp.text.strip().startswith('{'):
                     data = resp.json()
                     user_data = data.get('data', {}).get('user', {})
@@ -216,7 +224,6 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
                         pic = user_data.get('profile_pic_url_hd') or user_data.get('profile_pic_url', '')
                         if pic:
                             logo_url = pic
-                        # Extract posts
                         edges = user_data.get('edge_owner_to_timeline_media', {}).get('edges', [])
                         if edges and not ig_data.get("post_images"):
                             for edge in edges[:6]:
@@ -233,12 +240,14 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
                             logger.info(f"  ✅ Got {len(ig_data['post_images'])} post images, {len([c for c in ig_data['post_captions'] if c])} captions")
                         elif edges:
                             logger.info(f"  ℹ️ API has {len(edges)} posts but already have images from Strategy 1.5")
+                        logger.info(f"  ✅ Strategy 2 [{api_label}] succeeded")
+                        break
                     else:
-                        logger.info(f"  ⚠️ JSON parsed but no data.user found")
+                        logger.info(f"  ⚠️ [{api_label}] JSON parsed but no data.user found")
                 else:
-                    logger.info(f"  ⚠️ Non-200 or non-JSON response, skipping")
-        except Exception as e:
-            logger.warning(f"  ❌ Strategy 2 FAILED: {e}")
+                    logger.info(f"  ⚠️ [{api_label}] Non-200 or non-JSON, trying next...")
+            except Exception as e:
+                logger.warning(f"  ❌ Strategy 2 [{api_label}] failed: {e}")
     elif platform == 'instagram':
         logger.info(f"── STRATEGY 2: SKIPPED (have description + images) ──")
 
@@ -269,26 +278,20 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
         logger.info(f"── STRATEGY 4: SKIPPED (no images and have good description) ──")
 
     # ── Strategy 5: Playwright screenshot + Gemini Vision + avatar extraction ──
-    if not vision_analysis and platform == 'instagram':
-        logger.info(f"── STRATEGY 5: Playwright headless browser screenshot ──")
-        logger.info(f"  Reason: all prior strategies failed to get post images")
+    if platform == 'instagram' and (not vision_analysis or not logo_url):
+        logger.info(f"── STRATEGY 5: Playwright headless browser (screenshots + avatar) ──")
+        logger.info(f"  Reason: vision_analysis={'yes' if vision_analysis else 'no'}, logo_url={'yes' if logo_url else 'no'}")
         pw_result = await _playwright_screenshot_and_analyze(username)
-        if pw_result:
-            vision_analysis = pw_result
+        pw_desc = pw_result.get("description", "")
+        pw_avatar = pw_result.get("avatar_url", "")
+        if pw_desc and not vision_analysis:
+            vision_analysis = pw_desc
             logger.info(f"  ✅ Playwright+Vision result: '{vision_analysis[:150]}...'")
         else:
             logger.info(f"  ❌ Playwright analysis returned nothing")
-
-    # ── Strategy 5b: Extract avatar via Playwright if logo_url is still empty/generic ──
-    is_likely_avatar = logo_url and ('profile_pic' in logo_url or '/t51.2885-19/' in logo_url)
-    if platform == 'instagram' and not is_likely_avatar:
-        logger.info(f"── STRATEGY 5b: Playwright avatar extraction for @{username} ──")
-        pw_avatar = await _extract_ig_avatar_via_playwright(username)
-        if pw_avatar:
+        if pw_avatar and not logo_url:
             logo_url = pw_avatar
-            logger.info(f"  ✅ Avatar found: {logo_url[:80]}")
-        else:
-            logger.info(f"  ❌ Could not extract avatar via Playwright")
+            logger.info(f"  ✅ Avatar from Playwright: {logo_url[:80]}")
 
     if not description or _is_generic_description(description, username, platform):
         description = vision_analysis or f"@{username} on {platform.capitalize()}"
@@ -351,12 +354,14 @@ async def _google_search_profile(username: str, platform: str) -> str:
     queries = [
         f"site:{platform}.com {username}",
         f'"{username}" {platform} bio',
-        f'instagram.com/{username}',
+        f'{platform}.com/{username}',
     ]
     google_headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9',
     }
+    skip_phrases = ['login', 'sign up', 'create an account', 'see photos and videos',
+                    'sign in', 'forgot password', 'download the app', 'open app']
     all_snippets: List[str] = []
     try:
         async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
@@ -370,24 +375,28 @@ async def _google_search_profile(username: str, platform: str) -> str:
                 if resp.status_code != 200:
                     continue
                 soup = BeautifulSoup(resp.text, 'html.parser')
-                # Broad selector: all text blocks in search results
+
+                # Broad approach: extract all text from search result divs
                 for el in soup.find_all(['div', 'span']):
                     cls = ' '.join(el.get('class', []))
-                    # Google snippet classes (various versions)
-                    if re.search(r'VwiC3b|IsZvec|aCOpRe|s3v9rd|BNeawe|yDYNvb|lEBKkf', cls):
+                    if re.search(r'VwiC3b|IsZvec|aCOpRe|s3v9rd|BNeawe|yDYNvb|lEBKkf|MUxGbd', cls):
                         text = el.get_text(strip=True)
                         if text and len(text) > 15:
                             low = text.lower()
-                            if any(skip in low for skip in ['login', 'sign up', 'create an account', 'see photos and videos']):
+                            if any(skip in low for skip in skip_phrases):
                                 continue
                             if text not in all_snippets:
                                 all_snippets.append(text)
 
-                # Also extract meta descriptions from result links
-                for cite in soup.find_all('span', class_=re.compile(r'VuuXrf|qLRx3b|hgKElc')):
-                    text = cite.get_text(strip=True)
-                    if text and len(text) > 20 and text not in all_snippets:
-                        all_snippets.append(text)
+                # Also try generic divs that contain Instagram-related info
+                for el in soup.select('[data-sncf], [data-snf], .g .IsZvec, .g .VwiC3b, .g span'):
+                    text = el.get_text(strip=True)
+                    if text and len(text) > 20:
+                        low = text.lower()
+                        if any(skip in low for skip in skip_phrases):
+                            continue
+                        if text not in all_snippets:
+                            all_snippets.append(text)
 
                 logger.info(f"  Snippets found: {len(all_snippets)}")
                 for i, s in enumerate(all_snippets[:3]):
@@ -763,7 +772,8 @@ async def _extract_ig_avatar_via_playwright(username: str) -> str:
 
 
 async def _playwright_screenshot_and_analyze(username: str) -> str:
-    """Take screenshots of Instagram profile with headless browser, send to Gemini Vision."""
+    """Take screenshots of Instagram profile with headless browser, send to Gemini Vision.
+    Uses Google cached version as primary source since Instagram blocks server IPs."""
     try:
         import google.generativeai as genai
         import os
@@ -777,6 +787,7 @@ async def _playwright_screenshot_and_analyze(username: str) -> str:
         import shutil
 
         screenshots = []
+        avatar_url_found = ""
         browser = None
         async with async_playwright() as p:
             try:
@@ -792,50 +803,94 @@ async def _playwright_screenshot_and_analyze(username: str) -> str:
                     launch_kwargs['executable_path'] = chromium_path
                     logger.info(f"  Using system Chromium: {chromium_path}")
                 browser = await p.chromium.launch(**launch_kwargs)
-                context = await browser.new_context(
-                    viewport={'width': 1280, 'height': 1200},
-                    user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Mobile/15E148 Safari/604.1',
-                    locale='en-US',
-                    java_script_enabled=True,
-                )
-                page = await context.new_page()
 
-                url = f"https://www.instagram.com/{username}/"
-                logger.info(f"  Opening {url} in headless browser...")
-                try:
-                    await page.goto(url, wait_until='domcontentloaded', timeout=20000)
-                except Exception as nav_err:
-                    logger.info(f"  Navigation warning: {nav_err}")
+                # Try Google cached version first (more reliable than direct IG)
+                urls_to_try = [
+                    (f"https://www.google.com/search?q=instagram.com/{username}&hl=en", "Google search"),
+                    (f"https://www.instagram.com/{username}/", "Instagram direct"),
+                ]
 
-                await asyncio.sleep(3)
+                for try_url, try_label in urls_to_try:
+                    context = await browser.new_context(
+                        viewport={'width': 430, 'height': 932},
+                        user_agent='Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+                        locale='en-US',
+                        java_script_enabled=True,
+                        is_mobile=True,
+                        has_touch=True,
+                    )
+                    page = await context.new_page()
 
-                current_url = page.url
-                logger.info(f"  Current URL: {current_url}")
-
-                # Dismiss any popups/modals
-                for sel in ['button:has-text("Not Now")', 'button:has-text("Not now")', '[aria-label="Close"]', 'button:has-text("Decline")', 'button:has-text("Accept")', 'button:has-text("Allow")']:
+                    logger.info(f"  Opening {try_label}: {try_url[:80]}...")
                     try:
-                        btn = page.locator(sel).first
-                        if await btn.is_visible(timeout=1000):
-                            await btn.click()
-                            await asyncio.sleep(0.3)
-                            logger.info(f"  Dismissed popup: {sel}")
-                    except Exception:
-                        pass
+                        await page.goto(try_url, wait_until='domcontentloaded', timeout=20000)
+                    except Exception as nav_err:
+                        logger.info(f"  Navigation warning: {nav_err}")
 
-                # Take screenshots
-                for i, scroll_y in enumerate([0, 600, 1200]):
-                    try:
-                        if scroll_y > 0:
-                            await page.evaluate(f'window.scrollTo(0, {scroll_y})')
-                            await asyncio.sleep(1.5)
-                        ss = await page.screenshot(type='jpeg', quality=80, full_page=False)
-                        if len(ss) > 5000:
-                            screenshots.append(ss)
-                            logger.info(f"    Screenshot {i+1} (scroll={scroll_y}): {len(ss)} bytes")
-                    except Exception as ss_err:
-                        logger.info(f"    Screenshot {i+1} failed: {ss_err}")
+                    await asyncio.sleep(3)
+
+                    current_url = page.url
+                    logger.info(f"  Current URL: {current_url}")
+
+                    is_login = 'login' in current_url.lower()
+
+                    # Dismiss any popups/modals
+                    for sel in ['button:has-text("Not Now")', 'button:has-text("Not now")', '[aria-label="Close"]',
+                                'button:has-text("Decline")', 'button:has-text("Accept")', 'button:has-text("Allow")']:
+                        try:
+                            btn = page.locator(sel).first
+                            if await btn.is_visible(timeout=1000):
+                                await btn.click()
+                                await asyncio.sleep(0.3)
+                                logger.info(f"  Dismissed popup: {sel}")
+                        except Exception:
+                            pass
+
+                    # Try to extract avatar from DOM before screenshots
+                    if 'instagram.com' in current_url:
+                        avatar_url_found = await page.evaluate("""() => {
+                            const imgs = document.querySelectorAll('img');
+                            for (const img of imgs) {
+                                const alt = (img.alt || '').toLowerCase();
+                                const src = img.src || '';
+                                if (alt.includes('profile picture') && src.includes('scontent')) return src;
+                            }
+                            for (const img of imgs) {
+                                const src = img.src || '';
+                                const w = img.naturalWidth || img.width || 0;
+                                if (src.includes('scontent') && w > 0 && w <= 300) return src;
+                            }
+                            return '';
+                        }""")
+                        if avatar_url_found:
+                            logger.info(f"  ✅ Found avatar in DOM: {avatar_url_found[:80]}")
+
+                    # Take screenshots
+                    for i, scroll_y in enumerate([0, 600, 1200]):
+                        try:
+                            if scroll_y > 0:
+                                await page.evaluate(f'window.scrollTo(0, {scroll_y})')
+                                await asyncio.sleep(1.5)
+                            ss = await page.screenshot(type='jpeg', quality=80, full_page=False)
+                            if len(ss) > 5000:
+                                screenshots.append(ss)
+                                logger.info(f"    Screenshot {i+1} ({try_label}, scroll={scroll_y}): {len(ss)} bytes")
+                        except Exception as ss_err:
+                            logger.info(f"    Screenshot {i+1} failed: {ss_err}")
+                            break
+
+                    await context.close()
+
+                    # If we got screenshots from Google search, that's good enough
+                    if screenshots and try_label == "Google search":
                         break
+                    # If direct IG didn't redirect to login, use those screenshots
+                    if screenshots and not is_login:
+                        break
+                    # If login page, clear screenshots and try next URL
+                    if is_login and try_label != urls_to_try[-1][1]:
+                        logger.info(f"  ⚠️ {try_label} led to login page, trying next...")
+                        screenshots.clear()
 
             except Exception as browser_err:
                 logger.warning(f"  ❌ Browser error: {browser_err}")
@@ -848,24 +903,27 @@ async def _playwright_screenshot_and_analyze(username: str) -> str:
 
         if not screenshots:
             logger.info(f"  ❌ No screenshots captured")
-            return ''
+            return {"description": "", "avatar_url": avatar_url_found}
 
         logger.info(f"  Sending {len(screenshots)} screenshots to Gemini Vision...")
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-2.5-flash")
 
-        prompt = f"""These are {len(screenshots)} screenshots of the Instagram profile @{username}.
-The screenshots may show: profile header (name, bio, avatar, follower count), posts grid with thumbnails, or a login page with profile content partially visible behind it.
+        prompt = f"""These are screenshots related to the Instagram profile @{username}.
+They may include: Google search results for the profile, profile page (header, bio, avatar, follower count, posts grid), or a login page with content partially visible.
 
-IMPORTANT: Even if there's a login popup/overlay, look at ANY visible content behind it — profile picture, name, bio text, post thumbnails in the background.
+YOUR TASK:
+- Extract ANY information about @{username} from these screenshots
+- Look for: profile name, bio text, follower count, post descriptions, Google search snippets about this person/brand
+- Even from Google search results, you can often see the Instagram bio and description
 
 Based on everything visible:
 1. What is this person/brand/business about?
 2. What products, services, or content do they offer?
 3. What industry or niche are they in?
-4. Read any visible bio text, name, and describe visible post thumbnails.
+4. Read any visible bio text, name, and describe visible post thumbnails or Google snippets.
 
-Provide a concise 2-3 sentence description. Make your best guess based on visual clues. Only respond "UNKNOWN" if the screenshots are completely blank or unreadable."""
+Provide a concise 2-3 sentence description of this Instagram profile/brand. Make your best guess based on visual clues. Only respond "UNKNOWN" if the screenshots are completely blank or unreadable."""
 
         content_parts = [prompt] + [{"mime_type": "image/jpeg", "data": ss} for ss in screenshots]
         response = model.generate_content(content_parts)
@@ -873,14 +931,14 @@ Provide a concise 2-3 sentence description. Make your best guess based on visual
         logger.info(f"    Gemini response: '{text[:200]}'")
 
         if text.upper() == 'UNKNOWN' or len(text) < 10:
-            return ''
-        return text
+            return {"description": "", "avatar_url": avatar_url_found}
+        return {"description": text, "avatar_url": avatar_url_found}
     except ImportError:
         logger.warning(f"  ❌ Playwright not installed, skipping Strategy 5")
-        return ''
+        return {"description": "", "avatar_url": ""}
     except Exception as e:
         logger.warning(f"  ❌ Playwright screenshot failed: {e}")
-        return ''
+        return {"description": "", "avatar_url": ""}
 
 
 async def scrape_website(url: str) -> Dict:
