@@ -406,20 +406,29 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
                 }
                 logger.info("ℹ️ No URL provided, using keywords as context")
 
-        # 2. Generate post texts (with tracking)
-        logger.info("✍️  Step 2: Generating post texts...")
-        from services.content_generator import generate_posts
-        variations = await generate_posts(
-            website_data=website_data,
-            keywords=request.keywords,
-            platforms=request.platforms,
-            style=request.style,
-            target_audience=request.target_audience,
-            language=request.language,
-            include_emojis=request.include_emojis,
-            user_id=current_user.get("user_id"),
-            user_media_url=request.user_media_url
-        )
+        # 2. Generate post texts (skip in image_only mode)
+        if request.image_only:
+            logger.info("✍️  Step 2: Skipped — image_only mode")
+            from models import PostVariation
+            variations = [PostVariation(
+                text=request.keywords or website_data.get("description", ""),
+                hashtags=[], char_count=0, engagement_score=0.0,
+                call_to_action="", platform=p, variant_type="image_only",
+            ) for p in request.platforms]
+        else:
+            logger.info("✍️  Step 2: Generating post texts...")
+            from services.content_generator import generate_posts
+            variations = await generate_posts(
+                website_data=website_data,
+                keywords=request.keywords,
+                platforms=request.platforms,
+                style=request.style,
+                target_audience=request.target_audience,
+                language=request.language,
+                include_emojis=request.include_emojis,
+                user_id=current_user.get("user_id"),
+                user_media_url=request.user_media_url
+            )
         logger.info(f"✅ Generated {len(variations)} post variations")
         
         # 3. Generate images (skip when user provided their own media)
@@ -438,7 +447,7 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
             )
             logger.info(f"✅ Generated {len(images)} graphic designs")
         else:
-            logger.info("🖼️  Step 3: Generating images...")
+            logger.info(f"🖼️  Step 3: Generating images...{' (image_only mode)' if request.image_only else ''}")
             from services.image_generator import generate_images
             images = await generate_images(
                 website_data=website_data,
@@ -446,6 +455,7 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
                 platforms=request.platforms,
                 image_size=request.image_size,
                 include_logo=request.include_logo,
+                custom_prompt=request.keywords if request.image_only else None,
                 user_id=current_user.get("user_id"),
                 include_people=request.include_people,
                 reference_image=request.reference_image

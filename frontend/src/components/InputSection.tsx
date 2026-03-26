@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { Sparkles, Globe, Upload, X, Check, AlertCircle, Zap, Palette } from 'lucide-react'
+import { Sparkles, Globe, Upload, X, Check, AlertCircle, Zap, Palette, ImageIcon } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 import { useApp } from '../contexts/AppContext'
 
@@ -69,6 +69,7 @@ export interface GenerateFormData {
   include_logo: boolean
   include_people: boolean
   graphic_mode: boolean
+  image_only: boolean
   uploaded_image?: string | null
   media_file?: string | null
   use_custom_url?: boolean
@@ -144,7 +145,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
       url: '', keywords: '', platforms: ['facebook', 'instagram'],
       image_size: '1080x1080', style: 'professional', language: 'en',
       target_audience: 'b2c', include_emojis: true, include_logo: false,
-      include_people: false, graphic_mode: false, uploaded_image: null, media_file: null,
+      include_people: false, graphic_mode: false, image_only: false, uploaded_image: null, media_file: null,
     }
   }
 
@@ -505,6 +506,15 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('includePeople')}</span>
                       <Toggle checked={form.include_people} onChange={v => set('include_people', v)} />
+                    </div>
+                  )}
+                  {!mediaPreview && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <ImageIcon size={14} className={form.image_only ? 'text-[#4A7CFF]' : 'text-gray-400'} />
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t('imageOnly')}</span>
+                      </div>
+                      <Toggle checked={form.image_only} onChange={v => set('image_only', v)} />
                     </div>
                   )}
                 </div>

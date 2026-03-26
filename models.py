@@ -45,3 +45,4 @@ class GenerateRequest(BaseModel):
     include_people: bool = False
     reference_image: Optional[str] = None
     graphic_mode: bool = False
+    image_only: bool = False
