@@ -266,7 +266,10 @@ async def generate_text_to_video(
                 {"name": e.name, "description": e.description, "element_input_urls": e.element_input_urls}
                 for e in request.kling_elements
             ]
-            logger.info(f"Using kling_elements: {[e.name for e in request.kling_elements]}")
+            first_img = next((u for e in request.kling_elements for u in e.element_input_urls), None)
+            if first_img:
+                input_params["image_urls"] = [first_img]
+            logger.info(f"Using kling_elements: {[e.name for e in request.kling_elements]}, image_urls={input_params.get('image_urls', [])}")
 
         task_id = await _create_kie_task(input_params, api_key)
         meta = {
