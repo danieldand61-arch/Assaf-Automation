@@ -330,10 +330,12 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
               {/* Keywords / prompt */}
               <div className="flex-1 flex flex-col gap-1.5">
                 <label className="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {mediaPreview ? t('whatIsPostAbout') : t('whatsOnYourMind')}
+                  {form.image_only ? t('imagePromptLabel') : mediaPreview ? t('whatIsPostAbout') : t('whatsOnYourMind')}
                 </label>
                 <textarea value={form.keywords} onChange={e => set('keywords', e.target.value)}
-                  placeholder={mediaPreview
+                  placeholder={form.image_only
+                    ? t('imagePromptPlaceholder')
+                    : mediaPreview
                     ? 'Describe the topic or idea — AI will write the caption'
                     : "Describe the post you want to create... e.g. 'A professional announcement for our new summer collection launch with a focus on sustainability.'"}
                   className="flex-1 min-h-[120px] w-full p-5 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4A7CFF]/20 focus:border-[#4A7CFF] outline-none transition resize-none text-base leading-relaxed placeholder:text-gray-400" />
