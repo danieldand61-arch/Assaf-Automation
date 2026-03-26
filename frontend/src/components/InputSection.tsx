@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { Sparkles, Globe, Upload, X, Check, AlertCircle, Film, Zap, Palette } from 'lucide-react'
+import { Sparkles, Globe, Upload, X, Check, AlertCircle, Zap, Palette } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 import { useApp } from '../contexts/AppContext'
 
@@ -369,9 +369,9 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                   </div>
 
                   {/* Use My Media */}
-                  <div className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${mediaPreview ? 'border-green-500 bg-green-500/5' : 'border-gray-100 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-500 bg-gray-50 dark:bg-gray-800/30'}`}>
+                  <div className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${mediaPreview ? 'border-green-500 bg-green-500/5' : 'border-gray-100 dark:border-gray-700 hover:border-green-400 dark:hover:border-green-500 bg-gray-50 dark:bg-gray-800/30'}`}>
                     <div className="flex items-center gap-2 mb-2">
-                      <Film size={16} className="text-gray-400" />
+                      <Upload size={16} className="text-green-500" />
                       <span className="text-sm font-bold text-gray-900 dark:text-white">{t('useMyMedia')}</span>
                     </div>
                     <p className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">{t('useMyMediaDesc')}</p>
