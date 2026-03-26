@@ -462,7 +462,7 @@ KIE_FILE_API = "https://kieai.redpandaai.co"
 
 async def _upload_to_kie(file_url: str, api_key: str) -> str:
     """Upload image to KIE temp storage via URL upload. Returns KIE file URL (valid 3 days)."""
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(
             f"{KIE_FILE_API}/api/file-url-upload",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
@@ -472,9 +472,13 @@ async def _upload_to_kie(file_url: str, api_key: str) -> str:
             logger.error(f"KIE file upload failed: {resp.status_code} {resp.text}")
             raise HTTPException(status_code=500, detail="Failed to upload file to KIE")
         data = resp.json()
-        url = data.get("data", {}).get("fileUrl")
+        logger.info(f"KIE file upload response: {json.dumps(data, default=str)[:500]}")
+        d = data.get("data") or {}
+        url = d.get("fileUrl") or d.get("file_url") or d.get("url") or d.get("downloadUrl") or d.get("download_url")
+        if not url and isinstance(d, str):
+            url = d
         if not url:
-            raise HTTPException(status_code=500, detail="No fileUrl in KIE upload response")
+            raise HTTPException(status_code=500, detail=f"No fileUrl in KIE upload response: {json.dumps(data, default=str)[:300]}")
         return url
 
 
