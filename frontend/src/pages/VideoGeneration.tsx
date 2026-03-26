@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useApp } from '../contexts/AppContext'
+import { useAccount } from '../contexts/AccountContext'
 import {
   Download, Send, Play, Loader2, Film, ImageIcon, Wand2,
   Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2,
   ChevronLeft, ChevronRight, Sparkles, User, Upload,
-  Video, Clapperboard, MonitorPlay,
+  Video, Clapperboard, MonitorPlay, Building2,
 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
 import { SubtitlePicker, type SubtitleStyle, type SubtitleLang } from '../components/SubtitlePicker'
@@ -99,6 +100,14 @@ const AR_PREVIEWS: { value: string; w: number; h: number }[] = [
 export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }: VideoGenerationProps) {
   const { session } = useAuth()
   const { t } = useApp()
+  const { activeAccount } = useAccount()
+
+  const bk = activeAccount?.metadata?.brand_kit || {} as Record<string, any>
+  const brandName = bk.business_name || activeAccount?.name || ''
+  const brandDesc = activeAccount?.description || ''
+  const brandIndustry = activeAccount?.industry || ''
+  const brandAudience = activeAccount?.target_audience || ''
+  const hasBrandInfo = !!(brandName || brandDesc)
 
   // Wizard state
   const [step, setStep] = useState<WizardStep>(1)
@@ -108,6 +117,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   const [customAvatarPreviews, setCustomAvatarPreviews] = useState<string[]>([])
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [preparingElements, setPreparingElements] = useState(false)
+  const [useBrand, setUseBrand] = useState(true)
   const avatarFileRef = useRef<HTMLInputElement>(null)
 
   // Generation state (kept from original)
@@ -270,15 +280,20 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
   const buildFinalPrompt = (useElement: boolean) => {
     let p = prompt.trim()
+
+    const brandCtx = useBrand && hasBrandInfo
+      ? `Brand: ${brandName}${brandDesc ? `. ${brandDesc}` : ''}${brandIndustry ? `. Industry: ${brandIndustry}` : ''}${brandAudience ? `. Target audience: ${brandAudience}` : ''}.`
+      : ''
+
     if (videoStyle === 'ugc') {
       const avatar = AVATARS.find(a => a.id === selectedAvatar)
       const personDesc = avatar?.desc ?? 'a young, friendly person'
       const person = useElement ? '@avatar' : personDesc
-      p = `UGC-style promotional video: ${person} holding and showcasing the product to camera. Scene: ${p}. The person holds the product up, shows it from different angles, points at key features, smiles genuinely. Close-up shots of the product intercut with the person demonstrating it. The product must be clearly visible in frame throughout the video. Natural lighting, casual lifestyle setting, authentic social media ad feel.`
+      p = `UGC-style promotional video: ${person} holding and showcasing the product to camera. ${brandCtx} Scene: ${p}. The person holds the product up, shows it from different angles, points at key features, smiles genuinely. Close-up shots of the product intercut with the person demonstrating it. The product must be clearly visible in frame throughout the video. Natural lighting, casual lifestyle setting, authentic social media ad feel.`
     } else if (videoStyle === 'product') {
-      p = `Cinematic product showcase video: ${p}. Professional product photography in motion, smooth camera movements, studio-quality lighting, clean background. Focus on the product details, textures, and premium feel.`
+      p = `Cinematic product showcase video: ${brandCtx} ${p}. Professional product photography in motion, smooth camera movements, studio-quality lighting, clean background. Focus on the product details, textures, and premium feel.`
     } else if (videoStyle === 'cinematic') {
-      p = `Cinematic atmospheric mood video: ${p}. Dramatic lighting, slow motion elements, rich color grading, emotional storytelling. Suitable for text overlays and brand storytelling.`
+      p = `Cinematic atmospheric mood video: ${brandCtx} ${p}. Dramatic lighting, slow motion elements, rich color grading, emotional storytelling. Suitable for text overlays and brand storytelling.`
     }
     return p
   }
@@ -652,6 +667,27 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             </button>
           </div>
 
+          {/* Brand Kit toggle */}
+          {hasBrandInfo && (
+            <button
+              onClick={() => setUseBrand(!useBrand)}
+              className={`w-full flex items-center justify-between px-4 py-3.5 rounded-2xl border-2 transition-all ${
+                useBrand ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20' : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800'
+              }`}
+            >
+              <span className="flex items-center gap-2.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+                <Building2 size={16} className={useBrand ? 'text-violet-500' : 'text-gray-400'} />
+                <span>
+                  {t('useBrandKit')}
+                  {useBrand && brandName && <span className="ml-1.5 text-xs text-violet-500 font-semibold">({brandName})</span>}
+                </span>
+              </span>
+              <div className={`w-10 h-5 rounded-full transition-all relative ${useBrand ? 'bg-violet-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${useBrand ? 'left-5' : 'left-0.5'}`} />
+              </div>
+            </button>
+          )}
+
           {/* Prompt */}
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 space-y-3">
             <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('prompt')}</label>
@@ -796,6 +832,11 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
               {sound && (
                 <span className="px-2.5 py-1 rounded-lg bg-white/70 dark:bg-gray-800/50 text-xs font-medium text-gray-600 dark:text-gray-300">
                   🔊 Audio
+                </span>
+              )}
+              {useBrand && hasBrandInfo && (
+                <span className="px-2.5 py-1 rounded-lg bg-violet-100 dark:bg-violet-900/30 text-xs font-medium text-violet-600 dark:text-violet-400">
+                  🏢 {brandName || t('brandKit')}
                 </span>
               )}
             </div>
