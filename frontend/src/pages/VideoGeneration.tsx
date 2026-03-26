@@ -273,11 +273,8 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
     if (videoStyle === 'ugc') {
       const avatar = AVATARS.find(a => a.id === selectedAvatar)
       const personDesc = avatar?.desc ?? 'a young, friendly person'
-      if (useElement) {
-        p = `UGC-style video: @avatar speaking directly to camera in a natural, authentic way. They are talking about: ${p}. The person should look directly at the camera, use natural hand gestures, and feel like a real social media review or testimonial. Natural lighting, casual setting.`
-      } else {
-        p = `UGC-style video: ${personDesc} speaking directly to camera in a natural, authentic way. They are talking about: ${p}. The person should look directly at the camera, use natural hand gestures, and feel like a real social media review or testimonial. Natural lighting, casual setting.`
-      }
+      const person = useElement ? '@avatar' : personDesc
+      p = `UGC-style promotional video: ${person} holding and showcasing the product to camera. Scene: ${p}. The person holds the product up, shows it from different angles, points at key features, smiles genuinely. Close-up shots of the product intercut with the person demonstrating it. The product must be clearly visible in frame throughout the video. Natural lighting, casual lifestyle setting, authentic social media ad feel.`
     } else if (videoStyle === 'product') {
       p = `Cinematic product showcase video: ${p}. Professional product photography in motion, smooth camera movements, studio-quality lighting, clean background. Focus on the product details, textures, and premium feel.`
     } else if (videoStyle === 'cinematic') {
