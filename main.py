@@ -411,8 +411,7 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
             logger.info("✍️  Step 2: Skipped — image_only mode")
             from models import PostVariation
             variations = [PostVariation(
-                text=request.keywords or website_data.get("description", ""),
-                hashtags=[], char_count=0, engagement_score=0.0,
+                text="", hashtags=[], char_count=0, engagement_score=0.0,
                 call_to_action="", platform=p, variant_type="image_only",
             ) for p in request.platforms]
         else:
