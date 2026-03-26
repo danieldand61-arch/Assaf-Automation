@@ -40,12 +40,48 @@ const CREDITS_PER_SEC: Record<string, number> = {
 }
 
 const AVATARS = [
-  { id: 'young-woman', name: 'Sofia', desc: 'young woman, mid-20s, friendly smile, casual look', img: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop&crop=face', style: 'friendly' },
-  { id: 'young-man', name: 'Marcus', desc: 'young man, late-20s, confident look, modern style', img: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop&crop=face', style: 'confident' },
-  { id: 'pro-woman', name: 'Elena', desc: 'professional woman, early-30s, business attire, warm expression', img: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=200&h=200&fit=crop&crop=face', style: 'professional' },
-  { id: 'creative-man', name: 'Jordan', desc: 'creative man, mid-20s, casual streetwear, energetic vibe', img: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=200&h=200&fit=crop&crop=face', style: 'creative' },
-  { id: 'mature-woman', name: 'Diana', desc: 'mature woman, 40s, elegant, authoritative yet approachable', img: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=200&h=200&fit=crop&crop=face', style: 'authoritative' },
-  { id: 'chill-man', name: 'Liam', desc: 'relaxed man, early-30s, casual, genuine and trustworthy look', img: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop&crop=face', style: 'casual' },
+  {
+    id: 'young-woman', name: 'Sofia', desc: 'young woman, mid-20s, friendly smile, casual look', style: 'friendly',
+    imgs: [
+      'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?w=400&h=400&fit=crop&crop=face',
+    ],
+  },
+  {
+    id: 'young-man', name: 'Marcus', desc: 'young man, late-20s, confident look, modern style', style: 'confident',
+    imgs: [
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop&crop=face',
+    ],
+  },
+  {
+    id: 'pro-woman', name: 'Elena', desc: 'professional woman, early-30s, business attire, warm expression', style: 'professional',
+    imgs: [
+      'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop&crop=face',
+    ],
+  },
+  {
+    id: 'creative-man', name: 'Jordan', desc: 'creative man, mid-20s, casual streetwear, energetic vibe', style: 'creative',
+    imgs: [
+      'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&h=400&fit=crop&crop=face',
+    ],
+  },
+  {
+    id: 'mature-woman', name: 'Diana', desc: 'mature woman, 40s, elegant, authoritative yet approachable', style: 'authoritative',
+    imgs: [
+      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&h=400&fit=crop&crop=face',
+    ],
+  },
+  {
+    id: 'chill-man', name: 'Liam', desc: 'relaxed man, early-30s, casual, genuine and trustworthy look', style: 'casual',
+    imgs: [
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face',
+    ],
+  },
 ]
 
 const STYLE_CARDS: { id: VideoStyle; icon: typeof Film; gradient: string }[] = [
@@ -68,7 +104,11 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   const [step, setStep] = useState<WizardStep>(1)
   const [videoStyle, setVideoStyle] = useState<VideoStyle>('product')
   const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].id)
-  const [customAvatarUrl, setCustomAvatarUrl] = useState('')
+  const [customAvatarUrls, setCustomAvatarUrls] = useState<string[]>([])
+  const [customAvatarPreviews, setCustomAvatarPreviews] = useState<string[]>([])
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const [preparingElements, setPreparingElements] = useState(false)
+  const avatarFileRef = useRef<HTMLInputElement>(null)
 
   // Generation state (kept from original)
   const [mode, setMode] = useState<GenerationMode>('text')
@@ -92,6 +132,41 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   const [subtitleStyle, setSubtitleStyle] = useState<SubtitleStyle>('classic')
 
   const estimatedCredits = CREDITS_PER_SEC[`${quality}_${sound ? 'audio' : 'no_audio'}`] * duration
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (!files?.length || !session) return
+
+    const newPreviews: string[] = []
+    const newUrls: string[] = []
+    setUploadingAvatar(true)
+    setError('')
+    setSelectedAvatar('')
+
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) { setError(t('uploadImageAlert')); continue }
+      if (file.size > 10 * 1024 * 1024) { setError(t('imageSizeAlert')); continue }
+      newPreviews.push(URL.createObjectURL(file))
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await fetch(`${API_URL}/api/video-gen/upload-avatar`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          body: formData,
+        })
+        if (!res.ok) throw new Error('Upload failed')
+        const data = await res.json()
+        newUrls.push(data.url)
+      } catch {
+        setError('Upload failed for one of the images')
+      }
+    }
+
+    setCustomAvatarPreviews(prev => [...prev, ...newPreviews].slice(0, 4))
+    setCustomAvatarUrls(prev => [...prev, ...newUrls].slice(0, 4))
+    setUploadingAvatar(false)
+  }
 
   // ─── helpers ───────────────────────────────────────────────
 
@@ -185,12 +260,24 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
     poll()
   }, [session, t])
 
-  const buildFinalPrompt = () => {
+  const getAvatarImageUrls = (): string[] => {
+    if (selectedAvatar) {
+      const avatar = AVATARS.find(a => a.id === selectedAvatar)
+      return avatar?.imgs ?? []
+    }
+    return customAvatarUrls
+  }
+
+  const buildFinalPrompt = (useElement: boolean) => {
     let p = prompt.trim()
     if (videoStyle === 'ugc') {
       const avatar = AVATARS.find(a => a.id === selectedAvatar)
-      const personDesc = avatar ? avatar.desc : (customAvatarUrl ? customAvatarUrl : 'a young, friendly person')
-      p = `UGC-style video: ${personDesc} speaking directly to camera in a natural, authentic way. They are talking about: ${p}. The person should look directly at the camera, use natural hand gestures, and feel like a real social media review or testimonial. Natural lighting, casual setting.`
+      const personDesc = avatar?.desc ?? 'a young, friendly person'
+      if (useElement) {
+        p = `UGC-style video: @avatar speaking directly to camera in a natural, authentic way. They are talking about: ${p}. The person should look directly at the camera, use natural hand gestures, and feel like a real social media review or testimonial. Natural lighting, casual setting.`
+      } else {
+        p = `UGC-style video: ${personDesc} speaking directly to camera in a natural, authentic way. They are talking about: ${p}. The person should look directly at the camera, use natural hand gestures, and feel like a real social media review or testimonial. Natural lighting, casual setting.`
+      }
     } else if (videoStyle === 'product') {
       p = `Cinematic product showcase video: ${p}. Professional product photography in motion, smooth camera movements, studio-quality lighting, clean background. Focus on the product details, textures, and premium feel.`
     } else if (videoStyle === 'cinematic') {
@@ -209,12 +296,38 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
     setSavedToLibrary(false)
     setSubtitledVideoUrl(null)
 
-    const finalPrompt = buildFinalPrompt()
-    const endpoint = mode === 'text' ? 'text-to-video' : 'image-to-video'
-    const body: any = { prompt: finalPrompt, duration, sound, quality, aspect_ratio: aspectRatio }
-    if (mode === 'image') body.image_url = imageUrl
-
     try {
+      const avatarImgs = videoStyle === 'ugc' ? getAvatarImageUrls() : []
+      const hasElements = avatarImgs.length >= 2
+      let klingElements: { name: string; description: string; element_input_urls: string[] }[] | undefined
+
+      if (hasElements) {
+        setPreparingElements(true)
+        const prepRes = await fetch(`${API_URL}/api/video-gen/prepare-elements`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+          body: JSON.stringify({ image_urls: avatarImgs.slice(0, 4) }),
+        })
+        setPreparingElements(false)
+        if (!prepRes.ok) {
+          const err = await prepRes.json().catch(() => ({}))
+          throw new Error(err.detail || 'Failed to prepare avatar elements')
+        }
+        const prepData = await prepRes.json()
+        const avatar = AVATARS.find(a => a.id === selectedAvatar)
+        klingElements = [{
+          name: 'avatar',
+          description: avatar?.desc ?? 'person',
+          element_input_urls: prepData.kie_urls,
+        }]
+      }
+
+      const finalPrompt = buildFinalPrompt(hasElements)
+      const endpoint = mode === 'image' ? 'image-to-video' : 'text-to-video'
+      const body: any = { prompt: finalPrompt, duration, sound, quality, aspect_ratio: aspectRatio }
+      if (mode === 'image') body.image_url = imageUrl
+      if (klingElements) body.kling_elements = klingElements
+
       const response = await fetch(`${API_URL}/api/video-gen/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
@@ -233,6 +346,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       if ((msg.includes('credit') || msg.includes('402') || msg.includes('balance')) && onNeedCredits) onNeedCredits()
       else setError(msg)
       setIsGenerating(false)
+      setPreparingElements(false)
     }
   }
 
@@ -286,6 +400,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
     setError('')
     setSavedToLibrary(false)
     setSubtitledVideoUrl(null)
+    setPreparingElements(false)
     setStep(1)
   }
 
@@ -312,7 +427,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             </div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">{t('generatingYourVideo')}</h3>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4 text-center max-w-sm">
-              {fakeProgress < 20 ? t('videoStageInit') : fakeProgress < 50 ? t('videoStageFrames') : fakeProgress < 80 ? t('videoStageRender') : t('videoStageFinalize')}
+              {preparingElements ? t('preparingAvatar') : fakeProgress < 20 ? t('videoStageInit') : fakeProgress < 50 ? t('videoStageFrames') : fakeProgress < 80 ? t('videoStageRender') : t('videoStageFinalize')}
             </p>
             <div className="w-full max-w-xs mb-2">
               <div className="h-2.5 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
@@ -456,7 +571,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
               return (
                 <button
                   key={avatar.id}
-                  onClick={() => { setSelectedAvatar(avatar.id); setCustomAvatarUrl('') }}
+                  onClick={() => { setSelectedAvatar(avatar.id); setCustomAvatarUrls([]); setCustomAvatarPreviews([]); if (avatarFileRef.current) avatarFileRef.current.value = '' }}
                   className={`relative rounded-2xl border-2 p-4 text-center transition-all ${
                     selected
                       ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-lg shadow-violet-100 dark:shadow-violet-900/20'
@@ -465,7 +580,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                 >
                   {selected && <CheckCircle2 size={16} className="absolute top-2 right-2 text-violet-500" />}
                   <img
-                    src={avatar.img}
+                    src={avatar.imgs[0]}
                     alt={avatar.name}
                     className="w-16 h-16 rounded-full object-cover mx-auto mb-2 ring-2 ring-white dark:ring-gray-700 shadow"
                   />
@@ -476,23 +591,44 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             })}
           </div>
 
-          {/* Custom avatar description */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-600 p-5">
+          {/* Custom avatar: upload 2-4 photos */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-600 p-5 space-y-3">
+            <input ref={avatarFileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={handleAvatarUpload} />
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
-                <Upload size={18} className="text-gray-400" />
-              </div>
+              <button
+                type="button"
+                onClick={() => avatarFileRef.current?.click()}
+                disabled={uploadingAvatar || customAvatarUrls.length >= 4}
+                className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center hover:bg-violet-200 dark:hover:bg-violet-900/50 transition cursor-pointer shrink-0 disabled:opacity-40"
+              >
+                {uploadingAvatar ? <Loader2 size={18} className="text-violet-500 animate-spin" /> : <Upload size={18} className="text-violet-500" />}
+              </button>
               <div className="flex-1">
-                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{t('customAvatarDesc')}</p>
-                <input
-                  type="text"
-                  value={customAvatarUrl}
-                  onChange={(e) => { setCustomAvatarUrl(e.target.value); setSelectedAvatar('') }}
-                  placeholder={t('customAvatarPlaceholder')}
-                  className="w-full mt-1.5 px-3 py-2 border border-gray-200 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition"
-                />
+                <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{t('uploadCustomAvatar')}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{t('uploadAvatarHint')}</p>
               </div>
             </div>
+
+            {customAvatarPreviews.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {customAvatarPreviews.map((preview, i) => (
+                  <div key={i} className="relative group">
+                    <img src={preview} alt={`avatar-${i}`} className="w-14 h-14 rounded-xl object-cover ring-2 ring-violet-300" />
+                    <button
+                      onClick={() => {
+                        setCustomAvatarPreviews(prev => prev.filter((_, j) => j !== i))
+                        setCustomAvatarUrls(prev => prev.filter((_, j) => j !== i))
+                        setSelectedAvatar('')
+                      }}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                    >✕</button>
+                  </div>
+                ))}
+                {customAvatarPreviews.length < 2 && (
+                  <span className="text-xs text-amber-600 dark:text-amber-400">{t('needMorePhotos')}</span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-between pt-2">

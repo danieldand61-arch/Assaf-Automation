@@ -3,9 +3,10 @@ Video Generation Router — Kling 3.0 via KIE AI
 Text-to-Video and Image-to-Video generation
 API docs: https://docs.kie.ai/market/kling/kling-3-0
 """
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, UploadFile, File
 from pydantic import BaseModel
 from typing import List, Optional
+from uuid import uuid4
 import httpx
 import json
 import logging
@@ -43,12 +44,18 @@ def _estimate_credits(quality: str, duration: int, sound: bool) -> int:
     return per_sec * duration
 
 
+class KlingElement(BaseModel):
+    name: str
+    description: str = ""
+    element_input_urls: List[str] = []
+
 class TextToVideoRequest(BaseModel):
     prompt: str
     aspect_ratio: str = "16:9"
     duration: int = 5
     sound: bool = False
     quality: str = "pro"  # "pro" or "std"
+    kling_elements: Optional[List[KlingElement]] = None
 
 class ImageToVideoRequest(BaseModel):
     prompt: str
@@ -246,17 +253,22 @@ async def generate_text_to_video(
     logger.info(f"Creating kling-3.0 {request.quality} text-to-video | user={user_id[:8]} | {request.duration}s sound={request.sound} | ~{estimated_credits} cr")
 
     try:
-        task_id = await _create_kie_task(
-            {
-                "prompt": request.prompt,
-                "duration": str(request.duration),
-                "aspect_ratio": request.aspect_ratio,
-                "sound": request.sound,
-                "mode": request.quality,
-                "multi_shots": False,
-            },
-            api_key,
-        )
+        input_params: dict = {
+            "prompt": request.prompt,
+            "duration": str(request.duration),
+            "aspect_ratio": request.aspect_ratio,
+            "sound": request.sound,
+            "mode": request.quality,
+            "multi_shots": False,
+        }
+        if request.kling_elements:
+            input_params["kling_elements"] = [
+                {"name": e.name, "description": e.description, "element_input_urls": e.element_input_urls}
+                for e in request.kling_elements
+            ]
+            logger.info(f"Using kling_elements: {[e.name for e in request.kling_elements]}")
+
+        task_id = await _create_kie_task(input_params, api_key)
         meta = {
             "task_id": task_id,
             "prompt": request.prompt[:200],
@@ -265,6 +277,7 @@ async def generate_text_to_video(
             "aspect_ratio": request.aspect_ratio,
             "quality": request.quality,
             "type": "text-to-video",
+            "has_elements": bool(request.kling_elements),
         }
         await _save_video_task(user_id, task_id, estimated_credits, meta)
 
@@ -440,6 +453,88 @@ async def get_video_history(current_user: dict = Depends(get_current_user)):
     except Exception as e:
         logger.error(f"Failed to get video history: {e}")
         return {"tasks": []}
+
+
+ALLOWED_AVATAR_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_AVATAR_SIZE = 10 * 1024 * 1024  # 10 MB
+KIE_FILE_API = "https://kieai.redpandaai.co"
+
+
+async def _upload_to_kie(file_url: str, api_key: str) -> str:
+    """Upload image to KIE temp storage via URL upload. Returns KIE file URL (valid 3 days)."""
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            f"{KIE_FILE_API}/api/file-url-upload",
+            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            json={"fileUrl": file_url, "uploadPath": "avatars"},
+        )
+        if resp.status_code != 200:
+            logger.error(f"KIE file upload failed: {resp.status_code} {resp.text}")
+            raise HTTPException(status_code=500, detail="Failed to upload file to KIE")
+        data = resp.json()
+        url = data.get("data", {}).get("fileUrl")
+        if not url:
+            raise HTTPException(status_code=500, detail="No fileUrl in KIE upload response")
+        return url
+
+
+@router.post("/upload-avatar")
+async def upload_avatar_image(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Upload avatar image to Supabase (permanent) and return public URL."""
+    if file.content_type not in ALLOWED_AVATAR_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP images are allowed")
+
+    content = await file.read()
+    if len(content) > MAX_AVATAR_SIZE:
+        raise HTTPException(status_code=400, detail="File too large (max 10 MB)")
+
+    ext = (file.filename or "avatar.jpg").rsplit(".", 1)[-1]
+    path = f"{current_user['user_id']}/{uuid4()}.{ext}"
+
+    try:
+        from database.supabase_client import get_supabase
+        supabase = get_supabase()
+        supabase.storage.from_("avatars").upload(
+            path=path, file=content,
+            file_options={"content-type": file.content_type},
+        )
+        url = supabase.storage.from_("avatars").get_public_url(path)
+        return {"url": url}
+    except Exception as e:
+        logger.error(f"Avatar upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload avatar image")
+
+
+@router.post("/prepare-elements")
+async def prepare_kling_elements(
+    request: Request,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Upload avatar images to KIE temp storage for kling_elements.
+    Accepts: { "image_urls": ["https://...", "https://..."] }
+    Returns: { "kie_urls": ["https://kie...", "https://kie..."] }
+    Requires 2-4 image URLs.
+    """
+    body = await request.json()
+    image_urls = body.get("image_urls", [])
+    if len(image_urls) < 2 or len(image_urls) > 4:
+        raise HTTPException(status_code=400, detail="kling_elements requires 2-4 images")
+
+    api_key = get_kling_api_key()
+    kie_urls = []
+    for url in image_urls:
+        try:
+            kie_url = await _upload_to_kie(url, api_key)
+            kie_urls.append(kie_url)
+        except Exception as e:
+            logger.error(f"Failed to upload {url} to KIE: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to upload image to KIE: {e}")
+
+    return {"kie_urls": kie_urls}
 
 
 @router.post("/webhook")
