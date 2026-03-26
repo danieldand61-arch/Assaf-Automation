@@ -465,11 +465,12 @@ KIE_FILE_API = "https://kieai.redpandaai.co"
 
 async def _upload_to_kie(file_url: str, api_key: str) -> str:
     """Upload image to KIE temp storage via URL upload. Returns KIE file URL (valid 3 days)."""
+    fname = f"{uuid4()}.jpg"
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(
             f"{KIE_FILE_API}/api/file-url-upload",
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"fileUrl": file_url, "uploadPath": "avatars"},
+            json={"fileUrl": file_url, "uploadPath": "avatars", "fileName": fname},
         )
         if resp.status_code != 200:
             logger.error(f"KIE file upload failed: {resp.status_code} {resp.text}")
