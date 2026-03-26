@@ -144,37 +144,31 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   const estimatedCredits = CREDITS_PER_SEC[`${quality}_${sound ? 'audio' : 'no_audio'}`] * duration
 
   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files?.length || !session) return
+    const file = e.target.files?.[0]
+    if (!file || !session) return
+    if (!file.type.startsWith('image/')) { setError(t('uploadImageAlert')); return }
+    if (file.size > 10 * 1024 * 1024) { setError(t('imageSizeAlert')); return }
 
-    const newPreviews: string[] = []
-    const newUrls: string[] = []
     setUploadingAvatar(true)
     setError('')
     setSelectedAvatar('')
+    setCustomAvatarPreviews([URL.createObjectURL(file)])
 
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) { setError(t('uploadImageAlert')); continue }
-      if (file.size > 10 * 1024 * 1024) { setError(t('imageSizeAlert')); continue }
-      newPreviews.push(URL.createObjectURL(file))
-      try {
-        const formData = new FormData()
-        formData.append('file', file)
-        const res = await fetch(`${API_URL}/api/video-gen/upload-avatar`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${session.access_token}` },
-          body: formData,
-        })
-        if (!res.ok) throw new Error('Upload failed')
-        const data = await res.json()
-        newUrls.push(data.url)
-      } catch {
-        setError('Upload failed for one of the images')
-      }
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`${API_URL}/api/video-gen/upload-avatar`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: formData,
+      })
+      if (!res.ok) throw new Error('Upload failed')
+      const data = await res.json()
+      setCustomAvatarUrls([data.url])
+    } catch {
+      setError('Upload failed')
+      setCustomAvatarPreviews([])
     }
-
-    setCustomAvatarPreviews(prev => [...prev, ...newPreviews].slice(0, 4))
-    setCustomAvatarUrls(prev => [...prev, ...newUrls].slice(0, 4))
     setUploadingAvatar(false)
   }
 
@@ -275,6 +269,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       const avatar = AVATARS.find(a => a.id === selectedAvatar)
       return avatar?.imgs ?? []
     }
+    if (customAvatarUrls.length === 1) return [customAvatarUrls[0], customAvatarUrls[0]]
     return customAvatarUrls
   }
 
@@ -603,44 +598,33 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             })}
           </div>
 
-          {/* Custom avatar: upload 2-4 photos */}
-          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-600 p-5 space-y-3">
-            <input ref={avatarFileRef} type="file" accept="image/jpeg,image/png,image/webp" multiple className="hidden" onChange={handleAvatarUpload} />
+          {/* Custom avatar: upload photo */}
+          <div className="bg-white dark:bg-gray-800 rounded-2xl border border-dashed border-gray-300 dark:border-gray-600 p-5">
+            <input ref={avatarFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarUpload} />
             <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => avatarFileRef.current?.click()}
-                disabled={uploadingAvatar || customAvatarUrls.length >= 4}
-                className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center hover:bg-violet-200 dark:hover:bg-violet-900/50 transition cursor-pointer shrink-0 disabled:opacity-40"
-              >
-                {uploadingAvatar ? <Loader2 size={18} className="text-violet-500 animate-spin" /> : <Upload size={18} className="text-violet-500" />}
-              </button>
+              {customAvatarPreviews[0] ? (
+                <div className="relative group shrink-0">
+                  <img src={customAvatarPreviews[0]} alt="custom avatar" className="w-14 h-14 rounded-xl object-cover ring-2 ring-violet-400" />
+                  <button
+                    onClick={() => { setCustomAvatarPreviews([]); setCustomAvatarUrls([]); if (avatarFileRef.current) avatarFileRef.current.value = '' }}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                  >✕</button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => avatarFileRef.current?.click()}
+                  disabled={uploadingAvatar}
+                  className="w-14 h-14 rounded-xl bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center hover:bg-violet-200 dark:hover:bg-violet-900/50 transition cursor-pointer shrink-0"
+                >
+                  {uploadingAvatar ? <Loader2 size={20} className="text-violet-500 animate-spin" /> : <Upload size={20} className="text-violet-500" />}
+                </button>
+              )}
               <div className="flex-1">
                 <p className="text-sm font-bold text-gray-700 dark:text-gray-300">{t('uploadCustomAvatar')}</p>
                 <p className="text-xs text-gray-400 mt-0.5">{t('uploadAvatarHint')}</p>
               </div>
             </div>
-
-            {customAvatarPreviews.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                {customAvatarPreviews.map((preview, i) => (
-                  <div key={i} className="relative group">
-                    <img src={preview} alt={`avatar-${i}`} className="w-14 h-14 rounded-xl object-cover ring-2 ring-violet-300" />
-                    <button
-                      onClick={() => {
-                        setCustomAvatarPreviews(prev => prev.filter((_, j) => j !== i))
-                        setCustomAvatarUrls(prev => prev.filter((_, j) => j !== i))
-                        setSelectedAvatar('')
-                      }}
-                      className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
-                    >✕</button>
-                  </div>
-                ))}
-                {customAvatarPreviews.length < 2 && (
-                  <span className="text-xs text-amber-600 dark:text-amber-400">{t('needMorePhotos')}</span>
-                )}
-              </div>
-            )}
           </div>
 
           <div className="flex justify-between pt-2">
