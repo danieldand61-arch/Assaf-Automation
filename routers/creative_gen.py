@@ -223,7 +223,15 @@ def _build_creative_prompt(req: CreativeRequest, copy: dict, variation_idx: int,
     lang_name = LANG_NAMES.get(req.language, "English")
     text_dir = "right-to-left" if req.language == "he" else "left-to-right"
     w, h = map(int, req.aspect_ratio.split("x"))
-    ar = f"{w}:{h}" if w == h else ("4:5" if h > w else "16:9")
+    ar_map = {"1080x1080": "1:1", "1080x1350": "4:5", "1080x1920": "9:16", "1200x628": "16:9"}
+    ar = ar_map.get(req.aspect_ratio, f"{w}:{h}")
+
+    size_comp = {
+        "1080x1080": "Square 1:1 canvas. Center the composition symmetrically.",
+        "1080x1350": "Portrait 4:5 canvas. Vertical layout — headline top, product center, CTA bottom.",
+        "1080x1920": "Story 9:16 canvas. Tall vertical — stack elements top to bottom with generous spacing.",
+        "1200x628": "Landscape 16:9 canvas. Wide layout — product left, text block right (or vice versa).",
+    }.get(req.aspect_ratio, "Balanced composition.")
 
     style_desc = STYLE_GUIDES.get(req.style, STYLE_GUIDES["modern"])
     bg_desc = BACKGROUND_GUIDES.get(req.background_style or "", "choose the best background that complements the product and style")
@@ -264,6 +272,7 @@ STYLE DIRECTION: {style_desc}
 BACKGROUND: {bg_desc}
 COLOR PALETTE: {colors}
 ASPECT RATIO: {ar} ({req.aspect_ratio}px)
+COMPOSITION: {size_comp}
 
 {logo_instruction}
 
@@ -348,16 +357,33 @@ def _extract_image(response, image_size: str) -> str | None:
             target_ratio = w / h
             api_ratio = img.width / img.height
 
-            if abs(api_ratio - target_ratio) > 0.1:
-                img.thumbnail((w, h), PILImage.Resampling.LANCZOS)
-                bg_color = _dominant_edge_color(img)
-                canvas = PILImage.new("RGB", (w, h), bg_color)
-                paste_x = (w - img.width) // 2
-                paste_y = (h - img.height) // 2
-                canvas.paste(img, (paste_x, paste_y))
-                img = canvas
-            else:
-                img = img.resize((w, h), PILImage.Resampling.LANCZOS)
+            if abs(api_ratio - target_ratio) > 0.05:
+                if api_ratio > target_ratio:
+                    new_w = int(img.height * target_ratio)
+                    crop_pct = (img.width - new_w) / img.width
+                    if crop_pct <= 0.25:
+                        left = (img.width - new_w) // 2
+                        img = img.crop((left, 0, left + new_w, img.height))
+                    else:
+                        img.thumbnail((w, h), PILImage.Resampling.LANCZOS)
+                        bg_color = _dominant_edge_color(img)
+                        canvas = PILImage.new("RGB", (w, h), bg_color)
+                        canvas.paste(img, ((w - img.width) // 2, (h - img.height) // 2))
+                        img = canvas
+                else:
+                    new_h = int(img.width / target_ratio)
+                    crop_pct = (img.height - new_h) / img.height
+                    if crop_pct <= 0.25:
+                        top = (img.height - new_h) // 2
+                        img = img.crop((0, top, img.width, top + new_h))
+                    else:
+                        img.thumbnail((w, h), PILImage.Resampling.LANCZOS)
+                        bg_color = _dominant_edge_color(img)
+                        canvas = PILImage.new("RGB", (w, h), bg_color)
+                        canvas.paste(img, ((w - img.width) // 2, (h - img.height) // 2))
+                        img = canvas
+
+            img = img.resize((w, h), PILImage.Resampling.LANCZOS)
 
             if img.mode in ("RGBA", "LA", "P"):
                 bg = PILImage.new("RGB", img.size, (255, 255, 255))
