@@ -15,7 +15,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
   const { activeAccount, accounts, switchAccount } = useAccount()
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const { language, setLanguage, t, isRTL } = useApp()
+  const { language, setLanguage, t } = useApp()
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [langMenuOpen, setLangMenuOpen] = useState(false)
