@@ -63,24 +63,24 @@ const AVATARS = [
     ],
   },
   {
-    id: 'creative-man', name: 'Jordan', desc: 'creative man, mid-20s, casual streetwear, energetic vibe', style: 'creative',
-    imgs: [
-      'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400&h=400&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&h=400&fit=crop&crop=face',
-    ],
-  },
-  {
-    id: 'mature-woman', name: 'Diana', desc: 'mature woman, 40s, elegant, authoritative yet approachable', style: 'authoritative',
-    imgs: [
-      'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1531746020798-e6953c6e8e04?w=400&h=400&fit=crop&crop=face',
-    ],
-  },
-  {
-    id: 'chill-man', name: 'Liam', desc: 'relaxed man, early-30s, casual, genuine and trustworthy look', style: 'casual',
+    id: 'mature-man', name: 'David', desc: 'mature man, mid-40s, distinguished, warm fatherly look, salt-and-pepper hair', style: 'trustworthy',
     imgs: [
       'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop&crop=face',
       'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop&crop=face',
+    ],
+  },
+  {
+    id: 'golden-retriever', name: 'Buddy', desc: 'friendly golden retriever dog, happy expression, fluffy fur', style: 'animal',
+    imgs: [
+      'https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=400&fit=crop',
+      'https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=400&h=400&fit=crop',
+    ],
+  },
+  {
+    id: 'animated-robot', name: 'Pixel', desc: 'cute friendly cartoon robot character, round head, glowing blue eyes, small antenna', style: 'character',
+    imgs: [
+      'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=400&fit=crop',
+      'https://images.unsplash.com/photo-1546776310-eef45dd6d63c?w=400&h=400&fit=crop',
     ],
   },
 ]
@@ -592,7 +592,10 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                     className="w-16 h-16 rounded-full object-cover mx-auto mb-2 ring-2 ring-white dark:ring-gray-700 shadow"
                   />
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{avatar.name}</p>
-                  <p className="text-[10px] text-gray-400 capitalize">{avatar.style}</p>
+                  <p className="text-[10px] text-gray-400 capitalize">
+                    {avatar.style === 'animal' ? '🐾 ' : avatar.style === 'character' ? '🤖 ' : ''}
+                    {avatar.style}
+                  </p>
                 </button>
               )
             })}
