@@ -75,7 +75,8 @@ async def _generate_copy(req: CreativeRequest, api_key: str) -> dict:
 
     import re
     has_hebrew = bool(re.search(r'[\u0590-\u05FF]', req.product_description + (req.cta_text or '')))
-    lang_instruction = "- IMPORTANT: Write headline and subheadline in Hebrew (עברית). The user input is in Hebrew." if has_hebrew else ""
+
+    lang_rule = "\n- LANGUAGE RULE: Write ENTIRELY in Hebrew (עברית). Every word of headline and subheadline must be in Hebrew. No English." if has_hebrew else ""
 
     prompt_text = f"""You are an elite advertising copywriter. Generate a punchy headline and subheadline for a social media ad creative.
 
@@ -87,8 +88,7 @@ RULES:
 - Headline: 3-7 words, bold, attention-grabbing, makes people stop scrolling
 - Subheadline: 5-12 words, supports the headline, adds context or emotion
 - Do NOT use generic phrases like "Shop Now" or "Buy Today" in the headline
-- Make it feel premium and professional
-{lang_instruction}
+- Make it feel premium and professional{lang_rule}
 - Output ONLY two lines, nothing else:
 HEADLINE: <your headline>
 SUBHEADLINE: <your subheadline>"""
@@ -101,21 +101,24 @@ SUBHEADLINE: <your subheadline>"""
             parts = [prompt_text, {"mime_type": img["mime"], "data": img["data"]}]
             logger.info("Attached user image to copy generation")
 
+    fallback_hl = "גלה משהו חדש" if has_hebrew else "Discover Something New"
+    fallback_sub = "איכות פרימיום, נוצר בשבילך" if has_hebrew else "Premium quality, crafted for you"
+
     try:
         resp = await asyncio.to_thread(
             model.generate_content, parts, generation_config={"temperature": 0.7}
         )
         text = resp.text.strip()
-        headline, subheadline = _parse_copy(text)
+        headline, subheadline = _parse_copy(text, fallback_hl, fallback_sub)
         return {"headline": headline, "subheadline": subheadline}
     except Exception as e:
         logger.error(f"Copy generation failed: {e}")
-        return {"headline": "Discover Something New", "subheadline": "Premium quality, crafted for you"}
+        return {"headline": fallback_hl, "subheadline": fallback_sub}
 
 
-def _parse_copy(text: str) -> tuple[str, str]:
-    headline = "Discover Something New"
-    subheadline = "Premium quality, crafted for you"
+def _parse_copy(text: str, default_hl: str = "Discover Something New", default_sub: str = "Premium quality, crafted for you") -> tuple[str, str]:
+    headline = default_hl
+    subheadline = default_sub
     for line in text.split("\n"):
         line = line.strip()
         if line.upper().startswith("HEADLINE:"):
