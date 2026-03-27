@@ -82,13 +82,17 @@ interface InputSectionProps {
 
 /* ── Toggle switch ────────────────────────────────────────────── */
 function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  const isRTL = document.documentElement.dir === 'rtl'
   return (
     <button
       type="button"
       onClick={() => onChange(!checked)}
       className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-[#4A7CFF]' : 'bg-gray-300 dark:bg-gray-600'}`}
     >
-      <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+      <span
+        className="inline-block h-4 w-4 rounded-full bg-white transition-transform"
+        style={{ transform: `translateX(${checked ? (isRTL ? '-1.5rem' : '1.5rem') : (isRTL ? '-0.25rem' : '0.25rem')})` }}
+      />
     </button>
   )
 }
@@ -313,10 +317,10 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                   ) : (
                     <div className="space-y-2">
                       <div className="relative">
-                        <Globe size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Globe size={16} className="absolute start-4 top-1/2 -translate-y-1/2 text-gray-400" />
                         <input type="text" value={form.url} onChange={e => set('url', e.target.value)}
                           placeholder="https://your-product.com/feature-page"
-                          className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4A7CFF]/20 focus:border-[#4A7CFF] outline-none transition text-sm" />
+                          className="w-full ps-11 pe-4 py-3 rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4A7CFF]/20 focus:border-[#4A7CFF] outline-none transition text-sm" />
                       </div>
                       <button type="button" onClick={() => { setShowCustomUrl(false); set('url', '') }}
                         className="text-xs font-semibold text-gray-400 hover:text-gray-600">
@@ -358,7 +362,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                     {imagePreview ? (
                       <div className="relative inline-block">
                         <img src={imagePreview} alt="ref" className="w-20 h-20 object-cover rounded-lg border dark:border-gray-600" />
-                        <button type="button" onClick={removeImage} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"><X size={12} /></button>
+                        <button type="button" onClick={removeImage} className="absolute -top-1.5 -end-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"><X size={12} /></button>
                       </div>
                     ) : (
                       <div onClick={() => fileRef.current?.click()}
@@ -385,7 +389,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                         ) : (
                           <img src={mediaPreview} alt="media" className="w-20 h-20 object-cover rounded-lg border dark:border-gray-600" />
                         )}
-                        <button type="button" onClick={removeMedia} className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"><X size={12} /></button>
+                        <button type="button" onClick={removeMedia} className="absolute -top-1.5 -end-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center"><X size={12} /></button>
                       </div>
                     ) : (
                       <div onClick={() => mediaRef.current?.click()}
@@ -460,7 +464,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                     <div className="grid grid-cols-2 gap-2">
                       {STYLES.map(s => (
                         <button key={s.value} type="button" onClick={() => set('style', s.value)}
-                          className={`text-left p-2.5 rounded-xl border-2 transition-all ${form.style === s.value
+                          className={`text-start p-2.5 rounded-xl border-2 transition-all ${form.style === s.value
                             ? 'border-[#4A7CFF] bg-blue-50 dark:bg-blue-900/20'
                             : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'}`}
                         >

@@ -286,7 +286,7 @@ export function ImageEditModal({
                           </div>
                         </div>
                       </div>
-                      <div className="absolute top-2 right-2 bg-gray-900/80 text-white text-xs px-2 py-1 rounded">
+                      <div className="absolute top-2 end-2 bg-gray-900/80 text-white text-xs px-2 py-1 rounded">
                         v{actualIndex + 1}
                       </div>
                     </button>

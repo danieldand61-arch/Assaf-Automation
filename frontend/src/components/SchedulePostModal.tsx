@@ -296,7 +296,7 @@ export function SchedulePostModal({
               
               {scheduledDate && scheduledTime && (
                 <div className="text-sm text-purple-700 dark:text-purple-300">
-                  <Clock className="w-4 h-4 inline mr-1" />
+                  <Clock className="w-4 h-4 inline me-1" />
                   Will be posted on: {new Date(`${scheduledDate}T${scheduledTime}`).toLocaleString()}
                 </div>
               )}

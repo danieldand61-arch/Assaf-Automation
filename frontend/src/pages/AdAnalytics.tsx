@@ -119,7 +119,7 @@ export default function AdAnalytics() {
 
       {/* Sync status */}
       {overview?.sync_status?.map((s, i) => (
-        <div key={i} className="mb-2 text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-2 mr-2"
+        <div key={i} className="mb-2 text-xs px-3 py-1.5 rounded-lg inline-flex items-center gap-2 me-2"
           style={{ background: s.status === 'completed' ? `${th.success}15` : s.status === 'error' ? `${th.danger}15` : `${th.warning}15`, color: s.status === 'completed' ? th.success : s.status === 'error' ? th.danger : th.warning }}>
           <span className="font-semibold">{s.platform === 'google_ads' ? t('googleAds') : t('meta')}</span>
           {s.status === 'completed' ? `${s.campaigns_synced} ${t('campaignsSynced')}` : s.status === 'error' ? `${t('error')}: ${s.error_message?.slice(0, 80) || t('unknown')}` : (s.error_message || s.status)}
@@ -200,12 +200,12 @@ export default function AdAnalytics() {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead><tr style={{ color: th.textMuted }}>
-                    <th className="text-left pb-3 font-semibold">{t('campaign')}</th>
-                    <th className="text-left pb-3 font-semibold">{t('platform')}</th>
-                    <th className="text-right pb-3 font-semibold">{t('spend')}</th>
-                    <th className="text-right pb-3 font-semibold">{t('clicks')}</th>
-                    <th className="text-right pb-3 font-semibold">{t('ctr')}</th>
-                    <th className="text-right pb-3 font-semibold">{t('conv')}</th>
+                    <th className="text-start pb-3 font-semibold">{t('campaign')}</th>
+                    <th className="text-start pb-3 font-semibold">{t('platform')}</th>
+                    <th className="text-end pb-3 font-semibold">{t('spend')}</th>
+                    <th className="text-end pb-3 font-semibold">{t('clicks')}</th>
+                    <th className="text-end pb-3 font-semibold">{t('ctr')}</th>
+                    <th className="text-end pb-3 font-semibold">{t('conv')}</th>
                   </tr></thead>
                   <tbody>
                     {overview!.top_campaigns.map((c, i) => (
@@ -217,10 +217,10 @@ export default function AdAnalytics() {
                             {c.platform === 'google_ads' ? t('google') : t('meta')}
                           </span>
                         </td>
-                        <td className="py-2.5 text-right" style={{ color: th.text }}>{fmtMoney(c.spend)}</td>
-                        <td className="py-2.5 text-right" style={{ color: th.textSecondary }}>{fmt(c.clicks)}</td>
-                        <td className="py-2.5 text-right" style={{ color: th.textSecondary }}>{pctBadge(c.ctr)}</td>
-                        <td className="py-2.5 text-right" style={{ color: th.text }}>{c.conversions?.toFixed(0) || '0'}</td>
+                        <td className="py-2.5 text-end" style={{ color: th.text }}>{fmtMoney(c.spend)}</td>
+                        <td className="py-2.5 text-end" style={{ color: th.textSecondary }}>{fmt(c.clicks)}</td>
+                        <td className="py-2.5 text-end" style={{ color: th.textSecondary }}>{pctBadge(c.ctr)}</td>
+                        <td className="py-2.5 text-end" style={{ color: th.text }}>{c.conversions?.toFixed(0) || '0'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -360,26 +360,26 @@ function KeywordsTab({ theme: th }: { theme: any }) {
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
             <thead><tr style={{ color: th.textMuted }}>
-              <th className="text-left pb-2 font-semibold">{t('keyword')}</th>
-              <th className="text-left pb-2 font-semibold">{t('matchType')}</th>
-              <th className="text-right pb-2 font-semibold">QS</th>
-              <th className="text-right pb-2 font-semibold">{t('impressions')}</th>
-              <th className="text-right pb-2 font-semibold">{t('clicks')}</th>
-              <th className="text-right pb-2 font-semibold">{t('ctr')}</th>
-              <th className="text-right pb-2 font-semibold">{t('avgCpc')}</th>
-              <th className="text-right pb-2 font-semibold">{t('conv')}</th>
+              <th className="text-start pb-2 font-semibold">{t('keyword')}</th>
+              <th className="text-start pb-2 font-semibold">{t('matchType')}</th>
+              <th className="text-end pb-2 font-semibold">QS</th>
+              <th className="text-end pb-2 font-semibold">{t('impressions')}</th>
+              <th className="text-end pb-2 font-semibold">{t('clicks')}</th>
+              <th className="text-end pb-2 font-semibold">{t('ctr')}</th>
+              <th className="text-end pb-2 font-semibold">{t('avgCpc')}</th>
+              <th className="text-end pb-2 font-semibold">{t('conv')}</th>
             </tr></thead>
             <tbody>
               {keywords.slice(0, 50).map((kw, i) => (
                 <tr key={i} style={{ borderTop: `1px solid ${th.border}` }}>
                   <td className="py-2 font-medium" style={{ color: th.text }}>{kw.keyword_text}</td>
                   <td className="py-2"><span className="px-1.5 py-0.5 rounded text-xs" style={{ background: `${th.accent}15`, color: th.accent }}>{kw.match_type}</span></td>
-                  <td className="py-2 text-right" style={{ color: kw.quality_score >= 7 ? th.success : kw.quality_score >= 4 ? th.warning : th.danger }}>{kw.quality_score || '—'}</td>
-                  <td className="py-2 text-right" style={{ color: th.textSecondary }}>{(kw.impressions || 0).toLocaleString()}</td>
-                  <td className="py-2 text-right" style={{ color: th.textSecondary }}>{kw.clicks || 0}</td>
-                  <td className="py-2 text-right" style={{ color: th.textSecondary }}>{kw.ctr?.toFixed(2)}%</td>
-                  <td className="py-2 text-right" style={{ color: th.textSecondary }}>${(kw.avg_cpc || 0).toFixed(2)}</td>
-                  <td className="py-2 text-right font-semibold" style={{ color: th.text }}>{(kw.conversions || 0).toFixed(0)}</td>
+                  <td className="py-2 text-end" style={{ color: kw.quality_score >= 7 ? th.success : kw.quality_score >= 4 ? th.warning : th.danger }}>{kw.quality_score || '—'}</td>
+                  <td className="py-2 text-end" style={{ color: th.textSecondary }}>{(kw.impressions || 0).toLocaleString()}</td>
+                  <td className="py-2 text-end" style={{ color: th.textSecondary }}>{kw.clicks || 0}</td>
+                  <td className="py-2 text-end" style={{ color: th.textSecondary }}>{kw.ctr?.toFixed(2)}%</td>
+                  <td className="py-2 text-end" style={{ color: th.textSecondary }}>${(kw.avg_cpc || 0).toFixed(2)}</td>
+                  <td className="py-2 text-end font-semibold" style={{ color: th.text }}>{(kw.conversions || 0).toFixed(0)}</td>
                 </tr>
               ))}
             </tbody>

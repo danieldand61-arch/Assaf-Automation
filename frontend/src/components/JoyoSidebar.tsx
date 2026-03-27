@@ -33,7 +33,7 @@ const navItems: { id: string; labelKey: TranslationKey; icon: any; disabled?: bo
 
 export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollapse }: JoyoSidebarProps) {
   const { theme } = useTheme()
-  const { t } = useApp()
+  const { t, isRTL } = useApp()
   const JoyoTheme = getJoyoTheme(theme)
   return (
     <div 
@@ -53,7 +53,7 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
       <div style={{ 
         position: 'absolute', 
         top: 60, 
-        left: -40, 
+        insetInlineStart: -40, 
         width: 140, 
         height: 140, 
         borderRadius: '50%', 
@@ -63,7 +63,7 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
       <div style={{ 
         position: 'absolute', 
         bottom: 120, 
-        right: -50, 
+        insetInlineEnd: -50, 
         width: 160, 
         height: 160, 
         borderRadius: '50%', 
@@ -155,7 +155,7 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
               {isActive && !collapsed && !isDisabled && (
                 <div style={{ 
                   position: 'absolute', 
-                  left: -14, 
+                  ...(isRTL ? { right: -14 } : { left: -14 }),
                   top: '50%', 
                   transform: 'translateY(-50%)', 
                   width: 3, 
@@ -168,7 +168,7 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
               <Icon size={18} style={{ flexShrink: 0 }} />
               {!collapsed && (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ textAlign: 'left' }}>
+                  <span style={{ textAlign: isRTL ? 'right' : 'left' }}>
                     {t(item.labelKey)}
                   </span>
                   {item.badgeKey && (
@@ -196,7 +196,7 @@ export function JoyoSidebar({ activeTab, onTabChange, collapsed, onToggleCollaps
         style={{
           position: 'absolute',
           top: 22,
-          right: collapsed ? 16 : 22,
+          ...(isRTL ? { left: collapsed ? 16 : 22 } : { right: collapsed ? 16 : 22 }),
           background: 'rgba(255,255,255,0.1)',
           border: 'none',
           borderRadius: 8,

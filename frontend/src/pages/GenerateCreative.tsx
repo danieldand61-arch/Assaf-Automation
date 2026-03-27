@@ -188,7 +188,7 @@ export default function GenerateCreative() {
               {userImagePreview ? (
                 <div className="relative w-full rounded-xl overflow-hidden border border-gray-200 dark:border-gray-600">
                   <img src={userImagePreview} alt="" className="w-full max-h-40 object-cover" />
-                  <button onClick={clearImage} className="absolute top-2 right-2 w-7 h-7 rounded-lg bg-black/60 flex items-center justify-center text-white hover:bg-black/80">
+                  <button onClick={clearImage} className="absolute top-2 end-2 w-7 h-7 rounded-lg bg-black/60 flex items-center justify-center text-white hover:bg-black/80">
                     <X size={14} />
                   </button>
                 </div>
@@ -307,7 +307,7 @@ export default function GenerateCreative() {
                     <div className="relative">
                       <img src={r.url} alt={`Creative ${i + 1}`} className="w-full" />
                       <button onClick={() => handleDownload(r.url, i)}
-                        className="absolute top-3 right-3 w-9 h-9 rounded-xl bg-black/60 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80">
+                        className="absolute top-3 end-3 w-9 h-9 rounded-xl bg-black/60 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80">
                         <Download size={16} />
                       </button>
                     </div>

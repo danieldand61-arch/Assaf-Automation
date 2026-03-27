@@ -242,7 +242,7 @@ export function ScheduledPosts() {
                   <div className="flex items-center gap-3 mb-2">
                     {getStatusBadge(post.status)}
                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                      <Clock className="w-4 h-4 inline mr-1" />
+                      <Clock className="w-4 h-4 inline me-1" />
                       {formatDate(post.scheduled_time)}
                     </span>
                   </div>
@@ -307,7 +307,7 @@ export function ScheduledPosts() {
               {post.status === 'failed' && post.error_message && (
                 <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg">
                   <p className="text-sm text-red-700 dark:text-red-300">
-                    <AlertCircle className="w-4 h-4 inline mr-1" />
+                    <AlertCircle className="w-4 h-4 inline me-1" />
                     {t('errorPrefix')} {post.error_message}
                   </p>
                 </div>

@@ -351,7 +351,7 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
                       onClick={() => togglePlatform(conn.platform)}
                       disabled={uploading}
                       className={`
-                        p-4 rounded-lg border-2 transition text-left
+                        p-4 rounded-lg border-2 transition text-start
                         ${isSelected 
                           ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30' 
                           : 'border-gray-200 dark:border-gray-700 hover:border-purple-300'
@@ -491,7 +491,7 @@ export function PostToSocial({ isOpen, onClose, prefilledData }: PostToSocialPro
                           setImageFile(null)
                           setPrefilledImageUrl('')
                         }}
-                        className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
+                        className="absolute top-2 end-2 p-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition"
                       >
                         <X className="w-4 h-4" />
                       </button>

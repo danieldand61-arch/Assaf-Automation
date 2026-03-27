@@ -140,7 +140,7 @@ export default function Billing() {
               <p className="text-sm text-gray-500 dark:text-gray-400">{t('currentBalance')}</p>
               <p className="text-3xl font-bold text-gray-900 dark:text-white">{Math.round(balance).toLocaleString()} <span className="text-base font-normal text-gray-400">{t('creditsUnit')}</span></p>
             </div>
-            <div className="text-right text-xs text-gray-400">
+            <div className="text-end text-xs text-gray-400">
               <p>~{Math.floor(balance / creditsPerPost).toLocaleString()} {t('postsRemaining')}</p>
             </div>
           </div>
@@ -184,7 +184,7 @@ export default function Billing() {
 
                 <div className="mb-4">
                   <span className="text-3xl font-bold text-gray-900 dark:text-white">${pkg.price}</span>
-                  <span className="text-sm text-gray-400 ml-1">{t('oneTime')}</span>
+                  <span className="text-sm text-gray-400 ms-1">{t('oneTime')}</span>
                 </div>
 
                 <ul className="space-y-2 mb-6 text-sm text-gray-600 dark:text-gray-300">

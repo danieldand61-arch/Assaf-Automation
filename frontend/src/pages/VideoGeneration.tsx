@@ -423,7 +423,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
         {error && (
           <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center justify-between">
             <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-            <button onClick={() => setError('')} className="text-red-400 hover:text-red-600 text-lg ml-3">&times;</button>
+            <button onClick={() => setError('')} className="text-red-400 hover:text-red-600 text-lg ms-3">&times;</button>
           </div>
         )}
 
@@ -521,7 +521,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       {error && (
         <div className="mb-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-center justify-between">
           <p className="text-sm text-red-700 dark:text-red-300">{error}</p>
-          <button onClick={() => setError('')} className="text-red-400 hover:text-red-600 text-lg ml-3">&times;</button>
+          <button onClick={() => setError('')} className="text-red-400 hover:text-red-600 text-lg ms-3">&times;</button>
         </div>
       )}
 
@@ -541,14 +541,14 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                 <button
                   key={card.id}
                   onClick={() => setVideoStyle(card.id)}
-                  className={`relative group rounded-2xl border-2 p-6 text-left transition-all ${
+                  className={`relative group rounded-2xl border-2 p-6 text-start transition-all ${
                     selected
                       ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-lg shadow-violet-100 dark:shadow-violet-900/20'
                       : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600'
                   }`}
                 >
                   {selected && (
-                    <div className="absolute top-3 right-3">
+                    <div className="absolute top-3 end-3">
                       <CheckCircle2 size={20} className="text-violet-500" />
                     </div>
                   )}
@@ -585,7 +585,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                       : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300'
                   }`}
                 >
-                  {selected && <CheckCircle2 size={16} className="absolute top-2 right-2 text-violet-500" />}
+                  {selected && <CheckCircle2 size={16} className="absolute top-2 end-2 text-violet-500" />}
                   <img
                     src={avatar.imgs[0]}
                     alt={avatar.name}
@@ -607,7 +607,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                   <img src={customAvatarPreviews[0]} alt="custom avatar" className="w-14 h-14 rounded-xl object-cover ring-2 ring-violet-400" />
                   <button
                     onClick={() => { setCustomAvatarPreviews([]); setCustomAvatarUrls([]); if (avatarFileRef.current) avatarFileRef.current.value = '' }}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
+                    className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition"
                   >✕</button>
                 </div>
               ) : (
@@ -663,11 +663,11 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                 <Building2 size={16} className={useBrand ? 'text-violet-500' : 'text-gray-400'} />
                 <span>
                   {t('useBrandKit')}
-                  {useBrand && brandName && <span className="ml-1.5 text-xs text-violet-500 font-semibold">({brandName})</span>}
+                  {useBrand && brandName && <span className="ms-1.5 text-xs text-violet-500 font-semibold">({brandName})</span>}
                 </span>
               </span>
               <div className={`w-10 h-5 rounded-full transition-all relative ${useBrand ? 'bg-violet-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${useBrand ? 'left-5' : 'left-0.5'}`} />
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${useBrand ? 'start-5' : 'start-0.5'}`} />
               </div>
             </button>
           )}
@@ -792,7 +792,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                 {t('audioGeneration')}
               </span>
               <div className={`w-10 h-5 rounded-full transition-all relative ${sound ? 'bg-violet-500' : 'bg-gray-300 dark:bg-gray-600'}`}>
-                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${sound ? 'left-5' : 'left-0.5'}`} />
+                <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${sound ? 'start-5' : 'start-0.5'}`} />
               </div>
             </button>
           </div>

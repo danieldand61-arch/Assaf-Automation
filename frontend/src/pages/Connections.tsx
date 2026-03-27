@@ -531,7 +531,7 @@ export function Connections() {
                       </div>
 
                       {/* Right: Status + Actions */}
-                      <div className="flex items-center gap-3 ml-4">
+                      <div className="flex items-center gap-3 ms-4">
                         {isConnected ? (
                           <>
                             <span className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg text-sm font-medium">
@@ -564,7 +564,7 @@ export function Connections() {
                             </button>
 
                             {!platform.enabled && (
-                              <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400 ms-2">
                                 {t('comingSoon')}
                               </span>
                             )}
@@ -598,7 +598,7 @@ export function Connections() {
                           <p className="text-sm text-gray-600 dark:text-gray-400">{platform.description}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 ml-4">
+                      <div className="flex items-center gap-4 ms-4">
                         {isConn ? (
                           <>
                             {isGoogle && googleAdsCustomerId && (

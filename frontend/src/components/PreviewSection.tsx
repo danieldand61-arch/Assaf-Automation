@@ -110,7 +110,7 @@ function InstagramMockup({ v, img, brandHandle, isExpanded, onToggle, onEditImag
       </div>
       <div className="px-3 pb-2">
         <p className="text-[12px] text-gray-800 dark:text-gray-200 leading-relaxed">
-          <span className="font-semibold mr-1">{brandHandle || 'yourbrand'}</span>
+          <span className="font-semibold me-1">{brandHandle || 'yourbrand'}</span>
           {needsTruncate && !isExpanded ? v.text.slice(0, TEXT_CLAMP) + '...' : v.text}
         </p>
         {needsTruncate && (

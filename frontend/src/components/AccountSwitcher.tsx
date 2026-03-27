@@ -30,7 +30,7 @@ export function AccountSwitcher() {
           />
 
           {/* Dropdown */}
-          <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
+          <div className="absolute top-full start-0 mt-2 w-64 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
             
             {/* Accounts List */}
             <div className="max-h-64 overflow-y-auto">
@@ -45,7 +45,7 @@ export function AccountSwitcher() {
                 >
                   <div className="flex items-center gap-3">
                     <Building2 className="w-5 h-5 text-gray-600 dark:text-gray-400" />
-                    <div className="text-left">
+                    <div className="text-start">
                       <div className="font-medium text-gray-900 dark:text-white">
                         {account.name}
                       </div>

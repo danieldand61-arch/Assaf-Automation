@@ -168,7 +168,7 @@ export function CreditsUsage() {
                   {data.count} requests
                 </p>
               </div>
-              <div className="text-right">
+              <div className="text-end">
                 <p className="font-bold text-gray-900 dark:text-white">
                   ${data.cost.toFixed(4)}
                 </p>
@@ -207,7 +207,7 @@ export function CreditsUsage() {
                   {data.count} requests
                 </p>
               </div>
-              <div className="text-right">
+              <div className="text-end">
                 <p className="font-bold text-gray-900 dark:text-white">
                   ${data.cost.toFixed(4)}
                 </p>

@@ -15,7 +15,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
   const { activeAccount, accounts, switchAccount } = useAccount()
   const { user, signOut } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const { language, setLanguage, t } = useApp()
+  const { language, setLanguage, t, isRTL } = useApp()
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [langMenuOpen, setLangMenuOpen] = useState(false)
@@ -96,7 +96,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
                 <div style={{
                   position: 'absolute',
                   top: 'calc(100% + 6px)',
-                  right: 0,
+                  insetInlineEnd: 0,
                   background: JoyoTheme.card,
                   border: `1px solid ${JoyoTheme.border}`,
                   borderRadius: 12,
@@ -114,7 +114,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
                       }}
                       style={{
                         width: '100%',
-                        textAlign: 'left',
+                        textAlign: 'start',
                         padding: '10px 14px',
                         borderRadius: 8,
                         border: 'none',
@@ -197,7 +197,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
               <div style={{
                 position: 'absolute',
                 top: 'calc(100% + 6px)',
-                right: 0,
+                insetInlineEnd: 0,
                 background: JoyoTheme.card,
                 border: `1px solid ${JoyoTheme.border}`,
                 borderRadius: 12,
@@ -212,7 +212,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
                     onClick={() => { setLanguage(code); setLangMenuOpen(false) }}
                     style={{
                       width: '100%',
-                      textAlign: 'left',
+                      textAlign: 'start',
                       padding: '10px 14px',
                       borderRadius: 8,
                       border: 'none',
@@ -281,7 +281,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
               <div style={{
                 position: 'absolute',
                 top: 'calc(100% + 6px)',
-                right: 0,
+                insetInlineEnd: 0,
                 background: JoyoTheme.card,
                 border: `1px solid ${JoyoTheme.border}`,
                 borderRadius: 12,
@@ -306,7 +306,7 @@ export function JoyoTopBar({ title, onNavigate }: JoyoTopBarProps) {
                   onClick={handleSignOut}
                   style={{
                     width: '100%',
-                    textAlign: 'left',
+                    textAlign: 'start',
                     padding: '10px 14px',
                     borderRadius: 8,
                     border: 'none',

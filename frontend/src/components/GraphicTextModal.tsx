@@ -87,7 +87,7 @@ export function GraphicTextModal({ isOpen, onClose, sourceImage, brandColors = [
           {result && (
             <div className="relative rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
               <img src={result} alt="" className="w-full" />
-              <div className="absolute top-2 right-2 px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full shadow">Text Added</div>
+              <div className="absolute top-2 end-2 px-2 py-0.5 bg-green-500 text-white text-[10px] font-bold rounded-full shadow">Text Added</div>
             </div>
           )}
 

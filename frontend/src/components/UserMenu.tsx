@@ -55,7 +55,7 @@ export function UserMenu() {
           />
 
           {/* Dropdown */}
-          <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
+          <div className="absolute top-full end-0 mt-2 w-56 bg-white dark:bg-gray-800 border-2 border-gray-200 dark:border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
             
             {/* User Info */}
             <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">

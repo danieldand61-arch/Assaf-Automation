@@ -81,7 +81,7 @@ function ChatHistoryTab() {
       {chats.map(chat => (
         <div key={chat.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 overflow-hidden">
           <button onClick={() => loadMessages(chat.id)}
-            className="w-full flex items-center gap-3 p-4 text-left hover:bg-gray-50 dark:hover:bg-gray-750 transition">
+            className="w-full flex items-center gap-3 p-4 text-start hover:bg-gray-50 dark:hover:bg-gray-750 transition">
             <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-900/20 flex items-center justify-center shrink-0">
               <MessageSquare size={18} className="text-purple-500" />
             </div>

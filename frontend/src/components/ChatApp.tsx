@@ -528,14 +528,14 @@ export function ChatApp() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl">
                 <button
                   onClick={() => setInputMessage('Create Google Ads for my coffee shop')}
-                  className="p-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-600 transition text-left"
+                  className="p-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-600 transition text-start"
                 >
                   <div className="font-semibold text-gray-900 dark:text-white mb-1">Google Ads</div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">Generate ad campaigns</div>
                 </button>
                 <button
                   onClick={() => setInputMessage('Generate social media posts for my business')}
-                  className="p-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-600 transition text-left"
+                  className="p-4 bg-white dark:bg-gray-800 rounded-xl border-2 border-gray-200 dark:border-gray-700 hover:border-purple-400 dark:hover:border-purple-600 transition text-start"
                 >
                   <div className="font-semibold text-gray-900 dark:text-white mb-1">Social Posts</div>
                   <div className="text-sm text-gray-600 dark:text-gray-400">Create engaging content</div>

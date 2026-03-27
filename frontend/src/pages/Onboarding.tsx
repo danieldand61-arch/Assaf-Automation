@@ -229,7 +229,7 @@ export function Onboarding() {
 
                 <div>
                   <label className="block text-sm font-medium mb-2" style={{ color: '#5C6478' }}>
-                    <Globe className="inline w-4 h-4 mr-1" style={{ verticalAlign: '-2px' }} /> Website URL
+                    <Globe className="inline w-4 h-4 me-1" style={{ verticalAlign: '-2px' }} /> Website URL
                   </label>
                   <input type="text" value={websiteUrl} onChange={e => { setWebsiteUrl(e.target.value); setBrandKit(null) }} className={inputCls} placeholder="yourbusiness.com" />
                   <p style={{ fontSize: 11, color: '#959DAF', marginTop: 6 }}>Don't have a website? No problem — click Next and fill in your info manually</p>
@@ -305,7 +305,7 @@ export function Onboarding() {
                         <button key={g.id} type="button" onClick={() => toggleGoal(g.id)}
                           className="relative flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium transition border-2"
                           style={{ borderColor: active ? '#4A7CFF' : '#E5E9F0', background: active ? '#4A7CFF10' : '#FAFBFC', color: active ? '#4A7CFF' : '#5C6478' }}>
-                          {active && <Check size={14} className="absolute top-1.5 right-1.5" style={{ color: '#4A7CFF' }} />}
+                          {active && <Check size={14} className="absolute top-1.5 end-1.5" style={{ color: '#4A7CFF' }} />}
                           <span>{g.emoji}</span> {g.label}
                         </button>
                       )
@@ -322,7 +322,7 @@ export function Onboarding() {
                         <button key={v.id} type="button" onClick={() => toggleVoice(v.id)}
                           className="relative flex flex-col items-start gap-1 px-4 py-3 rounded-xl text-sm font-medium transition border-2"
                           style={{ borderColor: active ? '#8B5CF6' : '#E5E9F0', background: active ? '#8B5CF610' : '#FAFBFC', color: active ? '#8B5CF6' : '#5C6478' }}>
-                          {active && <Check size={14} className="absolute top-1.5 right-1.5" style={{ color: '#8B5CF6' }} />}
+                          {active && <Check size={14} className="absolute top-1.5 end-1.5" style={{ color: '#8B5CF6' }} />}
                           <span className="flex items-center gap-2"><span>{v.emoji}</span> {v.label}</span>
                           <span className="text-[10px] italic font-normal" style={{ color: '#9CA3AF' }}>{v.preview}</span>
                         </button>
@@ -337,7 +337,7 @@ export function Onboarding() {
             {currentStep === 4 && (
               <div className="space-y-6">
                 <h2 style={{ fontSize: 18, fontWeight: 700, color: '#151821' }}>
-                  <Link2 className="inline w-5 h-5 mr-2" style={{ verticalAlign: '-3px' }} />
+                  <Link2 className="inline w-5 h-5 me-2" style={{ verticalAlign: '-3px' }} />
                   Connect Your Platforms
                 </h2>
                 <p style={{ fontSize: 14, color: '#5C6478' }}>Select the platforms you use, then connect them on the next page</p>
@@ -354,7 +354,7 @@ export function Onboarding() {
                           background: selected ? '#4A7CFF10' : '#FAFBFC',
                           color: selected ? '#4A7CFF' : '#5C6478',
                         }}>
-                        {selected && <Check size={14} className="absolute top-1.5 right-1.5" style={{ color: '#4A7CFF' }} />}
+                        {selected && <Check size={14} className="absolute top-1.5 end-1.5" style={{ color: '#4A7CFF' }} />}
                         <span style={{ fontSize: 20 }}>{p.icon}</span>
                         <span>{p.label}</span>
                       </button>
