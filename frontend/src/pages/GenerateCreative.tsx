@@ -47,6 +47,7 @@ export default function GenerateCreative() {
   const [bgStyle, setBgStyle] = useState('')
   const [aspectRatio, setAspectRatio] = useState('1080x1080')
   const [count, setCount] = useState(2)
+  const [lang, setLang] = useState('en')
 
   const [loading, setLoading] = useState(false)
   const [results, setResults] = useState<{ url: string; index: number; error?: string; headline?: string; subheadline?: string }[]>([])
@@ -119,6 +120,7 @@ export default function GenerateCreative() {
           aspect_ratio: aspectRatio,
           background_style: bgStyle || undefined,
           count,
+          language: lang,
         }),
       })
       if (!res.ok) {
@@ -203,7 +205,7 @@ export default function GenerateCreative() {
               <p className="text-[10px] text-gray-400 mt-1">{t('imageOptionalHint')}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('ctaButtonText')}</label>
                 <input value={ctaText} onChange={e => setCtaText(e.target.value)} className={fieldCls} placeholder={t('shopNow')} />
@@ -212,6 +214,15 @@ export default function GenerateCreative() {
                 <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('variations')}</label>
                 <select value={count} onChange={e => setCount(Number(e.target.value))} className={fieldCls}>
                   {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('language')}</label>
+                <select value={lang} onChange={e => setLang(e.target.value)} className={fieldCls}>
+                  <option value="en">{t('langEnglishUS')}</option>
+                  <option value="he">{t('langHebrew')}</option>
+                  <option value="es">{t('langEspanol')}</option>
+                  <option value="fr">{t('langFrancais')}</option>
                 </select>
               </div>
             </div>

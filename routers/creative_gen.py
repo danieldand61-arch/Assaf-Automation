@@ -61,9 +61,19 @@ class CreativeRequest(BaseModel):
     aspect_ratio: str = "1080x1080"
     background_style: Optional[str] = None
     count: int = 2
+    language: str = "en"
 
 
 # ── Step 1: Generate marketing copy ─────────────────────────────
+
+LANG_NAMES = {"en": "English", "he": "Hebrew (עברית)", "es": "Spanish (Español)", "fr": "French (Français)"}
+LANG_FALLBACKS = {
+    "en": ("Discover Something New", "Premium quality, crafted for you"),
+    "he": ("גלה משהו חדש", "איכות פרימיום, נוצר בשבילך"),
+    "es": ("Descubre Algo Nuevo", "Calidad premium, creado para ti"),
+    "fr": ("Découvrez Quelque Chose de Nouveau", "Qualité premium, conçu pour vous"),
+}
+
 
 async def _generate_copy(req: CreativeRequest, api_key: str) -> dict:
     """Use LLM to generate headline + subheadline from product description and optional image."""
@@ -73,10 +83,8 @@ async def _generate_copy(req: CreativeRequest, api_key: str) -> dict:
     brand_ctx = f'Brand: "{req.brand_name}". ' if req.brand_name else ""
     colors_ctx = f"Brand colors: {', '.join(req.brand_colors[:4])}. " if req.brand_colors else ""
 
-    import re
-    has_hebrew = bool(re.search(r'[\u0590-\u05FF]', req.product_description + (req.cta_text or '')))
-
-    lang_rule = "\n- LANGUAGE RULE: Write ENTIRELY in Hebrew (עברית). Every word of headline and subheadline must be in Hebrew. No English." if has_hebrew else ""
+    lang_name = LANG_NAMES.get(req.language, "English")
+    lang_rule = f"\n- LANGUAGE: Write headline and subheadline ENTIRELY in {lang_name}. Every word must be in {lang_name}. Do NOT use any other language." if req.language != "en" else ""
 
     prompt_text = f"""You are an elite advertising copywriter. Generate a punchy headline and subheadline for a social media ad creative.
 
@@ -101,8 +109,7 @@ SUBHEADLINE: <your subheadline>"""
             parts = [prompt_text, {"mime_type": img["mime"], "data": img["data"]}]
             logger.info("Attached user image to copy generation")
 
-    fallback_hl = "גלה משהו חדש" if has_hebrew else "Discover Something New"
-    fallback_sub = "איכות פרימיום, נוצר בשבילך" if has_hebrew else "Premium quality, crafted for you"
+    fallback_hl, fallback_sub = LANG_FALLBACKS.get(req.language, LANG_FALLBACKS["en"])
 
     try:
         resp = await asyncio.to_thread(
@@ -213,6 +220,8 @@ BACKGROUND_GUIDES = {
 
 
 def _build_creative_prompt(req: CreativeRequest, copy: dict, variation_idx: int, has_user_image: bool = False) -> str:
+    lang_name = LANG_NAMES.get(req.language, "English")
+    text_dir = "right-to-left" if req.language == "he" else "left-to-right"
     w, h = map(int, req.aspect_ratio.split("x"))
     ar = f"{w}:{h}" if w == h else ("4:5" if h > w else "16:9")
 
@@ -274,12 +283,15 @@ TYPOGRAPHY RULES:
 - Maximum 2 font styles (bold headline + clean body)
 - Headline font size must be at least 3x the subheadline size
 - All text must have excellent contrast and be instantly readable
+- Text language: {lang_name}. Text direction: {text_dir}. Render all text correctly in {lang_name}.
 
 CRITICAL QUALITY STANDARDS:
 - This must look like a $5,000+ agency-produced ad creative
 - Professional spacing, alignment, and visual balance
 - The CTA button must look clickable and prominent
 - Maximum 25 words total on the entire image
+- SAFE MARGINS: Keep ALL text and important elements at least 10% away from every edge. Nothing should be cropped or cut off.
+- The entire composition must fit WITHIN the {ar} canvas. Do NOT let text or visuals bleed off-frame.
 
 ABSOLUTELY FORBIDDEN:
 - No "Option A/B/C" labels
@@ -288,6 +300,23 @@ ABSOLUTELY FORBIDDEN:
 - No watermarks
 
 Generate ONE complete ad creative image at {ar} aspect ratio."""
+
+
+def _dominant_edge_color(img: PILImage.Image) -> tuple:
+    """Sample pixels along all 4 edges to find the most common color for padding."""
+    pixels = []
+    w, h = img.size
+    for x in range(w):
+        pixels.append(img.getpixel((x, 0)))
+        pixels.append(img.getpixel((x, h - 1)))
+    for y in range(h):
+        pixels.append(img.getpixel((0, y)))
+        pixels.append(img.getpixel((w - 1, y)))
+    rgb_pixels = [(p[0], p[1], p[2]) if isinstance(p, tuple) else (p, p, p) for p in pixels]
+    avg_r = sum(p[0] for p in rgb_pixels) // len(rgb_pixels)
+    avg_g = sum(p[1] for p in rgb_pixels) // len(rgb_pixels)
+    avg_b = sum(p[2] for p in rgb_pixels) // len(rgb_pixels)
+    return (avg_r, avg_g, avg_b)
 
 
 def _extract_image(response, image_size: str) -> str | None:
@@ -320,14 +349,14 @@ def _extract_image(response, image_size: str) -> str | None:
             api_ratio = img.width / img.height
 
             if abs(api_ratio - target_ratio) > 0.1:
-                if api_ratio > target_ratio:
-                    new_w = int(img.height * target_ratio)
-                    left = (img.width - new_w) // 2
-                    img = img.crop((left, 0, left + new_w, img.height))
-                else:
-                    new_h = int(img.width / target_ratio)
-                    top = (img.height - new_h) // 2
-                    img = img.crop((0, top, img.width, top + new_h))
+                img.thumbnail((w, h), PILImage.Resampling.LANCZOS)
+                bg_color = _dominant_edge_color(img)
+                canvas = PILImage.new("RGB", (w, h), bg_color)
+                paste_x = (w - img.width) // 2
+                paste_y = (h - img.height) // 2
+                canvas.paste(img, (paste_x, paste_y))
+                img = canvas
+            else:
                 img = img.resize((w, h), PILImage.Resampling.LANCZOS)
 
             if img.mode in ("RGBA", "LA", "P"):
