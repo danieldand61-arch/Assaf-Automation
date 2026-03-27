@@ -70,17 +70,17 @@ const AVATARS = [
     ],
   },
   {
-    id: 'golden-retriever', name: 'Buddy', desc: 'friendly golden retriever dog, happy expression, fluffy fur', style: 'animal',
+    id: 'golden-retriever', name: 'Buddy', desc: 'friendly golden retriever dog, close-up portrait, happy expression, tongue out', style: 'animal',
     imgs: [
-      'https://images.unsplash.com/photo-1552053831-71594a27632d?w=400&h=400&fit=crop',
-      'https://images.unsplash.com/photo-1633722715463-d30f4f325e24?w=400&h=400&fit=crop',
+      'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1601758228041-f3b2795255f1?w=400&h=400&fit=crop&crop=face',
     ],
   },
   {
-    id: 'animated-robot', name: 'Pixel', desc: 'cute friendly cartoon robot character, round head, glowing blue eyes, small antenna', style: 'character',
+    id: 'kid', name: 'Mia', desc: 'cute cheerful girl, around 8 years old, bright smile, expressive eyes', style: 'kids',
     imgs: [
-      'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=400&h=400&fit=crop',
-      'https://images.unsplash.com/photo-1546776310-eef45dd6d63c?w=400&h=400&fit=crop',
+      'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=400&fit=crop&crop=face',
     ],
   },
 ]
@@ -593,7 +593,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                   />
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{avatar.name}</p>
                   <p className="text-[10px] text-gray-400 capitalize">
-                    {avatar.style === 'animal' ? '🐾 ' : avatar.style === 'character' ? '🤖 ' : ''}
+                    {avatar.style === 'animal' ? '🐾 ' : avatar.style === 'kids' ? '👧 ' : ''}
                     {avatar.style}
                   </p>
                 </button>
