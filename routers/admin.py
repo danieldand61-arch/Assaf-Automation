@@ -4,6 +4,8 @@ Admin API for user management and statistics
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import logging
+import os
+import httpx
 from middleware.auth import get_current_user
 from database.supabase_client import get_supabase
 
@@ -60,48 +62,47 @@ async def get_users_stats(user=Depends(get_current_user)):
         except Exception:
             pass
 
-        # Collect user IDs from ALL sources: auth.users, accounts, user_credits
+        # Collect user IDs from ALL sources
         auth_user_ids = set()
         auth_user_map: dict[str, dict] = {}
 
-        # Method 1: RPC to auth.users (most reliable)
-        try:
-            auth_rows = supabase.rpc('get_auth_users_info').execute()
-            for row in (auth_rows.data or []):
-                uid = row["id"]
-                auth_user_ids.add(uid)
-                auth_user_map[uid] = {
-                    "email": row.get("email") or "unknown@example.com",
-                    "full_name": row.get("full_name") or "",
-                    "created_at": row.get("created_at"),
-                }
-        except Exception as e:
-            logger.warning(f"RPC get_auth_users_info failed, falling back to list_users: {e}")
-
-        # Method 2: list_users fallback
-        if not auth_user_map:
+        # Direct HTTP call to GoTrue Admin API — most reliable method
+        supa_url = os.getenv("SUPABASE_URL", "")
+        supa_key = os.getenv("SUPABASE_SERVICE_KEY", "")
+        if supa_url and supa_key:
             try:
                 page = 1
-                while True:
-                    auth_list = supabase.auth.admin.list_users(page=page, per_page=1000)
-                    users_list = auth_list if isinstance(auth_list, list) else getattr(auth_list, 'users', None) or []
-                    if not users_list:
-                        break
-                    for u in users_list:
-                        uid = u.id if hasattr(u, 'id') else u.get('id', '')
-                        email = u.email if hasattr(u, 'email') else u.get('email', '')
-                        meta = u.user_metadata if hasattr(u, 'user_metadata') else u.get('user_metadata', {})
-                        auth_user_ids.add(uid)
-                        auth_user_map[uid] = {
-                            "email": email or "unknown@example.com",
-                            "full_name": (meta or {}).get("full_name", ""),
-                            "created_at": str(u.created_at) if hasattr(u, 'created_at') else u.get('created_at'),
-                        }
-                    if len(users_list) < 1000:
-                        break
-                    page += 1
+                async with httpx.AsyncClient(timeout=15) as client:
+                    while True:
+                        resp = await client.get(
+                            f"{supa_url}/auth/v1/admin/users",
+                            params={"page": page, "per_page": 1000},
+                            headers={"apikey": supa_key, "Authorization": f"Bearer {supa_key}"},
+                        )
+                        if resp.status_code != 200:
+                            logger.warning(f"GoTrue admin API returned {resp.status_code}: {resp.text[:200]}")
+                            break
+                        data = resp.json()
+                        users_list = data.get("users", []) if isinstance(data, dict) else data
+                        if not users_list:
+                            break
+                        for u in users_list:
+                            uid = u.get("id", "")
+                            if not uid:
+                                continue
+                            auth_user_ids.add(uid)
+                            meta = u.get("user_metadata") or {}
+                            auth_user_map[uid] = {
+                                "email": u.get("email") or "unknown@example.com",
+                                "full_name": meta.get("full_name", ""),
+                                "created_at": u.get("created_at"),
+                            }
+                        if len(users_list) < 1000:
+                            break
+                        page += 1
+                logger.info(f"Fetched {len(auth_user_map)} users from GoTrue admin API")
             except Exception as e:
-                logger.warning(f"list_users also failed: {e}")
+                logger.warning(f"GoTrue admin API failed: {e}")
 
         accounts_result = supabase.table("accounts").select("user_id, name").execute()
         accounts_map = {}
