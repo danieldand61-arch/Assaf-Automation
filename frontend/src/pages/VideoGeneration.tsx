@@ -77,10 +77,10 @@ const AVATARS = [
     ],
   },
   {
-    id: 'kid', name: 'Mia', desc: 'cute cheerful girl, around 8 years old, bright smile, expressive eyes', style: 'kids',
+    id: 'kid', name: 'Mia', desc: 'cute cheerful girl, around 8 years old, bright smile, clean casual clothes', style: 'kids',
     imgs: [
-      'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=400&h=400&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1514888286974-6c03e2ca1dba?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1595454223600-91414f42e5e4?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1596870230751-ebdfce98ec42?w=400&h=400&fit=crop&crop=face',
     ],
   },
 ]
