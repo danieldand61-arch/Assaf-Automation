@@ -178,8 +178,17 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
   const [magicVibe, setMagicVibe] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const mediaRef = useRef<HTMLInputElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const onboardingUrl = activeAccount?.metadata?.website_url || activeAccount?.metadata?.brand_kit?.website_url || ''
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.max(120, el.scrollHeight) + 'px'
+  }, [form.keywords])
 
   // Close goal picker on outside click
   useEffect(() => {
@@ -410,13 +419,13 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                   )}
                 </div>
                 <div className="relative flex-1">
-                  <textarea value={form.keywords} onChange={e => { set('keywords', e.target.value); setMagicVibe(null) }}
+                  <textarea ref={textareaRef} value={form.keywords} onChange={e => { set('keywords', e.target.value); setMagicVibe(null) }}
                     placeholder={form.image_only
                       ? t('imagePromptPlaceholder')
                       : mediaPreview
                       ? 'Describe the topic or idea — AI will write the caption'
                       : "Describe the post you want to create... e.g. 'A professional announcement for our new summer collection launch with a focus on sustainability.'"}
-                    className="flex-1 min-h-[120px] w-full p-5 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4A7CFF]/20 focus:border-[#4A7CFF] outline-none transition resize-none text-base leading-relaxed placeholder:text-gray-400" />
+                    className="flex-1 min-h-[120px] w-full p-5 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4A7CFF]/20 focus:border-[#4A7CFF] outline-none transition text-base leading-relaxed placeholder:text-gray-400" style={{ resize: 'none', overflow: 'hidden' }} />
                   {magicLoading && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-50/80 dark:bg-gray-700/80 rounded-2xl backdrop-blur-sm">
                       <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
