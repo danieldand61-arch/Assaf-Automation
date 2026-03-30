@@ -61,6 +61,15 @@ class EditTextRequest(BaseModel):
     tone: Optional[str] = None  # for "change_tone" action
     language: str = "en"
 
+class MagicPromptRequest(BaseModel):
+    user_prompt: str = ""
+    goal: str = ""  # product, lifestyle, abstract, announcement
+    strategy: str = "professional"  # professional, casual, bold, minimal
+    brand_name: str = ""
+    industry: str = ""
+    brand_colors: List[str] = []
+    language: str = "en"
+
 class GenerateGoogleAdsRequest(BaseModel):
     website_data: dict
     keywords: str
@@ -197,6 +206,80 @@ async def edit_text(request: EditTextRequest, req: Request = None):
     except Exception as e:
         logger.error(f"Error editing text: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/magic-prompt")
+async def magic_prompt(request: MagicPromptRequest, req: Request = None):
+    """Enhance a simple user prompt into a rich, visual-ready prompt using goal + strategy."""
+    user = await get_optional_user(req) if req else None
+    await _require_credits(user, 5.0)
+
+    GOAL_MAP = {
+        "product": "Hero product showcase — the product is the star. Studio-grade lighting, precise detail, premium commercial feel.",
+        "lifestyle": "Lifestyle story — show the product/brand in a real-world aspirational context. People using, enjoying, living with it.",
+        "abstract": "Conceptual / mood-driven — evoke a feeling or aesthetic. Abstract textures, colors, atmosphere over literal representation.",
+        "announcement": "Big announcement — bold, attention-grabbing visual that signals something new, exciting, or important.",
+    }
+    STRATEGY_MAP = {
+        "professional": {"env": "clean studio or corporate-quality setting", "light": "sharp, controlled lighting with soft shadows", "camera": "medium telephoto lens, shallow depth of field, polished commercial look", "vibe": "High-End Studio"},
+        "casual": {"env": "warm, natural everyday environment, café, park, home", "light": "golden hour or soft window light, warm tones", "camera": "35mm lens, lifestyle editorial, slightly candid feel", "vibe": "Lifestyle Warmth"},
+        "bold": {"env": "high contrast, dramatic environment, vivid colors, dynamic angles", "light": "hard directional light, deep shadows, neon or saturated hues", "camera": "wide-angle, dramatic perspective, cinematic punch", "vibe": "Bold Impact"},
+        "minimal": {"env": "clean negative space, monochrome or muted palette, simple forms", "light": "even, diffused, soft studio or overcast natural light", "camera": "centered composition, geometric precision, Scandinavian aesthetic", "vibe": "Clean Minimalism"},
+    }
+    ANTI_GENERIC = [
+        "Avoid cliché setups: no generic wood table, no plain white desk, no stock-photo handshake.",
+        "Every element in the frame must feel intentional and premium.",
+        "The image should look like a real campaign shoot, not a template.",
+    ]
+
+    goal_desc = GOAL_MAP.get(request.goal, GOAL_MAP["product"])
+    strat = STRATEGY_MAP.get(request.strategy, STRATEGY_MAP["professional"])
+    lang_names = {"en": "English", "he": "Hebrew", "es": "Spanish", "fr": "French"}
+    lang = lang_names.get(request.language, "English")
+    brand_ctx = f'Brand: "{request.brand_name}".' if request.brand_name else ""
+    industry_ctx = f"Industry: {request.industry}." if request.industry else ""
+    color_ctx = f"Subtly weave brand colors ({', '.join(request.brand_colors[:3])}) into props, backgrounds, or accents." if request.brand_colors else ""
+
+    system = f"""You are an elite advertising prompt engineer. Your job is to transform a simple idea into a rich, specific, visual-ready prompt for an AI image generator.
+
+RULES:
+- Output ONLY the enhanced prompt text. No labels, no explanations.
+- Write in {lang}.
+- The prompt must describe a SINGLE cohesive image (no collages).
+- Include specific details: subject, environment, lighting, camera style, mood.
+- NEVER mention text, typography, logos, or watermarks — the image must be purely visual.
+- {chr(10).join(ANTI_GENERIC)}
+{brand_ctx} {industry_ctx} {color_ctx}
+
+GOAL: {goal_desc}
+ENVIRONMENT: {strat['env']}
+LIGHTING: {strat['light']}
+CAMERA: {strat['camera']}"""
+
+    user_input = request.user_prompt.strip() or "a promotional image for the brand"
+
+    try:
+        import google.generativeai as genai
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content(
+            [{"role": "user", "parts": [f"{system}\n\nUser idea: {user_input}"]}],
+            generation_config=genai.GenerationConfig(temperature=0.9, max_output_tokens=300),
+        )
+        enhanced = response.text.strip().strip('"').strip("'")
+
+        if user:
+            try:
+                from services.credits_service import record_usage
+                in_t = getattr(response.usage_metadata, 'prompt_token_count', 0) if hasattr(response, 'usage_metadata') else 0
+                out_t = getattr(response.usage_metadata, 'candidates_token_count', 0) if hasattr(response, 'usage_metadata') else 0
+                await record_usage(user_id=user["user_id"], service_type="social_posts", input_tokens=in_t, output_tokens=out_t, model_name="gemini-2.5-flash", metadata={"action": "magic_prompt"})
+            except Exception:
+                pass
+
+        return {"enhanced_prompt": enhanced, "vibe": strat["vibe"], "goal": request.goal, "strategy": request.strategy}
+    except Exception as e:
+        logger.error(f"Magic prompt error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/generate-google-ads")
 async def generate_google_ads_endpoint(request: GenerateGoogleAdsRequest, req: Request = None):
