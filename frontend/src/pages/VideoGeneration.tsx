@@ -77,10 +77,10 @@ const AVATARS = [
     ],
   },
   {
-    id: 'kid', name: 'Mia', desc: 'cute cheerful girl, around 8 years old, bright smile, clean casual clothes', style: 'kids',
+    id: 'teen-girl', name: 'Mia', desc: 'young teenage girl, around 16, bright smile, casual trendy clothes, expressive', style: 'youthful',
     imgs: [
-      'https://images.unsplash.com/photo-1595454223600-91414f42e5e4?w=400&h=400&fit=crop&crop=face',
-      'https://images.unsplash.com/photo-1596870230751-ebdfce98ec42?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400&h=400&fit=crop&crop=face',
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400&h=400&fit=crop&crop=face',
     ],
   },
 ]
@@ -611,7 +611,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
                   />
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{avatar.name}</p>
                   <p className="text-[10px] text-gray-400 capitalize">
-                    {avatar.style === 'animal' ? '🐾 ' : avatar.style === 'kids' ? '👧 ' : ''}
+                    {avatar.style === 'animal' ? '🐾 ' : avatar.style === 'youthful' ? '✨ ' : ''}
                     {avatar.style}
                   </p>
                 </button>
