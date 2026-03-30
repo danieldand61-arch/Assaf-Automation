@@ -520,6 +520,12 @@ export const translations = {
     sizeStory: "Story 9:16",
     sizeLandscape: "Landscape 2:1",
 
+    // Creative save & publish
+    postTextPlaceholder: "Write your post caption here...",
+    postTextLabel: "Post Text (caption)",
+    autoSaved: "Auto-saved to library",
+    savingToLibrary: "Saving...",
+
     // Settings page
     settingsTitle: "Settings",
     settingsDesc: "Manage your account settings and preferences",
@@ -1189,6 +1195,12 @@ export const translations = {
     sizePortrait: "פורטרט 4:5",
     sizeStory: "סטורי 9:16",
     sizeLandscape: "לנדסקייפ 2:1",
+
+    // Creative save & publish
+    postTextPlaceholder: "כתוב את הכיתוב לפוסט כאן...",
+    postTextLabel: "טקסט פוסט (כיתוב)",
+    autoSaved: "נשמר אוטומטית בספרייה",
+    savingToLibrary: "שומר...",
 
     // Settings page
     settingsTitle: "הגדרות",

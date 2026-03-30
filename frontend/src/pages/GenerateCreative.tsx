@@ -1,9 +1,11 @@
 import { useState, useRef } from 'react'
-import { Loader2, Download, Sparkles, RotateCcw, Palette, Upload, X } from 'lucide-react'
+import { Loader2, Download, Sparkles, RotateCcw, Palette, Upload, X, Send, Calendar, BookmarkCheck } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useAccount } from '../contexts/AccountContext'
 import { useApp } from '../contexts/AppContext'
 import { getApiUrl } from '../lib/api'
+import { PostToSocial } from '../components/PostToSocial'
+import { SchedulePostModal } from '../components/SchedulePostModal'
 
 const STYLE_OPTIONS = [
   { id: 'modern', key: 'styleModern' as const, emoji: '🔵' },
@@ -30,6 +32,14 @@ const SIZE_OPTIONS = [
   { id: '1200x628', key: 'sizeLandscape' as const },
 ]
 
+interface CreativeResult {
+  url: string
+  index: number
+  error?: string
+  headline?: string
+  subheadline?: string
+}
+
 export default function GenerateCreative() {
   const { session } = useAuth()
   const { activeAccount } = useAccount()
@@ -50,9 +60,17 @@ export default function GenerateCreative() {
   const [lang, setLang] = useState('en')
 
   const [loading, setLoading] = useState(false)
-  const [results, setResults] = useState<{ url: string; index: number; error?: string; headline?: string; subheadline?: string }[]>([])
+  const [results, setResults] = useState<CreativeResult[]>([])
   const [generatedCopy, setGeneratedCopy] = useState<{ headline: string; subheadline: string } | null>(null)
   const [error, setError] = useState('')
+
+  // Post text per creative (for publishing)
+  const [postTexts, setPostTexts] = useState<Record<number, string>>({})
+  // Save/publish state per creative
+  const [savedStatus, setSavedStatus] = useState<Record<number, string>>({})
+  // Modals
+  const [publishIdx, setPublishIdx] = useState<number | null>(null)
+  const [scheduleIdx, setScheduleIdx] = useState<number | null>(null)
 
   const brandName = bk.business_name || activeAccount?.name || ''
   const brandColors = bk.brand_colors || activeAccount?.brand_colors || []
@@ -97,6 +115,28 @@ export default function GenerateCreative() {
     if (fileRef.current) fileRef.current.value = ''
   }
 
+  const saveToLibrary = async (idx: number, imageUrl: string, postText: string) => {
+    if (!session) return
+    setSavedStatus(prev => ({ ...prev, [idx]: t('savingToLibrary') }))
+    try {
+      const res = await fetch(`${getApiUrl()}/api/saved-posts/save`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({
+          text: postText,
+          hashtags: [],
+          call_to_action: ctaText.trim() || '',
+          image_url: imageUrl,
+          platforms: [],
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setSavedStatus(prev => ({ ...prev, [idx]: data.duplicate ? t('savedToLibrary') : t('savedToLibrary') }))
+      }
+    } catch { /* silent */ }
+  }
+
   const handleGenerate = async () => {
     if (!productDesc.trim()) { setError(t('productDescRequired')); return }
     if (!session) { setError(t('pleaseSignIn')); return }
@@ -104,6 +144,8 @@ export default function GenerateCreative() {
     setLoading(true)
     setResults([])
     setGeneratedCopy(null)
+    setPostTexts({})
+    setSavedStatus({})
 
     try {
       const res = await fetch(`${getApiUrl()}/api/creative/generate`, {
@@ -128,8 +170,18 @@ export default function GenerateCreative() {
         throw new Error(e.detail || `Error ${res.status}`)
       }
       const data = await res.json()
-      setResults(data.creatives || [])
+      const creatives: CreativeResult[] = data.creatives || []
+      setResults(creatives)
       if (data.copy) setGeneratedCopy(data.copy)
+
+      // Auto-save each creative to library
+      for (const c of creatives) {
+        if (!c.error && c.url) {
+          const text = data.copy ? `${data.copy.headline}\n\n${data.copy.subheadline}` : ''
+          setPostTexts(prev => ({ ...prev, [c.index]: text }))
+          saveToLibrary(c.index, c.url, text)
+        }
+      }
     } catch (e: any) {
       setError(e.message || 'Failed to generate')
     } finally {
@@ -147,6 +199,24 @@ export default function GenerateCreative() {
       a.click()
       URL.revokeObjectURL(a.href)
     } catch { /* silent */ }
+  }
+
+  const getPublishData = (idx: number) => {
+    const r = results[idx]
+    if (!r) return null
+    const text = postTexts[idx] || ''
+    return { text, imageUrl: r.url }
+  }
+
+  const getScheduleData = (idx: number) => {
+    const r = results[idx]
+    if (!r) return null
+    return {
+      text: postTexts[idx] || '',
+      hashtags: [] as string[],
+      cta: ctaText.trim() || '',
+      imageUrl: r.url,
+    }
   }
 
   const fieldCls = "w-full px-4 py-2.5 border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-xl focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition text-sm"
@@ -177,14 +247,12 @@ export default function GenerateCreative() {
               </div>
             )}
 
-            {/* Product Description — required */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">{t('productDescription')} *</label>
               <textarea value={productDesc} onChange={e => setProductDesc(e.target.value)} rows={3} className={fieldCls + ' resize-none'} placeholder={t('placeholderProduct')} />
               <p className="text-[10px] text-gray-400 mt-1">{t('aiWillGenerateCopy')}</p>
             </div>
 
-            {/* Image Upload — optional */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('referenceImage')}</label>
               {userImagePreview ? (
@@ -227,7 +295,6 @@ export default function GenerateCreative() {
               </div>
             </div>
 
-            {/* Style */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('style')}</label>
               <div className="flex flex-wrap gap-1.5">
@@ -240,7 +307,6 @@ export default function GenerateCreative() {
               </div>
             </div>
 
-            {/* Background */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('background')}</label>
               <div className="flex flex-wrap gap-1.5">
@@ -253,7 +319,6 @@ export default function GenerateCreative() {
               </div>
             </div>
 
-            {/* Size */}
             <div>
               <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">{t('size')}</label>
               <div className="flex flex-wrap gap-1.5">
@@ -297,7 +362,6 @@ export default function GenerateCreative() {
 
           {!loading && results.length > 0 && (
             <div className="space-y-4">
-              {/* AI-generated copy display */}
               {generatedCopy && (
                 <div className="bg-violet-50 dark:bg-violet-900/20 rounded-xl p-4 border border-violet-200 dark:border-violet-800">
                   <p className="text-[10px] font-bold text-violet-500 uppercase tracking-wider mb-1">{t('aiGeneratedCopy')}</p>
@@ -312,10 +376,12 @@ export default function GenerateCreative() {
                   <RotateCcw size={13} /> {t('regenerate')}
                 </button>
               </div>
+
               <div className={`grid gap-4 ${results.length === 1 ? 'grid-cols-1 max-w-md' : 'grid-cols-1 md:grid-cols-2'}`}>
                 {results.map((r, i) => (
-                  <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 shadow-lg group">
-                    <div className="relative">
+                  <div key={i} className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden border border-gray-100 dark:border-gray-700 shadow-lg">
+                    {/* Image */}
+                    <div className="relative group">
                       <img src={r.url} alt={`Creative ${i + 1}`} className="w-full" />
                       <button onClick={() => handleDownload(r.url, i)}
                         className="absolute top-3 end-3 w-9 h-9 rounded-xl bg-black/60 backdrop-blur-sm flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-black/80">
@@ -323,6 +389,41 @@ export default function GenerateCreative() {
                       </button>
                     </div>
                     {r.error && <p className="text-xs text-red-500 px-3 py-2">{r.error}</p>}
+
+                    {/* Post text + actions */}
+                    <div className="p-3 space-y-2.5">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-1">{t('postTextLabel')}</label>
+                        <textarea
+                          value={postTexts[r.index] ?? ''}
+                          onChange={e => setPostTexts(prev => ({ ...prev, [r.index]: e.target.value }))}
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white rounded-lg text-xs resize-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition"
+                          placeholder={t('postTextPlaceholder')}
+                        />
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <button
+                          onClick={() => setPublishIdx(r.index)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition"
+                        >
+                          <Send size={11} /> {t('publish')}
+                        </button>
+                        <button
+                          onClick={() => setScheduleIdx(r.index)}
+                          className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-semibold rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 hover:bg-purple-100 transition"
+                        >
+                          <Calendar size={11} /> {t('schedule')}
+                        </button>
+                        {savedStatus[r.index] && (
+                          <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            <BookmarkCheck size={11} /> {savedStatus[r.index]}
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -330,6 +431,32 @@ export default function GenerateCreative() {
           )}
         </div>
       </div>
+
+      {/* Publish modal */}
+      {publishIdx !== null && (() => {
+        const d = getPublishData(publishIdx)
+        if (!d) return null
+        return (
+          <PostToSocial
+            isOpen
+            onClose={() => setPublishIdx(null)}
+            prefilledData={{ text: d.text, imageUrl: d.imageUrl }}
+          />
+        )
+      })()}
+
+      {/* Schedule modal */}
+      {scheduleIdx !== null && (() => {
+        const d = getScheduleData(scheduleIdx)
+        if (!d) return null
+        return (
+          <SchedulePostModal
+            isOpen
+            onClose={() => setScheduleIdx(null)}
+            postData={d}
+          />
+        )
+      })()}
     </div>
   )
 }
