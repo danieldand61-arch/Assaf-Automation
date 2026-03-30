@@ -4,8 +4,6 @@ Admin API for user management and statistics
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import logging
-import os
-import httpx
 from middleware.auth import get_current_user
 from database.supabase_client import get_supabase
 
@@ -62,71 +60,42 @@ async def get_users_stats(user=Depends(get_current_user)):
         except Exception:
             pass
 
-        # Collect user IDs from ALL sources
-        auth_user_ids = set()
-        auth_user_map: dict[str, dict] = {}
-
-        # Direct HTTP call to GoTrue Admin API — most reliable method
-        supa_url = os.getenv("SUPABASE_URL", "")
-        supa_key = os.getenv("SUPABASE_SERVICE_KEY", "")
-        if supa_url and supa_key:
-            try:
-                page = 1
-                async with httpx.AsyncClient(timeout=15) as client:
-                    while True:
-                        resp = await client.get(
-                            f"{supa_url}/auth/v1/admin/users",
-                            params={"page": page, "per_page": 1000},
-                            headers={"apikey": supa_key, "Authorization": f"Bearer {supa_key}"},
-                        )
-                        if resp.status_code != 200:
-                            logger.warning(f"GoTrue admin API returned {resp.status_code}: {resp.text[:200]}")
-                            break
-                        data = resp.json()
-                        users_list = data.get("users", []) if isinstance(data, dict) else data
-                        if not users_list:
-                            break
-                        for u in users_list:
-                            uid = u.get("id", "")
-                            if not uid:
-                                continue
-                            auth_user_ids.add(uid)
-                            meta = u.get("user_metadata") or {}
-                            auth_user_map[uid] = {
-                                "email": u.get("email") or "unknown@example.com",
-                                "full_name": meta.get("full_name", ""),
-                                "created_at": u.get("created_at"),
-                            }
-                        if len(users_list) < 1000:
-                            break
-                        page += 1
-                logger.info(f"Fetched {len(auth_user_map)} users from GoTrue admin API")
-            except Exception as e:
-                logger.warning(f"GoTrue admin API failed: {e}")
-
+        # Collect user IDs from accounts + user_credits
         accounts_result = supabase.table("accounts").select("user_id, name").execute()
         accounts_map = {}
+        all_user_ids = set()
         for acc in (accounts_result.data or []):
             uid = acc["user_id"]
-            auth_user_ids.add(uid)
+            all_user_ids.add(uid)
             accounts_map[uid] = acc.get("name", "")
 
         credits_result = supabase.table("user_credits").select("*").execute()
         credits_map = {c["user_id"]: c for c in (credits_result.data or [])}
         for c in (credits_result.data or []):
-            auth_user_ids.add(c["user_id"])
+            all_user_ids.add(c["user_id"])
 
         usage_result = supabase.table("credits_usage") \
             .select("user_id, service_type, credits_spent, input_tokens, output_tokens, total_tokens, created_at") \
             .execute()
 
-        unique_user_ids = list(auth_user_ids)
+        unique_user_ids = list(all_user_ids)
         users_data = []
 
         for uid in unique_user_ids:
-            auth_info = auth_user_map.get(uid, {})
-            email = auth_info.get("email", "unknown@example.com")
-            full_name = auth_info.get("full_name") or accounts_map.get(uid) or "Unknown User"
+            email = "unknown@example.com"
+            full_name = "Unknown User"
+
+            # get_user_by_id works reliably — fetch email & name per user
+            try:
+                auth_response = supabase.auth.admin.get_user_by_id(uid)
+                if auth_response and hasattr(auth_response, 'user') and auth_response.user:
+                    email = auth_response.user.email or email
+                    full_name = (auth_response.user.user_metadata or {}).get("full_name", full_name)
+            except Exception:
+                pass
+
+            if full_name == "Unknown User":
+                full_name = accounts_map.get(uid) or "Unknown User"
 
             credit_record = credits_map.get(uid)
             credits_remaining = float(credit_record.get("credits_remaining", 0)) if credit_record else 0.0
