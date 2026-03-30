@@ -112,7 +112,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   // Wizard state
   const [step, setStep] = useState<WizardStep>(1)
   const [videoStyle, setVideoStyle] = useState<VideoStyle>('product')
-  const [selectedAvatar, setSelectedAvatar] = useState(AVATARS[0].id)
+  const [selectedAvatar, setSelectedAvatar] = useState('random')
   const [customAvatarUrls, setCustomAvatarUrls] = useState<string[]>([])
   const [customAvatarPreviews, setCustomAvatarPreviews] = useState<string[]>([])
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
@@ -265,6 +265,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   }, [session, t])
 
   const getAvatarImageUrls = (): string[] => {
+    if (selectedAvatar === 'random') return []
     if (selectedAvatar) {
       const avatar = AVATARS.find(a => a.id === selectedAvatar)
       return avatar?.imgs ?? []
@@ -282,7 +283,8 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
     if (videoStyle === 'ugc') {
       const avatar = AVATARS.find(a => a.id === selectedAvatar)
-      const personDesc = avatar?.desc ?? 'a young, friendly person'
+      const isRandom = selectedAvatar === 'random'
+      const personDesc = isRandom ? 'a relatable, friendly person' : (avatar?.desc ?? 'a young, friendly person')
       const person = useElement ? '@avatar' : personDesc
       p = `UGC-style promotional video: ${person} holding and showcasing the product to camera. ${brandCtx} Scene: ${p}. The person holds the product up, shows it from different angles, points at key features, smiles genuinely. Close-up shots of the product intercut with the person demonstrating it. The product must be clearly visible in frame throughout the video. Natural lighting, casual lifestyle setting, authentic social media ad feel.`
     } else if (videoStyle === 'product') {
@@ -573,6 +575,22 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       {step === 1.5 && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {/* Random / no avatar option */}
+            <button
+              onClick={() => { setSelectedAvatar('random'); setCustomAvatarUrls([]); setCustomAvatarPreviews([]); if (avatarFileRef.current) avatarFileRef.current.value = '' }}
+              className={`relative rounded-2xl border-2 p-4 text-center transition-all ${
+                selectedAvatar === 'random'
+                  ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20 shadow-lg shadow-violet-100 dark:shadow-violet-900/20'
+                  : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-gray-300'
+              }`}
+            >
+              {selectedAvatar === 'random' && <CheckCircle2 size={16} className="absolute top-2 end-2 text-violet-500" />}
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-violet-400 to-blue-500 flex items-center justify-center mx-auto mb-2 ring-2 ring-white dark:ring-gray-700 shadow">
+                <Sparkles size={24} className="text-white" />
+              </div>
+              <p className="text-sm font-bold text-gray-900 dark:text-white">{t('randomAvatar')}</p>
+              <p className="text-[10px] text-gray-400">{t('randomAvatarDesc')}</p>
+            </button>
             {AVATARS.map(avatar => {
               const selected = selectedAvatar === avatar.id
               return (
