@@ -63,24 +63,45 @@ async def get_users_stats(user=Depends(get_current_user)):
         # Collect user IDs from ALL sources: auth.users, accounts, user_credits
         auth_user_ids = set()
         auth_user_map: dict[str, dict] = {}
+
+        # Method 1: RPC to auth.users (most reliable)
         try:
-            page = 1
-            while True:
-                auth_list = supabase.auth.admin.list_users(page=page, per_page=1000)
-                if not auth_list or not auth_list.users:
-                    break
-                for u in auth_list.users:
-                    auth_user_ids.add(u.id)
-                    auth_user_map[u.id] = {
-                        "email": u.email or "unknown@example.com",
-                        "full_name": (u.user_metadata or {}).get("full_name", "Unknown User"),
-                        "created_at": str(u.created_at) if u.created_at else None,
-                    }
-                if len(auth_list.users) < 1000:
-                    break
-                page += 1
+            auth_rows = supabase.rpc('get_auth_users_info').execute()
+            for row in (auth_rows.data or []):
+                uid = row["id"]
+                auth_user_ids.add(uid)
+                auth_user_map[uid] = {
+                    "email": row.get("email") or "unknown@example.com",
+                    "full_name": row.get("full_name") or "",
+                    "created_at": row.get("created_at"),
+                }
         except Exception as e:
-            logger.warning(f"Could not list auth users: {e}")
+            logger.warning(f"RPC get_auth_users_info failed, falling back to list_users: {e}")
+
+        # Method 2: list_users fallback
+        if not auth_user_map:
+            try:
+                page = 1
+                while True:
+                    auth_list = supabase.auth.admin.list_users(page=page, per_page=1000)
+                    users_list = auth_list if isinstance(auth_list, list) else getattr(auth_list, 'users', None) or []
+                    if not users_list:
+                        break
+                    for u in users_list:
+                        uid = u.id if hasattr(u, 'id') else u.get('id', '')
+                        email = u.email if hasattr(u, 'email') else u.get('email', '')
+                        meta = u.user_metadata if hasattr(u, 'user_metadata') else u.get('user_metadata', {})
+                        auth_user_ids.add(uid)
+                        auth_user_map[uid] = {
+                            "email": email or "unknown@example.com",
+                            "full_name": (meta or {}).get("full_name", ""),
+                            "created_at": str(u.created_at) if hasattr(u, 'created_at') else u.get('created_at'),
+                        }
+                    if len(users_list) < 1000:
+                        break
+                    page += 1
+            except Exception as e:
+                logger.warning(f"list_users also failed: {e}")
 
         accounts_result = supabase.table("accounts").select("user_id, name").execute()
         accounts_map = {}
