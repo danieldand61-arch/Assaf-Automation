@@ -60,40 +60,51 @@ async def get_users_stats(user=Depends(get_current_user)):
         except Exception:
             pass
 
-        accounts_result = supabase.table("accounts").select("user_id").execute()
+        # Collect user IDs from ALL sources: auth.users, accounts, user_credits
+        auth_user_ids = set()
+        auth_user_map: dict[str, dict] = {}
+        try:
+            page = 1
+            while True:
+                auth_list = supabase.auth.admin.list_users(page=page, per_page=1000)
+                if not auth_list or not auth_list.users:
+                    break
+                for u in auth_list.users:
+                    auth_user_ids.add(u.id)
+                    auth_user_map[u.id] = {
+                        "email": u.email or "unknown@example.com",
+                        "full_name": (u.user_metadata or {}).get("full_name", "Unknown User"),
+                        "created_at": str(u.created_at) if u.created_at else None,
+                    }
+                if len(auth_list.users) < 1000:
+                    break
+                page += 1
+        except Exception as e:
+            logger.warning(f"Could not list auth users: {e}")
+
+        accounts_result = supabase.table("accounts").select("user_id, name").execute()
+        accounts_map = {}
+        for acc in (accounts_result.data or []):
+            uid = acc["user_id"]
+            auth_user_ids.add(uid)
+            accounts_map[uid] = acc.get("name", "")
+
         credits_result = supabase.table("user_credits").select("*").execute()
         credits_map = {c["user_id"]: c for c in (credits_result.data or [])}
+        for c in (credits_result.data or []):
+            auth_user_ids.add(c["user_id"])
 
         usage_result = supabase.table("credits_usage") \
             .select("user_id, service_type, credits_spent, input_tokens, output_tokens, total_tokens, created_at") \
             .execute()
 
-        unique_user_ids = list(set(acc["user_id"] for acc in (accounts_result.data or [])))
+        unique_user_ids = list(auth_user_ids)
         users_data = []
 
         for uid in unique_user_ids:
-            email = "unknown@example.com"
-            full_name = "Unknown User"
-
-            try:
-                auth_response = supabase.auth.admin.get_user_by_id(uid)
-                if auth_response and hasattr(auth_response, 'user') and auth_response.user:
-                    email = auth_response.user.email or email
-                    full_name = (auth_response.user.user_metadata or {}).get("full_name", full_name)
-            except Exception:
-                try:
-                    user_query = supabase.rpc('get_user_by_id', {'user_id': uid}).execute()
-                    if user_query.data:
-                        email = user_query.data.get('email', email)
-                        raw_meta = user_query.data.get('raw_user_meta_data', {})
-                        full_name = (raw_meta or {}).get('full_name', full_name)
-                except Exception:
-                    try:
-                        account = supabase.table("accounts").select("name").eq("user_id", uid).single().execute()
-                        if account.data and account.data.get("name"):
-                            full_name = account.data["name"]
-                    except Exception:
-                        pass
+            auth_info = auth_user_map.get(uid, {})
+            email = auth_info.get("email", "unknown@example.com")
+            full_name = auth_info.get("full_name") or accounts_map.get(uid) or "Unknown User"
 
             credit_record = credits_map.get(uid)
             credits_remaining = float(credit_record.get("credits_remaining", 0)) if credit_record else 0.0
