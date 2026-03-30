@@ -120,12 +120,14 @@ async def stripe_webhook(request: Request):
         logger.error(f"Webhook signature verification failed: {e}")
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    if event.get("type") == "checkout.session.completed":
-        session = event["data"]["object"]
-        metadata = session.get("metadata", {})
-        user_id = metadata.get("user_id")
-        credits_str = metadata.get("credits", "0")
-        package_id = metadata.get("package_id", "")
+    event_type = event.type if hasattr(event, 'type') else event.get("type", "")
+    if event_type == "checkout.session.completed":
+        session_obj = event.data.object if hasattr(event, 'data') and hasattr(event.data, 'object') else event.get("data", {}).get("object", {})
+        metadata = session_obj.get("metadata", {}) if isinstance(session_obj, dict) else getattr(session_obj, 'metadata', {}) or {}
+        meta = dict(metadata) if not isinstance(metadata, dict) else metadata
+        user_id = meta.get("user_id")
+        credits_str = meta.get("credits", "0")
+        package_id = meta.get("package_id", "")
 
         if not user_id:
             logger.warning("Webhook: no user_id in metadata")
@@ -135,7 +137,8 @@ async def stripe_webhook(request: Request):
         logger.info(f"Payment completed: user={user_id[:8]} package={package_id} credits={credits}")
 
         try:
-            await _add_credits(user_id, credits, package_id, session.get("id", ""))
+            sid = session_obj.get("id", "") if isinstance(session_obj, dict) else getattr(session_obj, 'id', "")
+            await _add_credits(user_id, credits, package_id, sid)
         except Exception as e:
             logger.error(f"Failed to add credits after payment: {e}", exc_info=True)
 

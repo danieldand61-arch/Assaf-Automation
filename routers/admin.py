@@ -85,14 +85,19 @@ async def get_users_stats(user=Depends(get_current_user)):
             email = "unknown@example.com"
             full_name = "Unknown User"
 
-            # get_user_by_id works reliably — fetch email & name per user
             try:
                 auth_response = supabase.auth.admin.get_user_by_id(uid)
-                if auth_response and hasattr(auth_response, 'user') and auth_response.user:
-                    email = auth_response.user.email or email
-                    full_name = (auth_response.user.user_metadata or {}).get("full_name", full_name)
-            except Exception:
-                pass
+                # supabase-py 2.x: response may be User directly or have .user attr
+                u = getattr(auth_response, 'user', auth_response)
+                if u:
+                    email = getattr(u, 'email', None) or email
+                    meta = getattr(u, 'user_metadata', None) or {}
+                    full_name = meta.get("full_name", full_name) if isinstance(meta, dict) else full_name
+                    logger.info(f"Auth user {uid[:8]}: email={email}, name={full_name}")
+                else:
+                    logger.warning(f"Auth user {uid[:8]}: response has no user data, type={type(auth_response)}")
+            except Exception as e:
+                logger.warning(f"get_user_by_id failed for {uid[:8]}: {e}")
 
             if full_name == "Unknown User":
                 full_name = accounts_map.get(uid) or "Unknown User"
