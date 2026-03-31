@@ -3,7 +3,6 @@ import { useAuth } from '../contexts/AuthContext'
 import { getApiUrl } from '../lib/api'
 import { Plus, MessageSquare, Trash2 } from 'lucide-react'
 import Header from './Header'
-import { LandingPage } from './LandingPage'
 import { InputSection } from './InputSection'
 import { PreviewSection } from './PreviewSection'
 import { LoadingState } from './LoadingState'
@@ -83,7 +82,7 @@ export function AppWithChat() {
       setChats([newChat, ...chats])
       setActiveChat(newChat)
       setGeneratedContent(null)
-      setActiveTab('landing')
+      setActiveTab('content')
     } catch (error) {
       console.error('Error creating chat:', error)
     }
@@ -226,8 +225,6 @@ export function AppWithChat() {
 
         {/* Main Content */}
         <div className="flex-1 overflow-y-auto">
-          {activeTab === 'landing' && <LandingPage />}
-          
           {activeTab === 'content' && (
             <>
               {isGenerating ? (
