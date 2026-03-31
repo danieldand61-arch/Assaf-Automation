@@ -239,16 +239,15 @@ async def magic_prompt(request: MagicPromptRequest, req: Request = None):
         if request.brand_colors else ""
     )
 
-    system = f"""You write SHORT prompts for AI advertising images. The client needs to sell their product or brand — clarity beats detail.
+    system = f"""You write SHORT, clear prompts for AI advertising images. The goal is to sell the product or brand — simple beats fancy.
 
 OUTPUT RULES:
 - Write ONLY the final prompt in {lang}. No titles, bullets, or quotes.
-- Length: 2–4 sentences, under 100 words total. Never write long paragraphs or lists.
-- Say clearly: what product or brand is shown, what feeling or benefit it should communicate, and one simple setting or moment if helpful.
-- Do NOT list camera lenses, f-stops, lighting gear, or technical cinematography jargon.
-- Do NOT add filler adjectives. One strong mood from the strategy is enough.
-- No text, logos, or watermarks in the image (do not describe adding words to the picture).
-- Avoid generic stock scenes (random wood tables, fake handshakes) unless the user clearly wants them.
+- Keep it laconic: usually 2–4 short sentences (roughly under ~120 words). No long lists or paragraphs.
+- CRITICAL — COMPLETENESS: Always finish with a full, grammatical sentence ending in . ! or ? Never stop mid-sentence, mid-phrase, or mid-word. If you would run long, write fewer sentences that are complete rather than starting more detail you cannot finish.
+- Say clearly: what is shown, what feeling or benefit it should communicate, optional one simple setting.
+- No camera/lens/f-stop jargon. No filler adjectives. No text, logos, or watermarks in the image.
+- Avoid generic stock scenes unless the user asks.
 
 {brand_ctx} {industry_ctx} {color_ctx}
 
@@ -262,7 +261,7 @@ VISUAL TONE (strategy): {strat['mood']}"""
         model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(
             [{"role": "user", "parts": [f"{system}\n\nUser idea: {user_input}"]}],
-            generation_config=genai.GenerationConfig(temperature=0.82, max_output_tokens=512),
+            generation_config=genai.GenerationConfig(temperature=0.82, max_output_tokens=2048),
         )
         enhanced = response.text.strip().strip('"').strip("'")
 
