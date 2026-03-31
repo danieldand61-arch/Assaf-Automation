@@ -209,60 +209,60 @@ async def edit_text(request: EditTextRequest, req: Request = None):
 
 @router.post("/magic-prompt")
 async def magic_prompt(request: MagicPromptRequest, req: Request = None):
-    """Enhance a simple user prompt into a rich, visual-ready prompt using goal + strategy."""
+    """Short, ad-focused image prompt from goal + strategy (no long technical lists)."""
     user = await get_optional_user(req) if req else None
     await _require_credits(user, 5.0)
 
+    # Goal = what we sell (internal hint for the model)
     GOAL_MAP = {
-        "product": "Hero product showcase — the product is the star. Studio-grade lighting, precise detail, premium commercial feel.",
-        "lifestyle": "Lifestyle story — show the product/brand in a real-world aspirational context. People using, enjoying, living with it.",
-        "abstract": "Conceptual / mood-driven — evoke a feeling or aesthetic. Abstract textures, colors, atmosphere over literal representation.",
-        "announcement": "Big announcement — bold, attention-grabbing visual that signals something new, exciting, or important.",
+        "product": "Focus on the product itself — make it desirable and clear what is being sold.",
+        "lifestyle": "Show the product or brand in a real, relatable moment that feels aspirational.",
+        "abstract": "Convey the brand mood and feeling with color and atmosphere, still tied to the brand.",
+        "announcement": "Feel exciting and newsworthy — something important is happening for this brand.",
     }
+    # Strategy = one short mood line (maps UI cards → visual tone)
     STRATEGY_MAP = {
-        "professional": {"env": "clean studio or corporate-quality setting", "light": "sharp, controlled lighting with soft shadows", "camera": "medium telephoto lens, shallow depth of field, polished commercial look", "vibe": "High-End Studio"},
-        "casual": {"env": "warm, natural everyday environment, café, park, home", "light": "golden hour or soft window light, warm tones", "camera": "35mm lens, lifestyle editorial, slightly candid feel", "vibe": "Lifestyle Warmth"},
-        "bold": {"env": "high contrast, dramatic environment, vivid colors, dynamic angles", "light": "hard directional light, deep shadows, neon or saturated hues", "camera": "wide-angle, dramatic perspective, cinematic punch", "vibe": "Bold Impact"},
-        "minimal": {"env": "clean negative space, monochrome or muted palette, simple forms", "light": "even, diffused, soft studio or overcast natural light", "camera": "centered composition, geometric precision, Scandinavian aesthetic", "vibe": "Clean Minimalism"},
+        "professional": {"mood": "polished, trustworthy, premium business look", "vibe": "Professional"},
+        "casual": {"mood": "warm, natural, approachable everyday life", "vibe": "Casual"},
+        "bold": {"mood": "high energy, strong contrast, confident and eye-catching", "vibe": "Bold"},
+        "minimal": {"mood": "clean, lots of space, simple and elegant", "vibe": "Minimal"},
     }
-    ANTI_GENERIC = [
-        "Avoid cliché setups: no generic wood table, no plain white desk, no stock-photo handshake.",
-        "Every element in the frame must feel intentional and premium.",
-        "The image should look like a real campaign shoot, not a template.",
-    ]
 
     goal_desc = GOAL_MAP.get(request.goal, GOAL_MAP["product"])
     strat = STRATEGY_MAP.get(request.strategy, STRATEGY_MAP["professional"])
     lang_names = {"en": "English", "he": "Hebrew", "es": "Spanish", "fr": "French"}
     lang = lang_names.get(request.language, "English")
-    brand_ctx = f'Brand: "{request.brand_name}".' if request.brand_name else ""
-    industry_ctx = f"Industry: {request.industry}." if request.industry else ""
-    color_ctx = f"Subtly weave brand colors ({', '.join(request.brand_colors[:3])}) into props, backgrounds, or accents." if request.brand_colors else ""
+    brand_ctx = f'Brand to advertise: "{request.brand_name}".' if request.brand_name else ""
+    industry_ctx = f"Context: {request.industry}." if request.industry else ""
+    color_ctx = (
+        f"Use brand colors subtly in the scene: {', '.join(request.brand_colors[:3])}."
+        if request.brand_colors else ""
+    )
 
-    system = f"""You are an elite advertising prompt engineer. Your job is to transform a simple idea into a rich, specific, visual-ready prompt for an AI image generator.
+    system = f"""You write SHORT prompts for AI advertising images. The client needs to sell their product or brand — clarity beats detail.
 
-RULES:
-- Output ONLY the enhanced prompt text. No labels, no explanations.
-- Write in {lang}.
-- The prompt must describe a SINGLE cohesive image (no collages).
-- Include specific details: subject, environment, lighting, camera style, mood.
-- NEVER mention text, typography, logos, or watermarks — the image must be purely visual.
-- {chr(10).join(ANTI_GENERIC)}
+OUTPUT RULES:
+- Write ONLY the final prompt in {lang}. No titles, bullets, or quotes.
+- Length: 2–4 sentences, under 100 words total. Never write long paragraphs or lists.
+- Say clearly: what product or brand is shown, what feeling or benefit it should communicate, and one simple setting or moment if helpful.
+- Do NOT list camera lenses, f-stops, lighting gear, or technical cinematography jargon.
+- Do NOT add filler adjectives. One strong mood from the strategy is enough.
+- No text, logos, or watermarks in the image (do not describe adding words to the picture).
+- Avoid generic stock scenes (random wood tables, fake handshakes) unless the user clearly wants them.
+
 {brand_ctx} {industry_ctx} {color_ctx}
 
-GOAL: {goal_desc}
-ENVIRONMENT: {strat['env']}
-LIGHTING: {strat['light']}
-CAMERA: {strat['camera']}"""
+AD ANGLE (goal): {goal_desc}
+VISUAL TONE (strategy): {strat['mood']}"""
 
-    user_input = request.user_prompt.strip() or "a promotional image for the brand"
+    user_input = request.user_prompt.strip() or "promotional image for the brand"
 
     try:
         import google.generativeai as genai
         model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(
             [{"role": "user", "parts": [f"{system}\n\nUser idea: {user_input}"]}],
-            generation_config=genai.GenerationConfig(temperature=0.9, max_output_tokens=8192),
+            generation_config=genai.GenerationConfig(temperature=0.82, max_output_tokens=512),
         )
         enhanced = response.text.strip().strip('"').strip("'")
 
