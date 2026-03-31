@@ -12,12 +12,25 @@ import { Scheduled } from './pages/Scheduled'
 import { Privacy } from './pages/Privacy'
 import { Terms } from './pages/Terms'
 import { MainWorkspace } from './components/MainWorkspace'
-import { LandingPage } from './components/LandingPage'
 import { Admin } from './pages/Admin'
 import { AdminLogin } from './pages/AdminLogin'
 import VideoGeneration from './pages/VideoGeneration'
 import App from './App'
 import { Loader2 } from 'lucide-react'
+
+/** App root: no in-app marketing page — joyo.marketing is the landing; here we go to signup or workspace. */
+function RootRedirect() {
+  const { user, loading } = useAuth()
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
+        <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
+      </div>
+    )
+  }
+  if (user) return <Navigate to="/app" replace />
+  return <Navigate to="/signup" replace />
+}
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -86,8 +99,7 @@ function AppRoutes() {
       </div>
     ) : (
     <Routes>
-            {/* Public Landing Page */}
-            <Route path="/" element={<LandingPage />} />
+            <Route path="/" element={<RootRedirect />} />
             
             {/* Protected Routes */}
             <Route 
