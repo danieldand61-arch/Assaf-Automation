@@ -262,7 +262,7 @@ CAMERA: {strat['camera']}"""
         model = genai.GenerativeModel('gemini-2.5-flash')
         response = model.generate_content(
             [{"role": "user", "parts": [f"{system}\n\nUser idea: {user_input}"]}],
-            generation_config=genai.GenerationConfig(temperature=0.9, max_output_tokens=300),
+            generation_config=genai.GenerationConfig(temperature=0.9, max_output_tokens=1024),
         )
         enhanced = response.text.strip().strip('"').strip("'")
 
