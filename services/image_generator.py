@@ -285,6 +285,9 @@ def _build_image_prompt(website_data: Dict, variation: PostVariation, custom_pro
 
 "{custom_prompt.strip()}"
 
+SETTING — avoid clichés:
+- Do NOT default to a product on a table, desk, school desk, office desk, or generic wood surface unless the description above clearly asks for that exact setting.
+
 STRICT RULES:
 - ABSOLUTELY NO text, words, letters, numbers, watermarks, logos, or typography in the image
 - NO UI elements, buttons, overlays, or borders
@@ -378,8 +381,12 @@ VISUAL DIRECTION:
 - {size_comp}
 {f'- {color_hint}' if color_hint else ''}
 
+SETTING — avoid the “product on a table” cliché:
+- Do NOT place the product on a table, desk, counter, or generic wood surface unless the post text above explicitly describes that scene (e.g. “on your kitchen counter”, “office desk”).
+- Prefer when it fits: product in hand, in use outdoors or in a real environment, hero shot on seamless or abstract backdrop, shelf/display only if retail-relevant, macro detail, environmental lifestyle — not a stock flat-lay on furniture.
+
 PHOTOGRAPHY STYLE — vary between these approaches to keep each image unique:
-- Editorial lifestyle / candid moment / cinematic wide shot / dramatic close-up / overhead flat lay / environmental portrait / product hero shot
+- Editorial lifestyle / candid moment / cinematic wide shot / dramatic close-up / in-hand or in-use shot / environmental portrait / product hero (no tabletop default) / floating or minimal studio backdrop
 - Mix lighting: golden hour, studio, moody, high-key, natural window light, neon, dusk
 - Mix depth of field: shallow bokeh, deep focus, tilt-shift
 

@@ -248,6 +248,7 @@ OUTPUT RULES:
 - Say clearly: what is shown, what feeling or benefit it should communicate, optional one simple setting.
 - No camera/lens/f-stop jargon. No filler adjectives. No text, logos, or watermarks in the image.
 - Avoid generic stock scenes unless the user asks.
+- Do NOT put the product on a table, desk, or “wood surface” unless the user’s idea clearly needs that exact setting. Prefer in-hand, in-environment, or clean hero framing without default furniture.
 
 {brand_ctx} {industry_ctx} {color_ctx}
 
