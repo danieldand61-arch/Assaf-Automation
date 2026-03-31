@@ -295,10 +295,14 @@ export function MainWorkspace() {
           <VideoGeneration onSendToPostGenerator={handleSendVideoToPostGenerator} onNeedCredits={() => setShowCreditsPopup(true)} />
         </div>
 
-        {activeTab !== 'social' && activeTab !== 'videogen' && (
+        {/* Creative Studio stays mounted so generation state persists on tab switch */}
+        <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto', display: activeTab === 'creative' ? undefined : 'none' }}>
+          <GenerateCreative />
+        </div>
+
+        {activeTab !== 'social' && activeTab !== 'videogen' && activeTab !== 'creative' && (
           <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto' }}>
             {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as TabType)} />}
-            {activeTab === 'creative' && <GenerateCreative />}
             {activeTab === 'ads' && <GoogleAdsGeneration />}
             {activeTab === 'analyst' && <AdAnalytics />}
             {activeTab === 'advisor' && <AIAdvisor />}
