@@ -25,6 +25,13 @@ async def _require_credits(user: Optional[dict], min_credits: float):
 
 router = APIRouter(prefix="/api/content", tags=["content"])
 
+# Hints for Video Studio magic / improve (video output)
+VIDEO_STYLE_HINT = {
+    "ugc": "Style: authentic UGC — person talking to camera, natural lighting, relatable.",
+    "product": "Style: product-focused — hero shots, clean backgrounds, desirable product presentation.",
+    "cinematic": "Style: cinematic — mood, atmosphere, emotional pacing, strong visuals.",
+}
+
 
 async def get_optional_user(request: Request) -> Optional[dict]:
     """Try to extract user from token; return None if not authenticated."""
@@ -69,6 +76,46 @@ class MagicPromptRequest(BaseModel):
     industry: str = ""
     brand_colors: List[str] = []
     language: str = "en"
+    output_kind: str = "image"  # image | video
+    video_style: str = ""  # product | ugc | cinematic — optional hint for video
+
+
+class ImprovePromptRequest(BaseModel):
+    """Enrich the user's draft with Brand Kit; preserve intent, add structure."""
+    user_prompt: str
+    language: str = "en"
+    output_kind: str = "social_image"  # social_image | video
+    brand_name: str = ""
+    industry: str = ""
+    brand_voice: str = ""
+    target_audience: str = ""
+    products: List[str] = []
+    key_features: List[str] = []
+    description: str = ""
+    brand_colors: List[str] = []
+    video_style: str = ""
+
+
+def _improve_brand_block(req: ImprovePromptRequest) -> str:
+    lines = []
+    if req.brand_name:
+        lines.append(f"Brand: {req.brand_name}")
+    if req.industry:
+        lines.append(f"Industry: {req.industry}")
+    if req.brand_voice:
+        lines.append(f"Brand voice / tone: {req.brand_voice}")
+    if req.target_audience:
+        lines.append(f"Target audience: {req.target_audience}")
+    if req.description:
+        lines.append(f"Brand summary: {req.description[:500]}")
+    if req.products:
+        lines.append("Products/services: " + ", ".join(req.products[:12]))
+    if req.key_features:
+        lines.append("Key features: " + ", ".join(req.key_features[:8]))
+    if req.brand_colors:
+        lines.append("Brand colors (use subtly if relevant): " + ", ".join(req.brand_colors[:5]))
+    return "\n".join(lines)
+
 
 class GenerateGoogleAdsRequest(BaseModel):
     website_data: dict
@@ -239,7 +286,23 @@ async def magic_prompt(request: MagicPromptRequest, req: Request = None):
         if request.brand_colors else ""
     )
 
-    system = f"""You write SHORT, clear prompts for AI advertising images. The goal is to sell the product or brand — simple beats fancy.
+    vstyle = VIDEO_STYLE_HINT.get((request.video_style or "").lower(), "")
+
+    if (request.output_kind or "image").lower() == "video":
+        system = f"""You write SHORT, clear prompts for AI video generation (image-to-video or text-to-video). The clip should sell or represent the brand.
+
+OUTPUT RULES:
+- Write ONLY the final prompt in {lang}. No titles, bullets, or quotes.
+- 2–5 short sentences (~under 180 words). Describe sequence: opening, main action or subject, mood, ending beat.
+- CRITICAL — COMPLETENESS: End on a full sentence. No mid-sentence cuts.
+- No on-screen text, logos, or watermarks unless the user explicitly asked.
+- Avoid generic filler; be specific about what moves on screen.
+{f"- {vstyle}" + chr(10) if vstyle else ""}{brand_ctx} {industry_ctx} {color_ctx}
+
+AD ANGLE (goal): {goal_desc}
+VISUAL TONE (strategy): {strat['mood']}"""
+    else:
+        system = f"""You write SHORT, clear prompts for AI advertising images. The goal is to sell the product or brand — simple beats fancy.
 
 OUTPUT RULES:
 - Write ONLY the final prompt in {lang}. No titles, bullets, or quotes.
@@ -255,7 +318,9 @@ OUTPUT RULES:
 AD ANGLE (goal): {goal_desc}
 VISUAL TONE (strategy): {strat['mood']}"""
 
-    user_input = request.user_prompt.strip() or "promotional image for the brand"
+    user_input = request.user_prompt.strip() or (
+        "promotional video for the brand" if (request.output_kind or "image").lower() == "video" else "promotional image for the brand"
+    )
 
     try:
         import google.generativeai as genai
@@ -278,6 +343,86 @@ VISUAL TONE (strategy): {strat['mood']}"""
         return {"enhanced_prompt": enhanced, "vibe": strat["vibe"], "goal": request.goal, "strategy": request.strategy}
     except Exception as e:
         logger.error(f"Magic prompt error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/improve-prompt")
+async def improve_prompt_endpoint(request: ImprovePromptRequest, req: Request = None):
+    """Improve the user's draft using Brand Kit — keeps intent, adds structure and detail."""
+    user = await get_optional_user(req) if req else None
+    await _require_credits(user, 5.0)
+    raw = (request.user_prompt or "").strip()
+    if len(raw) < 2:
+        raise HTTPException(status_code=400, detail="user_prompt is required")
+
+    lang_names = {"en": "English", "he": "Hebrew", "es": "Spanish", "fr": "French", "pt": "Portuguese"}
+    lang = lang_names.get(request.language, "English")
+    brand_block = _improve_brand_block(request)
+
+    kind = (request.output_kind or "social_image").lower()
+    if kind == "video":
+        vs = VIDEO_STYLE_HINT.get((request.video_style or "").lower(), "")
+        vs_line = f"\nPreferred pacing / look: {vs}" if vs else ""
+        system = f"""You improve a user's draft prompt for AI video generation.
+
+TASK:
+- Start from the user's words — keep their core idea and intent. Do NOT replace it with unrelated content.
+- Enrich with the BRAND CONTEXT below (tone, audience, products) where it fits naturally.
+- Add structure: opening hook, main visuals/action, mood, closing beat.
+- Write in {lang} only.
+
+OUTPUT RULES:
+- Return ONLY the improved prompt. No titles, quotes, or explanations.
+- 2–5 sentences, complete and coherent.
+- No on-screen text, logos, or watermarks unless the user asked.
+
+BRAND CONTEXT (align tone and details; do not invent facts not implied here):
+{brand_block or "(No brand kit — rely on the user's draft only.)"}
+{vs_line}"""
+    else:
+        system = f"""You improve a user's draft prompt for AI image / social content generation.
+
+TASK:
+- Start from the user's words — keep their core idea. Expand and sharpen; do NOT discard their angle for a generic ad.
+- Enrich with BRAND CONTEXT (tone, audience, products, colors) where relevant.
+- Add clarity: what to show, mood, setting, benefit — without long bullet lists.
+
+OUTPUT RULES:
+- Return ONLY the improved prompt in {lang}. No titles, quotes, or meta-commentary.
+- 2–5 short sentences, complete. Under ~180 words unless the draft needs slightly more.
+- No text, logos, or watermarks in the image unless the user asked.
+
+BRAND CONTEXT:
+{brand_block or "(No brand kit — rely on the user's draft only.)"}"""
+
+    try:
+        import google.generativeai as genai
+        model = genai.GenerativeModel('gemini-2.5-flash')
+        response = model.generate_content(
+            [{"role": "user", "parts": [f"{system}\n\nUSER DRAFT TO IMPROVE:\n{raw}"]}],
+            generation_config=genai.GenerationConfig(temperature=0.75, max_output_tokens=2048),
+        )
+        enhanced = response.text.strip().strip('"').strip("'")
+
+        if user:
+            try:
+                from services.credits_service import record_usage
+                in_t = getattr(response.usage_metadata, 'prompt_token_count', 0) if hasattr(response, 'usage_metadata') else 0
+                out_t = getattr(response.usage_metadata, 'candidates_token_count', 0) if hasattr(response, 'usage_metadata') else 0
+                await record_usage(
+                    user_id=user["user_id"],
+                    service_type="social_posts",
+                    input_tokens=in_t,
+                    output_tokens=out_t,
+                    model_name="gemini-2.5-flash",
+                    metadata={"action": "improve_prompt"},
+                )
+            except Exception:
+                pass
+
+        return {"enhanced_prompt": enhanced, "output_kind": request.output_kind}
+    except Exception as e:
+        logger.error(f"Improve prompt error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

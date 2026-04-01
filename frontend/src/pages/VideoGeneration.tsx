@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { useApp } from '../contexts/AppContext'
 import { useAccount } from '../contexts/AccountContext'
 import {
-  Download, Send, Play, Loader2, Film, ImageIcon, Wand2,
+  Download, Send, Play, Loader2, Film, ImageIcon, Wand2, PenLine,
   Volume2, VolumeX, Clock, Maximize, FolderDown, CheckCircle2,
   ChevronLeft, ChevronRight, Sparkles, User, Upload,
   Video, Clapperboard, MonitorPlay, Building2,
@@ -99,7 +99,7 @@ const AR_PREVIEWS: { value: string; w: number; h: number }[] = [
 
 export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }: VideoGenerationProps) {
   const { session } = useAuth()
-  const { t } = useApp()
+  const { t, language } = useApp()
   const { activeAccount } = useAccount()
 
   const bk = activeAccount?.metadata?.brand_kit || {} as Record<string, any>
@@ -129,6 +129,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   const [sound, setSound] = useState(false)
   const [quality, setQuality] = useState<Quality>('pro')
   const [magicPromptLoading, setMagicPromptLoading] = useState(false)
+  const [improvePromptLoading, setImprovePromptLoading] = useState(false)
 
   const [isGenerating, setIsGenerating] = useState(false)
   const [currentTask, setCurrentTask] = useState<VideoTask | null>(null)
@@ -194,28 +195,62 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   // ─── Magic Prompt ──────────────────────────────────────────
 
   const handleMagicPrompt = async () => {
-    if (!prompt.trim() || magicPromptLoading) return
+    if (magicPromptLoading || improvePromptLoading) return
     setMagicPromptLoading(true)
     try {
-      const styleCtx = videoStyle === 'ugc'
-        ? 'UGC style — person talking to camera, authentic feel'
-        : videoStyle === 'product'
-        ? 'Product showcase — cinematic product-focused visuals'
-        : 'Cinematic mood — atmospheric, emotional, text overlays'
-      const res = await fetch(`${API_URL}/api/content/edit-text`, {
+      const useBk = useBrand && hasBrandInfo
+      const res = await fetch(`${API_URL}/api/content/magic-prompt`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session?.access_token}` },
+        headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
         body: JSON.stringify({
-          original_text: prompt,
-          instruction: `Enhance this video prompt for AI video generation. Style: ${styleCtx}. Make it vivid, cinematic, with clear visual directions. Keep it under 500 chars. Return ONLY the enhanced prompt, nothing else.`,
+          user_prompt: prompt.trim() || 'promotional video for the brand',
+          goal: 'product',
+          strategy: 'professional',
+          brand_name: useBk ? brandName : '',
+          industry: useBk ? (bk.industry || brandIndustry) : '',
+          brand_colors: useBk ? (bk.brand_colors || []) : [],
+          language,
+          output_kind: 'video',
+          video_style: videoStyle,
         }),
       })
       if (res.ok) {
         const data = await res.json()
-        if (data.edited_text) setPrompt(data.edited_text)
+        if (data.enhanced_prompt) setPrompt(data.enhanced_prompt)
       }
     } catch { /* ignore */ }
     setMagicPromptLoading(false)
+  }
+
+  const handleImprovePrompt = async () => {
+    if (!prompt.trim() || improvePromptLoading || magicPromptLoading) return
+    setImprovePromptLoading(true)
+    try {
+      const useBk = useBrand && hasBrandInfo
+      const res = await fetch(`${API_URL}/api/content/improve-prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        body: JSON.stringify({
+          user_prompt: prompt,
+          language,
+          output_kind: 'video',
+          video_style: videoStyle,
+          brand_name: useBk ? brandName : '',
+          industry: useBk ? (bk.industry || brandIndustry) : '',
+          brand_voice: useBk ? (bk.brand_voice || '') : '',
+          target_audience: useBk ? brandAudience : '',
+          products: useBk && Array.isArray(bk.products) ? bk.products : [],
+          key_features: useBk && Array.isArray(bk.key_features) ? bk.key_features : [],
+          description: useBk ? (bk.description || brandDesc || '') : '',
+          brand_colors: useBk ? (bk.brand_colors || []) : [],
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.enhanced_prompt) setPrompt(data.enhanced_prompt)
+      }
+    } catch { /* ignore */ }
+    setImprovePromptLoading(false)
   }
 
   // ─── Generation logic (unchanged) ─────────────────────────
@@ -704,15 +739,27 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
               placeholder={mode === 'text' ? t('promptPlaceholderText') : t('promptPlaceholderImage')}
               className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none resize-none transition"
             />
-            <div className="flex items-center justify-between">
-              <button
-                onClick={handleMagicPrompt}
-                disabled={!prompt.trim() || magicPromptLoading}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/30 transition disabled:opacity-40"
-              >
-                {magicPromptLoading ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                {t('magicPrompt')}
-              </button>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleMagicPrompt}
+                  disabled={magicPromptLoading || improvePromptLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-gradient-to-r from-violet-500 to-indigo-500 hover:from-violet-600 hover:to-indigo-600 shadow-sm transition disabled:opacity-40"
+                >
+                  {magicPromptLoading ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                  {t('magicPrompt')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleImprovePrompt}
+                  disabled={!prompt.trim() || magicPromptLoading || improvePromptLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-violet-600 dark:text-violet-400 border border-violet-300 dark:border-violet-700 bg-white dark:bg-gray-800 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition disabled:opacity-40"
+                >
+                  {improvePromptLoading ? <Loader2 size={12} className="animate-spin" /> : <PenLine size={12} />}
+                  {t('improveMyPrompt')}
+                </button>
+              </div>
               <span className="text-[11px] text-gray-400">{prompt.length}/2000</span>
             </div>
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
-import { Sparkles, Globe, Upload, X, Check, AlertCircle, Zap, Palette, ImageIcon, Wand2, Loader2, ShoppingBag, Camera, Shapes, Megaphone } from 'lucide-react'
+import { Sparkles, Globe, Upload, X, Check, AlertCircle, Zap, Palette, ImageIcon, Wand2, Loader2, ShoppingBag, Camera, Shapes, Megaphone, PenLine } from 'lucide-react'
 import { useAccount } from '../contexts/AccountContext'
 import { useAuth } from '../contexts/AuthContext'
 import { useApp } from '../contexts/AppContext'
@@ -103,7 +103,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
   const { activeAccount } = useAccount()
   const { session } = useAuth()
-  const { t } = useApp()
+  const { t, language } = useApp()
   const hasLogo = !!(activeAccount?.logo_url)
 
   const PLATFORMS = useMemo(() => {
@@ -175,6 +175,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
   const [showCustomUrl, setShowCustomUrl] = useState(false)
   const [showGoalPicker, setShowGoalPicker] = useState(false)
   const [magicLoading, setMagicLoading] = useState(false)
+  const [improveLoading, setImproveLoading] = useState(false)
   const [magicVibe, setMagicVibe] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const mediaRef = useRef<HTMLInputElement>(null)
@@ -288,6 +289,7 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
           industry: bk.industry || '',
           brand_colors: bk.brand_colors || activeAccount?.brand_colors || [],
           language: form.language,
+          output_kind: 'image',
         }),
       })
       if (!res.ok) throw new Error('Failed')
@@ -298,6 +300,37 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
       }
     } catch { /* silent */ }
     finally { setMagicLoading(false) }
+  }
+
+  const handleImprovePrompt = async () => {
+    const draft = form.keywords.trim()
+    if (!draft || improveLoading) return
+    setImproveLoading(true)
+    setMagicVibe(null)
+    const bk = activeAccount?.metadata?.brand_kit || {}
+    try {
+      const res = await fetch(`${getApiUrl()}/api/content/improve-prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}) },
+        body: JSON.stringify({
+          user_prompt: draft,
+          language: form.language || language,
+          output_kind: 'social_image',
+          brand_name: bk.business_name || activeAccount?.name || '',
+          industry: bk.industry || '',
+          brand_voice: bk.brand_voice || '',
+          target_audience: form.target_audience || bk.target_audience || '',
+          products: Array.isArray(bk.products) ? bk.products : [],
+          key_features: Array.isArray(bk.key_features) ? bk.key_features : [],
+          description: (bk.description as string) || '',
+          brand_colors: bk.brand_colors || activeAccount?.brand_colors || [],
+        }),
+      })
+      if (!res.ok) throw new Error('Failed')
+      const data = await res.json()
+      if (data.enhanced_prompt) set('keywords', data.enhanced_prompt)
+    } catch { /* silent */ }
+    finally { setImproveLoading(false) }
   }
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -397,24 +430,31 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                     {form.image_only ? t('imagePromptLabel') : mediaPreview ? t('whatIsPostAbout') : t('whatsOnYourMind')}
                   </label>
                   {!form.image_only && !mediaPreview && (
-                    <div className="relative">
-                      <button type="button" onClick={() => setShowGoalPicker(!showGoalPicker)} disabled={magicLoading}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-500 text-white text-[11px] font-bold hover:from-violet-600 hover:to-indigo-600 transition-all shadow-sm disabled:opacity-60">
-                        {magicLoading ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
-                        {t('magicPrompt')}
+                    <div className="flex items-center gap-2">
+                      <div className="relative">
+                        <button type="button" onClick={() => setShowGoalPicker(!showGoalPicker)} disabled={magicLoading || improveLoading}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-indigo-500 text-white text-[11px] font-bold hover:from-violet-600 hover:to-indigo-600 transition-all shadow-sm disabled:opacity-60">
+                          {magicLoading ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />}
+                          {t('magicPrompt')}
+                        </button>
+                        {showGoalPicker && (
+                          <div className="absolute end-0 top-full mt-2 z-20 w-56 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl p-2 space-y-1">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1">{t('whatIsYourGoal')}</p>
+                            {MAGIC_GOALS.map(g => (
+                              <button key={g.id} type="button" onClick={() => handleMagicPrompt(g.id)}
+                                className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-start text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-300 transition">
+                                <g.icon size={16} className="text-violet-500 flex-shrink-0" />
+                                {t(g.key)}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <button type="button" onClick={handleImprovePrompt} disabled={!form.keywords.trim() || magicLoading || improveLoading}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-violet-300 dark:border-violet-700 bg-white dark:bg-gray-800 text-violet-700 dark:text-violet-300 text-[11px] font-bold hover:bg-violet-50 dark:hover:bg-violet-900/20 transition disabled:opacity-50">
+                        {improveLoading ? <Loader2 size={12} className="animate-spin" /> : <PenLine size={12} />}
+                        {t('improveMyPrompt')}
                       </button>
-                      {showGoalPicker && (
-                        <div className="absolute end-0 top-full mt-2 z-20 w-56 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-xl p-2 space-y-1">
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 py-1">{t('whatIsYourGoal')}</p>
-                          {MAGIC_GOALS.map(g => (
-                            <button key={g.id} type="button" onClick={() => handleMagicPrompt(g.id)}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-start text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-violet-50 dark:hover:bg-violet-900/20 hover:text-violet-700 dark:hover:text-violet-300 transition">
-                              <g.icon size={16} className="text-violet-500 flex-shrink-0" />
-                              {t(g.key)}
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -426,11 +466,11 @@ export function InputSection({ onGenerate, savedForm }: InputSectionProps) {
                       ? 'Describe the topic or idea — AI will write the caption'
                       : "Describe the post you want to create... e.g. 'A professional announcement for our new summer collection launch with a focus on sustainability.'"}
                     className="flex-1 min-h-[120px] w-full p-5 rounded-2xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/50 text-gray-900 dark:text-white focus:ring-2 focus:ring-[#4A7CFF]/20 focus:border-[#4A7CFF] outline-none transition text-base leading-relaxed placeholder:text-gray-400" style={{ resize: 'none', overflow: 'hidden' }} />
-                  {magicLoading && (
+                  {(magicLoading || improveLoading) && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-50/80 dark:bg-gray-700/80 rounded-2xl backdrop-blur-sm">
                       <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
                         <Loader2 size={18} className="animate-spin" />
-                        <span className="text-sm font-semibold">{t('enhancingPrompt')}</span>
+                        <span className="text-sm font-semibold">{improveLoading ? t('improvingYourPrompt') : t('enhancingPrompt')}</span>
                       </div>
                     </div>
                   )}
