@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 STALE_MINUTES = 30
 MAX_RETRIES = 3
 RETRY_DELAY = 2
+BATCH_SIZE = 500
 
-# Known columns in ad_campaigns — extra fields from API are stored in 'extra_data' jsonb
 _CAMPAIGN_COLS = {
     "platform_campaign_id", "campaign_name", "status", "objective",
     "daily_budget", "lifetime_budget", "impressions", "clicks", "ctr",
@@ -24,8 +24,15 @@ _CAMPAIGN_COLS = {
 }
 
 def _filter_campaign(row: dict) -> dict:
-    """Keep only known DB columns, drop the rest."""
     return {k: v for k, v in row.items() if k in _CAMPAIGN_COLS}
+
+
+def _batch_insert(sb, table: str, rows: list):
+    """Insert rows in batches instead of one-by-one."""
+    if not rows:
+        return
+    for i in range(0, len(rows), BATCH_SIZE):
+        sb.table(table).insert(rows[i:i + BATCH_SIZE]).execute()
 
 
 async def _with_retry(coro_fn, *args, retries=MAX_RETRIES):
@@ -94,22 +101,19 @@ async def sync_google_ads(account_id: str, user_id: str, date_from: date, date_t
         device_stats = ga.get_device_stats(date_from, date_to)
         geo_stats = ga.get_geo_stats(date_from, date_to)
 
+        common = {"account_id": account_id, "platform": "google_ads", "date_from": str(date_from), "date_to": str(date_to)}
+
         sb.table("ad_campaigns").delete().eq("account_id", account_id).eq("platform", "google_ads").execute()
         sb.table("ad_groups").delete().eq("account_id", account_id).eq("platform", "google_ads").execute()
         sb.table("ad_keywords").delete().eq("account_id", account_id).execute()
         sb.table("ad_device_stats").delete().eq("account_id", account_id).eq("platform", "google_ads").execute()
         sb.table("ad_geo_stats").delete().eq("account_id", account_id).eq("platform", "google_ads").execute()
 
-        for c in campaigns:
-            sb.table("ad_campaigns").insert(_filter_campaign({**c, "account_id": account_id, "platform": "google_ads", "date_from": str(date_from), "date_to": str(date_to)})).execute()
-        for ag in ad_groups:
-            sb.table("ad_groups").insert({**ag, "account_id": account_id, "platform": "google_ads", "date_from": str(date_from), "date_to": str(date_to)}).execute()
-        for kw in keywords:
-            sb.table("ad_keywords").insert({**kw, "account_id": account_id, "date_from": str(date_from), "date_to": str(date_to)}).execute()
-        for ds in device_stats:
-            sb.table("ad_device_stats").insert({**ds, "account_id": account_id, "platform": "google_ads", "date_from": str(date_from), "date_to": str(date_to)}).execute()
-        for gs in geo_stats:
-            sb.table("ad_geo_stats").insert({**gs, "account_id": account_id, "platform": "google_ads", "date_from": str(date_from), "date_to": str(date_to)}).execute()
+        _batch_insert(sb, "ad_campaigns", [_filter_campaign({**c, **common}) for c in campaigns])
+        _batch_insert(sb, "ad_groups", [{**ag, **common} for ag in ad_groups])
+        _batch_insert(sb, "ad_keywords", [{**kw, "account_id": account_id, "date_from": str(date_from), "date_to": str(date_to)} for kw in keywords])
+        _batch_insert(sb, "ad_device_stats", [{**ds, **common} for ds in device_stats])
+        _batch_insert(sb, "ad_geo_stats", [{**gs, **common} for gs in geo_stats])
 
         _safe_log(sb, {"account_id": account_id, "platform": "google_ads", "status": "completed", "campaigns_synced": len(campaigns), "completed_at": datetime.now(timezone.utc).isoformat(), "error_message": None})
 
@@ -162,16 +166,15 @@ async def sync_meta_ads(account_id: str, user_id: str, date_from: date, date_to:
         placements = await _with_retry(meta.get_placement_stats, date_from, date_to)
         logger.info(f"📡 Got {len(placements)} placement records")
 
+        common_meta = {"account_id": account_id, "platform": "meta", "date_from": str(date_from), "date_to": str(date_to)}
+
         sb.table("ad_campaigns").delete().eq("account_id", account_id).eq("platform", "meta").execute()
         sb.table("ad_groups").delete().eq("account_id", account_id).eq("platform", "meta").execute()
         sb.table("ad_placement_stats").delete().eq("account_id", account_id).execute()
 
-        for c in campaigns:
-            sb.table("ad_campaigns").insert(_filter_campaign({**c, "account_id": account_id, "platform": "meta", "date_from": str(date_from), "date_to": str(date_to)})).execute()
-        for a in ad_sets:
-            sb.table("ad_groups").insert({**a, "account_id": account_id, "platform": "meta", "date_from": str(date_from), "date_to": str(date_to)}).execute()
-        for p in placements:
-            sb.table("ad_placement_stats").insert({**p, "account_id": account_id, "date_from": str(date_from), "date_to": str(date_to)}).execute()
+        _batch_insert(sb, "ad_campaigns", [_filter_campaign({**c, **common_meta}) for c in campaigns])
+        _batch_insert(sb, "ad_groups", [{**a, **common_meta} for a in ad_sets])
+        _batch_insert(sb, "ad_placement_stats", [{**p, "account_id": account_id, "date_from": str(date_from), "date_to": str(date_to)} for p in placements])
 
         _safe_log(sb, {"account_id": account_id, "platform": "meta", "status": "completed", "campaigns_synced": len(campaigns), "completed_at": datetime.now(timezone.utc).isoformat(), "error_message": None})
 
