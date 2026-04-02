@@ -30,8 +30,8 @@ class GoogleAdsAnalytics:
             "refresh_token": refresh_token,
             "use_proto_plus": True,
         }
-        self.client = GoogleAdsClient.load_from_dict(creds)
-        self.customer_id = customer_id
+        self.client = GoogleAdsClient.load_from_dict(creds, version="v20")
+        self.customer_id = customer_id.replace("-", "")
         self._svc = self.client.get_service("GoogleAdsService")
 
     def _query(self, query: str) -> list:

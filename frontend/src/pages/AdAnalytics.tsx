@@ -60,15 +60,6 @@ export default function AdAnalytics() {
     finally { setSwitchingAccount(false) }
   }
 
-  const doSync = async () => {
-    setSyncing(true)
-    try {
-      await fetch(`${api}/api/analytics/sync?days=90&force=true`, { method: 'POST', headers })
-      await loadData()
-    } catch (e) { console.error('Sync error:', e) }
-    finally { setSyncing(false) }
-  }
-
   const loadData = async () => {
     try {
       const [ov, ca] = await Promise.all([
@@ -81,8 +72,21 @@ export default function AdAnalytics() {
     finally { setLoading(false) }
   }
 
+  const doSync = async () => {
+    setSyncing(true)
+    try {
+      await fetch(`${api}/api/analytics/sync?days=90&force=true`, { method: 'POST', headers })
+      await loadData()
+    } catch (e) { console.error('Sync error:', e) }
+    finally { setSyncing(false) }
+  }
+
   useEffect(() => {
-    if (session) { doSync(); loadMetaAccounts() }
+    if (session) {
+      loadData()
+      doSync()
+      loadMetaAccounts()
+    }
   }, [session])
 
   const fmt = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}K` : n.toFixed(0)

@@ -85,7 +85,8 @@ async def sync_google_ads(account_id: str, user_id: str, date_from: date, date_t
 
     try:
         from services.google_ads_analytics import GoogleAdsAnalytics
-        ga = GoogleAdsAnalytics(conn_data["refresh_token"], conn_data["customer_id"])
+        customer_id = conn_data["customer_id"].replace("-", "")
+        ga = GoogleAdsAnalytics(conn_data["refresh_token"], customer_id)
 
         campaigns = ga.get_campaigns_full(date_from, date_to)
         ad_groups = ga.get_ad_groups_full(date_from, date_to)
