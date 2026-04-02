@@ -145,7 +145,7 @@ ORDER BY campaign.name
             │ google-ads-python client library
             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   Google Ads API (v19)                        │
+│                   Google Ads API (v20)                        │
 │              ads.googleapis.com                               │
 └─────────────────────────────────────────────────────────────┘
 

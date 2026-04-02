@@ -23,7 +23,7 @@ class GoogleAdsService:
             refresh_token: OAuth2 refresh token
             customer_id: Google Ads customer ID (without dashes)
         """
-        self.customer_id = customer_id
+        self.customer_id = customer_id.replace("-", "")
         
         # Build credentials dict
         credentials = {
@@ -34,7 +34,7 @@ class GoogleAdsService:
             "use_proto_plus": True,
         }
         
-        self.client = GoogleAdsClient.load_from_dict(credentials)
+        self.client = GoogleAdsClient.load_from_dict(credentials, version="v20")
         logger.info(f"✅ Google Ads client initialized for customer {customer_id}")
     
     
