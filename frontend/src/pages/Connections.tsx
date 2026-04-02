@@ -128,6 +128,7 @@ export function Connections() {
   const [googleAdsRefreshToken, setGoogleAdsRefreshToken] = useState('')
   const [googleAdsCustomerIdInput, setGoogleAdsCustomerIdInput] = useState('')
   const [isConnectingGoogleAds, setIsConnectingGoogleAds] = useState(false)
+  const [childAccounts, setChildAccounts] = useState<{id: string; name: string}[]>([])
 
   // Meta Ads state
   const [metaAdsConnected, setMetaAdsConnected] = useState(false)
@@ -376,6 +377,17 @@ export function Connections() {
       }
       
       const data = await response.json()
+
+      // MCC detected — show child account picker
+      if (data.is_manager && data.child_accounts?.length) {
+        setChildAccounts(data.child_accounts)
+        setGoogleAdsCustomerIdInput('')
+        setError(null)
+        setIsConnectingGoogleAds(false)
+        return
+      }
+
+      setChildAccounts([])
       setGoogleAdsConnected(true)
       setGoogleAdsCustomerId(googleAdsCustomerIdInput)
       setSuccessMessage(`${t('googleAdsConnectedSuccess')} ${data.campaigns_count} ${t('campaigns')}.`)
@@ -383,10 +395,8 @@ export function Connections() {
       setGoogleAdsRefreshToken('')
       setGoogleAdsCustomerIdInput('')
       
-      // Clear temp token from sessionStorage
       sessionStorage.removeItem('google_ads_temp_token')
       
-      // Refresh status
       fetchGoogleAdsStatus()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to connect Google Ads')
@@ -690,6 +700,7 @@ export function Connections() {
                     setShowGoogleAdsModal(false)
                     setGoogleAdsRefreshToken('')
                     setGoogleAdsCustomerIdInput('')
+                    setChildAccounts([])
                   }}
                   className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition"
                   disabled={isConnectingGoogleAds}
@@ -737,6 +748,28 @@ export function Connections() {
                   </p>
                 </div>
 
+                {/* Child accounts picker (shown when MCC detected) */}
+                {childAccounts.length > 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-900/20 border-l-4 border-amber-500 p-4 rounded-lg">
+                    <h4 className="font-semibold text-amber-900 dark:text-amber-200 mb-2">
+                      Manager account detected — select a client account:
+                    </h4>
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                      {childAccounts.map(acc => (
+                        <button
+                          key={acc.id}
+                          type="button"
+                          onClick={() => { setGoogleAdsCustomerIdInput(acc.id); setChildAccounts([]) }}
+                          className="w-full text-start px-3 py-2 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-amber-100 dark:hover:bg-amber-900/30 transition flex items-center justify-between"
+                        >
+                          <span>{acc.name || 'Unnamed account'}</span>
+                          <span className="font-mono text-xs text-gray-500">{acc.id}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Help */}
                 <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 p-4 rounded-lg">
                   <div className="flex items-start gap-3">
@@ -763,6 +796,7 @@ export function Connections() {
                       setShowGoogleAdsModal(false)
                       setGoogleAdsRefreshToken('')
                       setGoogleAdsCustomerIdInput('')
+                      setChildAccounts([])
                     }}
                     className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition"
                     disabled={isConnectingGoogleAds}

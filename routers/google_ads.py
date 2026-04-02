@@ -155,32 +155,40 @@ async def complete_google_ads_connection(
     try:
         logger.info(f"🔗 Completing Google Ads connection for user {user['user_id']}")
         
-        # Test connection by fetching campaigns
         ads_service = GoogleAdsService(
             refresh_token=request.refresh_token,
             customer_id=request.customer_id
         )
+        
+        # If user entered an MCC, return child accounts so frontend can ask them to pick one
+        if ads_service.is_manager_account():
+            children = ads_service.get_child_accounts()
+            if not children:
+                raise HTTPException(status_code=400, detail="This is a Manager (MCC) account with no client accounts. Please enter a client account ID instead.")
+            return {
+                "success": False,
+                "is_manager": True,
+                "child_accounts": children,
+                "message": "This is a Manager (MCC) account. Please select a client account."
+            }
         
         campaigns = ads_service.get_campaigns()
         
         # Store connection in database
         supabase = get_supabase()
         
-        # Check if connection exists
         existing = supabase.table('google_ads_connections').select('*').eq('user_id', user['user_id']).execute()
         
         connection_data = {
             'user_id': user['user_id'],
-            'customer_id': request.customer_id,
-            'refresh_token': request.refresh_token,  # TODO: Encrypt this
+            'customer_id': request.customer_id.replace("-", ""),
+            'refresh_token': request.refresh_token,
             'status': 'active'
         }
         
         if existing.data:
-            # Update existing
             result = supabase.table('google_ads_connections').update(connection_data).eq('user_id', user['user_id']).execute()
         else:
-            # Insert new
             result = supabase.table('google_ads_connections').insert(connection_data).execute()
         
         logger.info(f"✅ Google Ads connected: {len(campaigns)} campaigns found")
@@ -192,6 +200,8 @@ async def complete_google_ads_connection(
             "message": "Google Ads account connected successfully"
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"❌ Failed to complete connection: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Failed to connect Google Ads: {str(e)}")

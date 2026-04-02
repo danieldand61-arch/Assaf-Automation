@@ -35,9 +35,43 @@ class GoogleAdsService:
         }
         
         self.client = GoogleAdsClient.load_from_dict(credentials, version="v20")
-        logger.info(f"✅ Google Ads client initialized for customer {customer_id}")
-    
-    
+        logger.info(f"✅ Google Ads client initialized for customer {self.customer_id}")
+
+    def is_manager_account(self) -> bool:
+        """Return True if customer_id is an MCC (manager) account."""
+        try:
+            ga_service = self.client.get_service("GoogleAdsService")
+            query = "SELECT customer.manager FROM customer LIMIT 1"
+            rows = ga_service.search(customer_id=self.customer_id, query=query)
+            for row in rows:
+                return row.customer.manager
+            return False
+        except Exception:
+            return False
+
+    def get_child_accounts(self) -> List[Dict]:
+        """List client accounts under this MCC."""
+        ga_service = self.client.get_service("GoogleAdsService")
+        query = """
+            SELECT
+                customer_client.id,
+                customer_client.descriptive_name,
+                customer_client.manager,
+                customer_client.status
+            FROM customer_client
+            WHERE customer_client.manager = FALSE
+              AND customer_client.status = 'ENABLED'
+        """
+        response = ga_service.search(customer_id=self.customer_id, query=query)
+        accounts = []
+        for row in response:
+            accounts.append({
+                "id": str(row.customer_client.id),
+                "name": row.customer_client.descriptive_name,
+            })
+        logger.info(f"✅ Found {len(accounts)} child accounts under MCC {self.customer_id}")
+        return accounts
+
     def get_campaigns(self, date_range: str = "LAST_30_DAYS") -> List[Dict]:
         """
         Get all campaigns with performance metrics
