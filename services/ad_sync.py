@@ -95,11 +95,18 @@ async def sync_google_ads(account_id: str, user_id: str, date_from: date, date_t
         customer_id = conn_data["customer_id"].replace("-", "")
         ga = GoogleAdsAnalytics(conn_data["refresh_token"], customer_id)
 
-        campaigns = ga.get_campaigns_full(date_from, date_to)
-        ad_groups = ga.get_ad_groups_full(date_from, date_to)
-        keywords = ga.get_keywords(date_from, date_to)
-        device_stats = ga.get_device_stats(date_from, date_to)
-        geo_stats = ga.get_geo_stats(date_from, date_to)
+        import concurrent.futures
+        with concurrent.futures.ThreadPoolExecutor(max_workers=5) as pool:
+            f_campaigns = pool.submit(ga.get_campaigns_full, date_from, date_to)
+            f_ad_groups = pool.submit(ga.get_ad_groups_full, date_from, date_to)
+            f_keywords = pool.submit(ga.get_keywords, date_from, date_to)
+            f_devices = pool.submit(ga.get_device_stats, date_from, date_to)
+            f_geo = pool.submit(ga.get_geo_stats, date_from, date_to)
+        campaigns = f_campaigns.result()
+        ad_groups = f_ad_groups.result()
+        keywords = f_keywords.result()
+        device_stats = f_devices.result()
+        geo_stats = f_geo.result()
 
         common = {"account_id": account_id, "platform": "google_ads", "date_from": str(date_from), "date_to": str(date_to)}
 

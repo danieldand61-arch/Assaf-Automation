@@ -72,10 +72,10 @@ export default function AdAnalytics() {
     finally { setLoading(false) }
   }
 
-  const doSync = async () => {
+  const doSync = async (force = false) => {
     setSyncing(true)
     try {
-      await fetch(`${api}/api/analytics/sync?days=90&force=true`, { method: 'POST', headers })
+      await fetch(`${api}/api/analytics/sync?days=90${force ? '&force=true' : ''}`, { method: 'POST', headers })
       await loadData()
     } catch (e) { console.error('Sync error:', e) }
     finally { setSyncing(false) }
@@ -113,7 +113,7 @@ export default function AdAnalytics() {
           <h1 className="text-2xl font-bold" style={{ color: th.text }}>{t('aiAdvisorAnalyst')}</h1>
           <p className="text-sm" style={{ color: th.textSecondary }}>{t('crossPlatformAnalytics')} · {t('last90Days')}</p>
         </div>
-        <button onClick={doSync} disabled={syncing}
+        <button onClick={() => doSync(true)} disabled={syncing}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"
           style={{ background: th.gradient1 }}>
           <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
