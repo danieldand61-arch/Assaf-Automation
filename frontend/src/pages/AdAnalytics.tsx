@@ -111,7 +111,7 @@ export default function AdAnalytics() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold" style={{ color: th.text }}>{t('aiAdvisorAnalyst')}</h1>
-          <p className="text-sm" style={{ color: th.textSecondary }}>{t('crossPlatformAnalytics')}</p>
+          <p className="text-sm" style={{ color: th.textSecondary }}>{t('crossPlatformAnalytics')} · {t('last90Days')}</p>
         </div>
         <button onClick={doSync} disabled={syncing}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white disabled:opacity-50"

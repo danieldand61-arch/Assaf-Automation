@@ -455,6 +455,7 @@ export const translations = {
     // Ad Analytics / Analyst
     aiAdvisorAnalyst: "AI Advisor & Analyst",
     crossPlatformAnalytics: "Cross-platform ad performance analytics",
+    last90Days: "Last 90 days",
     syncNow: "Sync Now",
     syncing: "Syncing...",
     campaignsSynced: "campaigns synced",
@@ -1140,6 +1141,7 @@ export const translations = {
     // Ad Analytics / Analyst
     aiAdvisorAnalyst: "יועץ AI ואנליסט",
     crossPlatformAnalytics: "אנליטיקס ביצועי פרסום חוצי-פלטפורמות",
+    last90Days: "90 ימים אחרונים",
     syncNow: "סנכרן עכשיו",
     syncing: "מסנכרן...",
     campaignsSynced: "קמפיינים סונכרנו",
