@@ -850,7 +850,8 @@ async def tiktok_connect(
         f"scope={scope}&"
         f"response_type=code&"
         f"redirect_uri={redirect_uri}&"
-        f"state={state}"
+        f"state={state}&"
+        f"disable_auto_auth=1"
     )
     
     logger.info(f"🔗 TikTok OAuth: Generated authorization URL")
@@ -933,7 +934,7 @@ async def tiktok_callback(
             profile_response = await client.get(
                 f"{TIKTOK_API_URL}/user/info/",
                 headers={"Authorization": f"Bearer {access_token}"},
-                params={"fields": "open_id,display_name,avatar_url,profile_deep_link"}
+                params={"fields": "open_id,display_name,avatar_url"}
             )
             
             username = ""

@@ -182,6 +182,23 @@ export function Onboarding() {
 
   const handleSubmit = () => saveAccount(true)
 
+  const handleSkip = async () => {
+    setLoading(true); setError('')
+    try {
+      const data = buildAccountData(true)
+      if (!data.name || !data.name.trim()) data.name = user?.email?.split('@')[0] || 'My Business'
+      if (existingAccount) {
+        await updateAccount(existingAccount.id, data)
+      } else {
+        await createAccount(data)
+      }
+      localStorage.removeItem('onboarding_connected')
+      navigate('/app', { replace: true })
+    } catch (err: any) {
+      setError(err.response?.data?.detail || err.message || 'Failed to save.')
+    } finally { setLoading(false) }
+  }
+
   const handleGoToIntegrations = async () => {
     setLoading(true); setError('')
     try {
@@ -410,7 +427,7 @@ export function Onboarding() {
               )}
             </div>
 
-            <button onClick={() => saveAccount(true)} disabled={loading || analyzing}
+            <button onClick={handleSkip} disabled={loading || analyzing}
               style={{ width: '100%', marginTop: 12, padding: '8px 0', background: 'none', border: 'none', color: '#959DAF', fontSize: 13, cursor: 'pointer' }}>
               Skip for now
             </button>
