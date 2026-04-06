@@ -929,15 +929,11 @@ async def tiktok_callback(
             
             logger.info(f"✅ Access token received")
             
-            # Get user profile
-            profile_response = await client.post(
+            # Get user profile (TikTok API v2: GET with Bearer auth + fields param)
+            profile_response = await client.get(
                 f"{TIKTOK_API_URL}/user/info/",
-                headers={
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "access_token": access_token
-                }
+                headers={"Authorization": f"Bearer {access_token}"},
+                params={"fields": "open_id,display_name,avatar_url,profile_deep_link"}
             )
             
             username = ""
@@ -949,9 +945,10 @@ async def tiktok_callback(
                 username = user_data.get("display_name", "")
                 profile_url = user_data.get("profile_deep_link", "")
                 logger.info(f"✅ Profile retrieved: {username}")
-            else:
-                logger.warning(f"⚠️ Could not fetch profile info")
-                username = f"TikTok User {open_id[:8]}"
+            
+            if not username:
+                logger.warning(f"⚠️ Could not fetch display_name, using open_id")
+                username = f"TikTok User {open_id[:8] if open_id else 'unknown'}"
             
             # Save connection to database
             supabase = get_supabase()
