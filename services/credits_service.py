@@ -90,7 +90,7 @@ def calculate_credits(
     # Video generation (Kling 3.0) — per-second pricing
     if service_type == "video_generation":
         dur = max(video_duration_sec, 3)
-        per_sec = VIDEO_GEN_PER_SEC.get("pro_no_audio", 108)
+        per_sec = VIDEO_GEN_PER_SEC.get("pro_no_audio", 270)
         return float(per_sec * dur)
 
     # Token-based services (Gemini 3 Flash)
@@ -107,12 +107,31 @@ async def check_balance(user_id: str, min_credits: float = 10.0) -> dict:
     """Check if user has enough credits. Auto-creates record if missing."""
     try:
         supabase = get_supabase()
-        res = supabase.table("user_credits").select("credits_remaining").eq("user_id", user_id).limit(1).execute()
+        res = supabase.table("user_credits").select("credits_remaining, total_credits_purchased, credits_used").eq("user_id", user_id).limit(1).execute()
         if not res.data:
+            logger.info(f"💳 No credits row for user {user_id[:8]}, creating with 3000")
             await ensure_user_credits_exist(user_id, initial_credits=3000.0)
-            res = supabase.table("user_credits").select("credits_remaining").eq("user_id", user_id).limit(1).execute()
-        remaining = float(res.data[0]["credits_remaining"]) if res.data else 0.0
-        return {"ok": remaining >= min_credits, "remaining": remaining, "needed": min_credits}
+            res = supabase.table("user_credits").select("credits_remaining, total_credits_purchased, credits_used").eq("user_id", user_id).limit(1).execute()
+
+        if res.data:
+            row = res.data[0]
+            remaining = float(row.get("credits_remaining") or 0)
+            purchased = float(row.get("total_credits_purchased") or 0)
+            used = float(row.get("credits_used") or 0)
+
+            # Self-heal: if remaining is wrong (e.g. negative due to trigger race), recalc
+            computed = purchased - used
+            if remaining < 0 or abs(remaining - computed) > 1:
+                logger.warning(f"💳 Balance mismatch user={user_id[:8]}: stored_remaining={remaining:.0f} computed={computed:.0f}, fixing")
+                remaining = max(computed, 0)
+                supabase.table("user_credits").update({"credits_remaining": remaining}).eq("user_id", user_id).execute()
+
+            ok = remaining >= min_credits
+            logger.info(f"💳 Balance user={user_id[:8]}: purchased={purchased:.0f} used={used:.0f} remaining={remaining:.0f} need={min_credits:.0f} ok={ok}")
+            return {"ok": ok, "remaining": remaining, "needed": min_credits}
+
+        logger.warning(f"⚠️ Still no credits row for {user_id[:8]} after ensure")
+        return {"ok": False, "remaining": 0.0, "needed": min_credits}
     except Exception as e:
         logger.warning(f"⚠️ Balance check failed (allowing): {e}")
         return {"ok": True, "remaining": 0, "needed": min_credits}
@@ -136,13 +155,17 @@ async def record_usage(
         if total_tokens is None:
             total_tokens = input_tokens + output_tokens
 
-        credits_spent = calculate_credits(
-            service_type=service_type,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            duration_minutes=duration_minutes,
-            video_duration_sec=video_duration_sec,
-        )
+        # For video_generation, use pre-estimated credits (includes quality/audio)
+        if service_type == "video_generation" and total_tokens > 0:
+            credits_spent = float(total_tokens)
+        else:
+            credits_spent = calculate_credits(
+                service_type=service_type,
+                input_tokens=input_tokens,
+                output_tokens=output_tokens,
+                duration_minutes=duration_minutes,
+                video_duration_sec=video_duration_sec,
+            )
 
         usage_data = {
             "user_id": user_id,
