@@ -516,6 +516,36 @@ async def upload_avatar_image(
         raise HTTPException(status_code=500, detail="Failed to upload avatar image")
 
 
+@router.post("/upload-image")
+async def upload_source_image(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """Upload a source image for image-to-video. Returns public URL."""
+    if file.content_type not in ALLOWED_AVATAR_TYPES:
+        raise HTTPException(status_code=400, detail="Only JPEG, PNG, WebP images are allowed")
+
+    content = await file.read()
+    if len(content) > MAX_AVATAR_SIZE:
+        raise HTTPException(status_code=400, detail="File too large (max 10 MB)")
+
+    ext = (file.filename or "image.jpg").rsplit(".", 1)[-1]
+    path = f"{current_user['user_id']}/{uuid4()}.{ext}"
+
+    try:
+        from database.supabase_client import get_supabase
+        supabase = get_supabase()
+        supabase.storage.from_("avatars").upload(
+            path=f"video-sources/{path}", file=content,
+            file_options={"content-type": file.content_type},
+        )
+        url = supabase.storage.from_("avatars").get_public_url(f"video-sources/{path}")
+        return {"url": url}
+    except Exception as e:
+        logger.error(f"Source image upload failed: {e}")
+        raise HTTPException(status_code=500, detail="Failed to upload image")
+
+
 @router.post("/prepare-elements")
 async def prepare_kling_elements(
     request: Request,

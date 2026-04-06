@@ -124,6 +124,10 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
   const [mode, setMode] = useState<GenerationMode>('text')
   const [prompt, setPrompt] = useState('')
   const [imageUrl, setImageUrl] = useState('')
+  const [imagePreview, setImagePreview] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const imageFileRef = useRef<HTMLInputElement>(null)
   const [aspectRatio, setAspectRatio] = useState('16:9')
   const [duration, setDuration] = useState(5)
   const [sound, setSound] = useState(false)
@@ -251,6 +255,54 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       }
     } catch { /* ignore */ }
     setImprovePromptLoading(false)
+  }
+
+  // ─── Image upload for image-to-video ──────────────────────
+
+  const handleImageUpload = async (file: File) => {
+    if (!session) return
+    if (!file.type.startsWith('image/')) { setError(t('uploadImageAlert')); return }
+    if (file.size > 10 * 1024 * 1024) { setError(t('imageSizeAlert')); return }
+
+    setUploadingImage(true)
+    setError('')
+    setImagePreview(URL.createObjectURL(file))
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`${API_URL}/api/video-gen/upload-image`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: formData,
+      })
+      if (!res.ok) throw new Error('Upload failed')
+      const data = await res.json()
+      setImageUrl(data.url)
+    } catch {
+      setError(t('uploadFailed'))
+      setImagePreview('')
+      setImageUrl('')
+    }
+    setUploadingImage(false)
+  }
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) handleImageUpload(file)
+  }
+
+  const handleImageDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleImageUpload(file)
+  }
+
+  const clearUploadedImage = () => {
+    setImagePreview('')
+    setImageUrl('')
+    if (imageFileRef.current) imageFileRef.current.value = ''
   }
 
   // ─── Generation logic (unchanged) ─────────────────────────
@@ -445,6 +497,8 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
     setSavedToLibrary(false)
     setSubtitledVideoUrl(null)
     setPreparingElements(false)
+    setImagePreview('')
+    setImageUrl('')
     setStep(1)
   }
 
@@ -764,9 +818,55 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
             </div>
 
             {mode === 'image' && (
-              <div>
-                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('imageUrl')}</label>
-                <input type="url" value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder={t('imageUrlPlaceholder')} className="w-full mt-2 px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition" />
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{t('sourceImage')}</label>
+                <input ref={imageFileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageFileChange} />
+
+                {imagePreview ? (
+                  <div className="relative group">
+                    <img src={imagePreview} alt="source" className="w-full max-h-48 object-contain rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900" />
+                    {uploadingImage && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-xl">
+                        <Loader2 size={28} className="text-white animate-spin" />
+                      </div>
+                    )}
+                    <button
+                      onClick={clearUploadedImage}
+                      className="absolute top-2 end-2 w-7 h-7 rounded-full bg-red-500 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow"
+                    >✕</button>
+                  </div>
+                ) : (
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true) }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={handleImageDrop}
+                    onClick={() => imageFileRef.current?.click()}
+                    className={`flex flex-col items-center justify-center gap-2 py-8 rounded-xl border-2 border-dashed cursor-pointer transition-all ${
+                      dragOver
+                        ? 'border-violet-500 bg-violet-50 dark:bg-violet-900/20'
+                        : 'border-gray-300 dark:border-gray-600 hover:border-violet-400 hover:bg-gray-50 dark:hover:bg-gray-700/30'
+                    }`}
+                  >
+                    <Upload size={28} className={dragOver ? 'text-violet-500' : 'text-gray-400'} />
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">{t('dragDropImage')}</p>
+                    <p className="text-xs text-gray-400">{t('orClickToUpload')}</p>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                  <span className="text-xs text-gray-400 font-medium">{t('orPasteUrl')}</span>
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                </div>
+
+                <input
+                  type="url"
+                  value={imagePreview ? '' : imageUrl}
+                  onChange={(e) => { setImageUrl(e.target.value); setImagePreview('') }}
+                  disabled={!!imagePreview}
+                  placeholder={t('imageUrlPlaceholder')}
+                  className="w-full px-4 py-3 border border-gray-200 dark:border-gray-600 rounded-xl bg-gray-50 dark:bg-gray-700/50 text-sm text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 outline-none transition disabled:opacity-40"
+                />
               </div>
             )}
           </div>
