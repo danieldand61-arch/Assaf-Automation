@@ -169,10 +169,24 @@ export function Onboarding() {
     }
   }
 
+  const retrySave = async (fn: () => Promise<void>, retries = 3) => {
+    for (let i = 0; i < retries; i++) {
+      try { await fn(); return }
+      catch (err: any) {
+        const detail = err.response?.data?.detail || ''
+        if (detail.includes('foreign key') && i < retries - 1) {
+          await new Promise(r => setTimeout(r, 2000 * (i + 1)))
+          continue
+        }
+        throw err
+      }
+    }
+  }
+
   const saveAccount = async (onboardingComplete: boolean) => {
     setLoading(true); setError('')
     try {
-      await saveOrUpdate(onboardingComplete)
+      await retrySave(() => saveOrUpdate(onboardingComplete))
       localStorage.removeItem('onboarding_connected')
       navigate('/app', { replace: true })
     } catch (err: any) {
@@ -187,11 +201,10 @@ export function Onboarding() {
     try {
       const data = buildAccountData(true)
       if (!data.name || !data.name.trim()) data.name = user?.email?.split('@')[0] || 'My Business'
-      if (existingAccount) {
-        await updateAccount(existingAccount.id, data)
-      } else {
-        await createAccount(data)
-      }
+      const fn = existingAccount
+        ? () => updateAccount(existingAccount.id, data)
+        : () => createAccount(data)
+      await retrySave(fn)
       localStorage.removeItem('onboarding_connected')
       navigate('/app', { replace: true })
     } catch (err: any) {

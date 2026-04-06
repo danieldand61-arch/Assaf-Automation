@@ -289,78 +289,70 @@ async def create_account(request: CreateAccountRequest, user = Depends(get_curre
     """
     supabase = get_supabase()
     user_id = user["user_id"]
-    
-    # Pre-check: verify user exists in Supabase Auth service
+
+    # Ensure user exists in auth.users (refresh materialized row if needed)
     try:
         auth_user = supabase.auth.admin.get_user_by_id(user_id)
         if not auth_user or not getattr(auth_user, 'user', None):
             logger.error(f"❌ User {user_id} not found in Supabase Auth")
             raise HTTPException(
                 status_code=404,
-                detail="User not found. Please sign out and register again."
+                detail="User not found. Please sign out and sign in again."
             )
         logger.info(f"✅ User {user_id} confirmed in Supabase Auth")
     except HTTPException:
         raise
     except Exception as e:
-        # Non-blocking: if admin API fails, proceed and let DB handle it
-        logger.warning(f"⚠️ Auth admin check failed (proceeding anyway): {e}")
-    
-    # Retry INSERT — auth.users row may not be committed yet
-    max_retries = 10
+        logger.warning(f"⚠️ Auth admin check skipped: {e}")
+
+    # Clean up orphaned user_settings that reference deleted accounts
+    try:
+        supabase.table("user_settings").upsert(
+            {"user_id": user_id, "active_account_id": None},
+            on_conflict="user_id"
+        ).execute()
+    except Exception:
+        pass
+
+    account_data = {
+        "user_id": user_id,
+        "name": request.name,
+        "description": request.description,
+        "industry": request.industry,
+        "target_audience": request.target_audience,
+        "brand_voice": request.brand_voice,
+        "logo_url": request.logo_url,
+        "brand_colors": request.brand_colors,
+        "metadata": request.metadata or {}
+    }
+
+    max_retries = 15
     last_error = None
-    
     for attempt in range(max_retries):
         try:
-            response = supabase.table("accounts").insert({
-                "user_id": user_id,
-                "name": request.name,
-                "description": request.description,
-                "industry": request.industry,
-                "target_audience": request.target_audience,
-                "brand_voice": request.brand_voice,
-                "logo_url": request.logo_url,
-                "brand_colors": request.brand_colors,
-                "metadata": request.metadata or {}
-            }).execute()
-            
+            response = supabase.table("accounts").insert(account_data).execute()
+
             logger.info(f"✅ Account created: {request.name} by {user['email']}")
-            
+
             from services.credits_service import ensure_user_credits_exist
             await ensure_user_credits_exist(user_id, initial_credits=3000.0)
-            
+
             return {"success": True, "account": response.data[0]}
-            
+
         except Exception as e:
             last_error = e
-            # postgrest APIError: check .code/.message/.details (str(e) is empty!)
-            err_code = getattr(e, 'code', '') or ''
-            err_msg = getattr(e, 'message', '') or ''
-            err_details = getattr(e, 'details', '') or ''
-            err_repr = repr(e)
-            
-            is_fk_error = (
-                err_code == '23503'
-                or 'foreign key' in err_msg.lower()
-                or 'is not present in table' in err_details.lower()
-                or 'foreign key' in err_repr.lower()
-            )
-            
-            if is_fk_error and attempt < max_retries - 1:
-                logger.warning(
-                    f"⏳ FK violation: user {user_id} not in auth.users yet. "
-                    f"Retry {attempt + 1}/{max_retries}..."
-                )
-                await asyncio.sleep(1)
+            err_repr = repr(e).lower()
+            is_fk = '23503' in err_repr or 'foreign key' in err_repr or 'is not present in table' in err_repr
+
+            if is_fk and attempt < max_retries - 1:
+                wait = min(1.0 + attempt * 0.5, 3.0)
+                logger.warning(f"⏳ FK violation attempt {attempt + 1}/{max_retries}, retry in {wait}s")
+                await asyncio.sleep(wait)
                 continue
-            
-            logger.error(
-                f"❌ Create account failed: code={err_code}, "
-                f"msg={err_msg}, details={err_details}"
-            )
+
+            logger.error(f"❌ Create account failed after {attempt + 1} attempts: {repr(e)}")
             break
-    
-    # Return meaningful error
+
     err_detail = getattr(last_error, 'message', '') or repr(last_error)
     raise HTTPException(status_code=500, detail=err_detail)
 
