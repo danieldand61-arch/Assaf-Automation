@@ -233,7 +233,6 @@ export default function Billing() {
         <div className="space-y-4 text-sm">
           {[
             { q: t('faqHowCredits'), a: t('faqHowCreditsAnswer') },
-            { q: t('faqRefund'), a: t('faqRefundAnswer') },
           ].map(({ q, a }) => (
             <div key={q}>
               <p className="font-semibold text-gray-700 dark:text-gray-300">{q}</p>
