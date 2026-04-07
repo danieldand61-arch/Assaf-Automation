@@ -67,24 +67,16 @@ async def generate_google_ads(
         # Track credits usage
         if user_id:
             try:
-                from services.credits_tracker import track_ai_usage
-                
+                from services.credits_service import record_usage
                 input_tokens = response.usage_metadata.prompt_token_count if hasattr(response, 'usage_metadata') else 0
                 output_tokens = response.usage_metadata.candidates_token_count if hasattr(response, 'usage_metadata') else 0
-                
-                await track_ai_usage(
+                await record_usage(
                     user_id=user_id,
-                    account_id=account_id,
                     service_type="google_ads",
-                    model_name=model_name,
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
-                    action="generate_ads_content",
-                    metadata={
-                        "keywords": keywords,
-                        "language": language,
-                        "has_website_data": website_data is not None
-                    }
+                    model_name=model_name,
+                    metadata={"keywords": keywords, "language": language, "has_website_data": website_data is not None}
                 )
             except Exception as e:
                 logger.warning(f"Failed to track credits: {e}")

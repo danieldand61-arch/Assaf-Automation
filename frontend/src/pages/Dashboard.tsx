@@ -200,7 +200,7 @@ function UsageChart({ history, title, t }: { history: HistoryRecord[]; title: st
             const p = points[hover]
             const lines = [
               `${d.label}: ${d.count} generation${d.count > 1 ? 's' : ''}`,
-              `Credits: ${d.credits.toFixed(4)}`,
+              `Credits: ${Math.round(d.credits).toLocaleString()}`,
               ...Object.entries(d.byService).map(([svc, cnt]) => `${getServiceMeta(svc, t).label}: ${cnt}`)
             ]
             const tw = 180, tooltipH = 16 + lines.length * 15
@@ -412,8 +412,8 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             <MetricCard
               icon={Coins}
               label={t('credits')}
-              value={bal?.remaining?.toFixed(0) || '0'}
-              sub={`${bal?.used?.toFixed(0) || '0'} ${t('used')}`}
+              value={Math.round(bal?.remaining || 0).toLocaleString()}
+              sub={`${Math.round(bal?.used || 0).toLocaleString()} ${t('used')}`}
               color={th.warning}
               delay={0.2}
             />

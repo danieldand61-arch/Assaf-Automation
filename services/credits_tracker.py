@@ -132,27 +132,34 @@ class CreditsTracker:
                 .eq("user_id", self.user_id)\
                 .limit(1)\
                 .execute()
-            
-            if result.data:
-                row = result.data[0]
-                return {
-                    "total_purchased": float(row.get("total_credits_purchased", 0)),
-                    "used": float(row.get("credits_used", 0)),
-                    "remaining": float(row.get("credits_remaining", 0))
-                }
-            
-            from services.credits_service import ensure_user_credits_exist
-            await ensure_user_credits_exist(self.user_id, initial_credits=3000.0)
-            return {"total_purchased": 3000.0, "used": 0, "remaining": 3000.0}
-                
+
+            if not result.data:
+                from services.credits_service import ensure_user_credits_exist
+                await ensure_user_credits_exist(self.user_id, initial_credits=3000.0)
+                return {"total_purchased": 3000.0, "used": 0.0, "remaining": 3000.0}
+
+            row = result.data[0]
+            purchased = float(row.get("total_credits_purchased") or 0)
+            used = float(row.get("credits_used") or 0)
+            remaining = float(row.get("credits_remaining") or 0)
+
+            # Self-heal mismatch (same logic as check_balance)
+            computed = purchased - used
+            if remaining < 0 or abs(remaining - computed) > 1:
+                remaining = max(computed, 0)
+                self.supabase.table("user_credits").update(
+                    {"credits_remaining": remaining}
+                ).eq("user_id", self.user_id).execute()
+
+            return {
+                "total_purchased": purchased,
+                "used": used,
+                "remaining": remaining
+            }
+
         except Exception as e:
             logger.error(f"Failed to get user balance: {e}")
-            return {
-                "error": str(e),
-                "total_purchased": 0,
-                "used": 0,
-                "remaining": 0
-            }
+            return {"total_purchased": 0, "used": 0, "remaining": 0}
     
     async def get_usage_stats(self, days: int = 30) -> Dict:
         """Get usage statistics for the user"""
@@ -189,8 +196,12 @@ class CreditsTracker:
                 by_service[service]["cost"] += cost
                 total_spent += cost
             
+            # Round costs for display
+            for svc in by_service:
+                by_service[svc]["cost"] = round(by_service[svc]["cost"], 2)
+
             return {
-                "total_spent": round(total_spent, 4),
+                "total_spent": round(total_spent, 2),
                 "by_service": by_service,
                 "total_requests": len(result.data),
                 "period_days": days
