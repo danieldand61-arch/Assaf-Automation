@@ -363,6 +363,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
   const buildFinalPrompt = (useElement: boolean) => {
     let p = prompt.trim()
+    const noText = 'IMPORTANT: Do not render any text, titles, captions, watermarks, labels, logos, letters or words anywhere in the video. The video must be completely free of any written text or typography.'
 
     const brandCtx = useBrand && hasBrandInfo
       ? `Brand: ${brandName}${brandDesc ? `. ${brandDesc}` : ''}${brandIndustry ? `. Industry: ${brandIndustry}` : ''}${brandAudience ? `. Target audience: ${brandAudience}` : ''}.`
@@ -373,11 +374,11 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       const isRandom = selectedAvatar === 'random'
       const personDesc = isRandom ? 'a relatable, friendly person' : (avatar?.desc ?? 'a young, friendly person')
       const person = useElement ? '@avatar' : personDesc
-      p = `UGC-style promotional video: ${person} holding and showcasing the product to camera. ${brandCtx} Scene: ${p}. The person holds the product up, shows it from different angles, points at key features, smiles genuinely. Close-up shots of the product intercut with the person demonstrating it. The product must be clearly visible in frame throughout the video. Natural lighting, casual lifestyle setting, authentic social media ad feel.`
+      p = `UGC-style promotional video: ${person} holding and showcasing the product to camera. ${brandCtx} Scene: ${p}. The person holds the product up, shows it from different angles, points at key features, smiles genuinely. Close-up shots of the product intercut with the person demonstrating it. The product must be clearly visible in frame throughout the video. Natural lighting, casual lifestyle setting, authentic social media ad feel. ${noText}`
     } else if (videoStyle === 'product') {
-      p = `Cinematic product showcase video: ${brandCtx} ${p}. Professional product photography in motion, smooth camera movements, studio-quality lighting, clean background. Focus on the product details, textures, and premium feel.`
+      p = `Cinematic product showcase video: ${brandCtx} ${p}. Professional product photography in motion, smooth camera movements, studio-quality lighting, clean background. Focus on the product details, textures, and premium feel. ${noText}`
     } else if (videoStyle === 'cinematic') {
-      p = `Cinematic atmospheric mood video: ${brandCtx} ${p}. Dramatic lighting, slow motion elements, rich color grading, emotional storytelling. Suitable for text overlays and brand storytelling.`
+      p = `Cinematic atmospheric mood video: ${brandCtx} ${p}. Dramatic lighting, slow motion elements, rich color grading, emotional storytelling. Visual-only storytelling without any on-screen text. ${noText}`
     }
     return p
   }
