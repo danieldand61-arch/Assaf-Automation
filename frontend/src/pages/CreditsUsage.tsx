@@ -84,12 +84,19 @@ export function CreditsUsage() {
 
   const { balance, usage_30_days, usage_7_days } = summary
 
-  // Service type labels
   const serviceLabels: { [key: string]: string } = {
     chat: 'AI Chat',
+    gemini_chat: 'AI Chat',
     google_ads: 'Google Ads Generation',
     social_posts: 'Social Media Posts',
-    image_generation: 'Image Generation'
+    image_generation: 'Image Generation',
+    video_generation: 'Video Generation',
+    creative_generation: 'Creative Generation',
+    subtitle_generation: 'Subtitle Generation',
+    video_dubbing: 'Video Dubbing',
+    text_edit: 'Text Edit',
+    text_regen: 'Text Regeneration',
+    design_analysis: 'Design Analysis',
   }
 
   // Calculate percentage
@@ -116,15 +123,15 @@ export function CreditsUsage() {
         <div className="grid grid-cols-3 gap-4 mb-4">
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <p className="text-sm text-blue-100 mb-1">Purchased</p>
-            <p className="text-2xl font-bold">${balance.total_purchased.toFixed(2)}</p>
+            <p className="text-2xl font-bold">{Math.round(balance.total_purchased).toLocaleString()} <span className="text-sm font-normal">cr</span></p>
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <p className="text-sm text-blue-100 mb-1">Used</p>
-            <p className="text-2xl font-bold">${balance.used.toFixed(2)}</p>
+            <p className="text-2xl font-bold">{Math.round(balance.used).toLocaleString()} <span className="text-sm font-normal">cr</span></p>
           </div>
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
             <p className="text-sm text-blue-100 mb-1">Remaining</p>
-            <p className="text-2xl font-bold">${balance.remaining.toFixed(2)}</p>
+            <p className="text-2xl font-bold">{Math.round(balance.remaining).toLocaleString()} <span className="text-sm font-normal">cr</span></p>
           </div>
         </div>
 
@@ -152,7 +159,7 @@ export function CreditsUsage() {
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white">Last 7 Days</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {usage_7_days.total_requests} requests · ${usage_7_days.total_spent.toFixed(4)} spent
+              {usage_7_days.total_requests} requests · {Math.round(usage_7_days.total_spent).toLocaleString()} cr spent
             </p>
           </div>
         </div>
@@ -162,7 +169,7 @@ export function CreditsUsage() {
             <div key={service} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
               <div>
                 <p className="font-medium text-gray-900 dark:text-white">
-                  {serviceLabels[service] || service}
+                  {serviceLabels[service] || service.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {data.count} requests
@@ -170,7 +177,7 @@ export function CreditsUsage() {
               </div>
               <div className="text-end">
                 <p className="font-bold text-gray-900 dark:text-white">
-                  ${data.cost.toFixed(4)}
+                  {Math.round(data.cost).toLocaleString()} cr
                 </p>
               </div>
             </div>
@@ -191,7 +198,7 @@ export function CreditsUsage() {
           <div>
             <h3 className="text-lg font-bold text-gray-900 dark:text-white">Last 30 Days</h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              {usage_30_days.total_requests} requests · ${usage_30_days.total_spent.toFixed(4)} spent
+              {usage_30_days.total_requests} requests · {Math.round(usage_30_days.total_spent).toLocaleString()} cr spent
             </p>
           </div>
         </div>
@@ -201,7 +208,7 @@ export function CreditsUsage() {
             <div key={service} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/50 rounded-lg">
               <div>
                 <p className="font-medium text-gray-900 dark:text-white">
-                  {serviceLabels[service] || service}
+                  {serviceLabels[service] || service.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   {data.count} requests
@@ -209,7 +216,7 @@ export function CreditsUsage() {
               </div>
               <div className="text-end">
                 <p className="font-bold text-gray-900 dark:text-white">
-                  ${data.cost.toFixed(4)}
+                  {Math.round(data.cost).toLocaleString()} cr
                 </p>
               </div>
             </div>
