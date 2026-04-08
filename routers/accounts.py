@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 class AnalyzeUrlRequest(BaseModel):
     url: str
+    free: bool = False
 
 
 @router.post("/analyze-url")
@@ -33,7 +34,8 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
         logger.info(f"🔍 ANALYZE-URL START: {url}")
         logger.info(f"{'='*60}")
 
-        data = await scrape_website(url, user_id=user.get("user_id"))
+        bill_uid = None if request.free else user.get("user_id")
+        data = await scrape_website(url, user_id=bill_uid)
         logger.info(f"── SCRAPE RESULTS ──")
         logger.info(f"  title: '{data.get('title', '')[:80]}'")
         logger.info(f"  description: '{data.get('description', '')[:120]}'")
@@ -45,7 +47,7 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
         logger.info(f"  industry hint: {data.get('industry', '')}")
 
         logger.info(f"── AI EXTRACTION (Gemini) ──")
-        ai_info = await _ai_extract_business_info(data, user_id=user.get("user_id"))
+        ai_info = await _ai_extract_business_info(data, user_id=bill_uid)
         logger.info(f"  AI business_name: {ai_info.get('business_name', '(empty)')}")
         logger.info(f"  AI industry: {ai_info.get('industry', '(empty)')}")
         logger.info(f"  AI description: {ai_info.get('description', '(empty)')[:100]}")

@@ -96,7 +96,7 @@ export function Onboarding() {
         const res = await fetch(`${getApiUrl()}/api/accounts/analyze-url`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url, free: true }),
         })
         if (!res.ok) throw new Error((await res.json()).detail || 'Analysis failed')
         const { brand_kit } = await res.json()
