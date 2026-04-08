@@ -109,7 +109,8 @@ async def analyze_design_style(
     try:
         import google.generativeai as genai
         
-        # Use Gemini Vision to analyze the image
+        from services.credits_service import record_usage
+
         model = genai.GenerativeModel('gemini-3-flash-preview')
         
         prompt = """
@@ -125,12 +126,22 @@ async def analyze_design_style(
         Provide a concise style description (2-3 sentences) that could be used as a prompt for generating similar images.
         """
         
-        # Download image (Gemini can accept URLs or file content)
         response = model.generate_content([prompt, {"mime_type": "image/jpeg", "data": image_url}])
         
         style_description = response.text.strip()
         
         logger.info(f"✅ Style analyzed: {style_description[:100]}...")
+
+        try:
+            um = getattr(response, 'usage_metadata', None)
+            await record_usage(
+                user_id=current_user["user_id"], service_type="design_analysis",
+                input_tokens=getattr(um, 'prompt_token_count', 0) if um else 0,
+                output_tokens=getattr(um, 'candidates_token_count', 0) if um else 0,
+                model_name="gemini-3-flash-preview", metadata={"step": "style_analysis"},
+            )
+        except Exception:
+            pass
         
         return {
             "style_prompt": style_description

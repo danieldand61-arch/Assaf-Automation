@@ -75,7 +75,7 @@ LANG_FALLBACKS = {
 }
 
 
-async def _generate_copy(req: CreativeRequest, api_key: str) -> dict:
+async def _generate_copy(req: CreativeRequest, api_key: str, user_id: str = None) -> dict:
     """Use LLM to generate headline + subheadline from product description and optional image."""
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel(TEXT_MODEL)
@@ -117,6 +117,17 @@ SUBHEADLINE: <your subheadline>"""
         )
         text = resp.text.strip()
         headline, subheadline = _parse_copy(text, fallback_hl, fallback_sub)
+        if user_id:
+            try:
+                in_tok = getattr(resp, 'usage_metadata', None)
+                await record_usage(
+                    user_id=user_id, service_type="creative_generation",
+                    input_tokens=getattr(in_tok, 'prompt_token_count', 0) if in_tok else 0,
+                    output_tokens=getattr(in_tok, 'candidates_token_count', 0) if in_tok else 0,
+                    model_name=TEXT_MODEL, metadata={"step": "copy_generation"},
+                )
+            except Exception:
+                pass
         return {"headline": headline, "subheadline": subheadline}
     except Exception as e:
         logger.error(f"Copy generation failed: {e}")
@@ -150,7 +161,7 @@ async def generate_creative(req: CreativeRequest, current_user: dict = Depends(g
     if not api_key:
         raise HTTPException(status_code=500, detail="AI service not configured")
 
-    copy = await _generate_copy(req, api_key)
+    copy = await _generate_copy(req, api_key, user_id=user_id)
     logger.info(f"Generated copy: {copy}")
 
     genai.configure(api_key=api_key)

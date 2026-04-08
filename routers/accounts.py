@@ -33,7 +33,7 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
         logger.info(f"🔍 ANALYZE-URL START: {url}")
         logger.info(f"{'='*60}")
 
-        data = await scrape_website(url)
+        data = await scrape_website(url, user_id=user.get("user_id"))
         logger.info(f"── SCRAPE RESULTS ──")
         logger.info(f"  title: '{data.get('title', '')[:80]}'")
         logger.info(f"  description: '{data.get('description', '')[:120]}'")
@@ -45,7 +45,7 @@ async def analyze_url(request: AnalyzeUrlRequest, user=Depends(get_current_user)
         logger.info(f"  industry hint: {data.get('industry', '')}")
 
         logger.info(f"── AI EXTRACTION (Gemini) ──")
-        ai_info = await _ai_extract_business_info(data)
+        ai_info = await _ai_extract_business_info(data, user_id=user.get("user_id"))
         logger.info(f"  AI business_name: {ai_info.get('business_name', '(empty)')}")
         logger.info(f"  AI industry: {ai_info.get('industry', '(empty)')}")
         logger.info(f"  AI description: {ai_info.get('description', '(empty)')[:100]}")
@@ -104,7 +104,7 @@ def _friendly_scrape_error(error: str, url: str) -> str:
     return "Could not analyze this website. Please check the URL or fill in the details manually."
 
 
-async def _ai_extract_business_info(data: dict) -> dict:
+async def _ai_extract_business_info(data: dict, user_id: str = None) -> dict:
     """Use Gemini to extract structured business info from scraped content."""
     try:
         import google.generativeai as genai
@@ -151,6 +151,18 @@ Return ONLY valid JSON, no markdown fences."""
             text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         result = _json.loads(text)
         logger.info(f"🤖 AI extraction: name={result.get('business_name')}, products={result.get('products', [])[:3]}")
+        if user_id:
+            try:
+                from services.credits_service import record_usage
+                um = getattr(resp, 'usage_metadata', None)
+                await record_usage(
+                    user_id=user_id, service_type="design_analysis",
+                    input_tokens=getattr(um, 'prompt_token_count', 0) if um else 0,
+                    output_tokens=getattr(um, 'candidates_token_count', 0) if um else 0,
+                    model_name="gemini-2.5-flash", metadata={"step": "url_analysis"},
+                )
+            except Exception:
+                pass
         return result
     except Exception as e:
         logger.warning(f"⚠️ AI extraction failed, using fallback: {e}")

@@ -389,7 +389,7 @@ async def generate_content(request: GenerateRequest, current_user: dict = Depend
             if url_str and url_str != 'None':
                 from services.scraper import scrape_website
                 try:
-                    website_data = await scrape_website(url_str)
+                    website_data = await scrape_website(url_str, user_id=current_user.get("user_id"))
                     logger.info(f"✅ Website scraped: {website_data.get('title', 'No title')}")
                 except Exception as scrape_err:
                     logger.warning(f"⚠️ Scrape failed ({scrape_err}), using keywords")

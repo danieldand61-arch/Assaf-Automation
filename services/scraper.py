@@ -53,7 +53,7 @@ async def _rehost_image_to_supabase(image_url: str, identifier: str) -> str:
         return ""
 
 
-async def _scrape_social_profile(url: str, platform: str) -> Dict:
+async def _scrape_social_profile(url: str, platform: str, user_id: str = None) -> Dict:
     """Extract brand info from social media profiles via multiple strategies."""
     parsed = urlparse(url)
     path_parts = [p for p in parsed.path.strip('/').split('/') if p]
@@ -269,7 +269,7 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     has_images = bool(ig_data.get("post_images"))
     if platform == 'instagram' or has_images or not description or _is_generic_description(description, username, platform):
         logger.info(f"── STRATEGY 4: Gemini Vision (analyzing recent post images) ──")
-        vision_analysis = await _vision_analyze_recent_posts(username, platform, html, ig_data)
+        vision_analysis = await _vision_analyze_recent_posts(username, platform, html, ig_data, user_id=user_id)
         if vision_analysis:
             logger.info(f"  ✅ Vision result: '{vision_analysis[:150]}...'")
         else:
@@ -281,7 +281,7 @@ async def _scrape_social_profile(url: str, platform: str) -> Dict:
     if platform == 'instagram' and (not vision_analysis or not logo_url):
         logger.info(f"── STRATEGY 5: Playwright headless browser (screenshots + avatar) ──")
         logger.info(f"  Reason: vision_analysis={'yes' if vision_analysis else 'no'}, logo_url={'yes' if logo_url else 'no'}")
-        pw_result = await _playwright_screenshot_and_analyze(username)
+        pw_result = await _playwright_screenshot_and_analyze(username, user_id=user_id)
         pw_desc = pw_result.get("description", "")
         pw_avatar = pw_result.get("avatar_url", "")
         if pw_desc and not vision_analysis:
@@ -559,7 +559,7 @@ async def _fetch_post_image_and_caption(post_url: str) -> Optional[Dict]:
         return None
 
 
-async def _vision_analyze_recent_posts(username: str, platform: str, html: str = None, ig_data: Dict = None) -> str:
+async def _vision_analyze_recent_posts(username: str, platform: str, html: str = None, ig_data: Dict = None, user_id: str = None) -> str:
     """Fetch recent post images + captions and analyze with Gemini Vision."""
     try:
         import google.generativeai as genai
@@ -695,6 +695,18 @@ Provide a concise 2-3 sentence description of the business. If you truly cannot 
         response = model.generate_content(content_parts)
         text = response.text.strip()
         logger.info(f"    Gemini Vision response: '{text[:200]}'")
+        if user_id:
+            try:
+                from services.credits_service import record_usage
+                um = getattr(response, 'usage_metadata', None)
+                await record_usage(
+                    user_id=user_id, service_type="design_analysis",
+                    input_tokens=getattr(um, 'prompt_token_count', 0) if um else 0,
+                    output_tokens=getattr(um, 'candidates_token_count', 0) if um else 0,
+                    model_name="gemini-2.5-flash", metadata={"step": "vision_posts"},
+                )
+            except Exception:
+                pass
         if text.upper() == 'UNKNOWN' or len(text) < 10:
             logger.info(f"  ❌ Vision returned UNKNOWN or too short")
             return ''
@@ -771,7 +783,7 @@ async def _extract_ig_avatar_via_playwright(username: str) -> str:
     return ""
 
 
-async def _playwright_screenshot_and_analyze(username: str) -> str:
+async def _playwright_screenshot_and_analyze(username: str, user_id: str = None) -> str:
     """Take screenshots of Instagram profile with headless browser, send to Gemini Vision.
     Uses Google cached version as primary source since Instagram blocks server IPs."""
     try:
@@ -929,6 +941,18 @@ Provide a concise 2-3 sentence description of this Instagram profile/brand. Make
         response = model.generate_content(content_parts)
         text = response.text.strip()
         logger.info(f"    Gemini response: '{text[:200]}'")
+        if user_id:
+            try:
+                from services.credits_service import record_usage
+                um = getattr(response, 'usage_metadata', None)
+                await record_usage(
+                    user_id=user_id, service_type="design_analysis",
+                    input_tokens=getattr(um, 'prompt_token_count', 0) if um else 0,
+                    output_tokens=getattr(um, 'candidates_token_count', 0) if um else 0,
+                    model_name="gemini-2.5-flash", metadata={"step": "vision_screenshots"},
+                )
+            except Exception:
+                pass
 
         if text.upper() == 'UNKNOWN' or len(text) < 10:
             return {"description": "", "avatar_url": avatar_url_found}
@@ -941,13 +965,13 @@ Provide a concise 2-3 sentence description of this Instagram profile/brand. Make
         return {"description": "", "avatar_url": ""}
 
 
-async def scrape_website(url: str) -> Dict:
+async def scrape_website(url: str, user_id: str = None) -> Dict:
     """Analyzes website and extracts brand information"""
 
     social = _detect_social_platform(url)
     if social:
         logger.info(f"📱 Detected {social} URL, using social scraper")
-        return await _scrape_social_profile(url, social)
+        return await _scrape_social_profile(url, social, user_id=user_id)
     
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',

@@ -214,7 +214,7 @@ class FunctionExecutor:
             website_data = None
             if website_url:
                 try:
-                    website_data = await scrape_website(website_url)
+                    website_data = await scrape_website(website_url, user_id=self.user_id)
                 except Exception as e:
                     logger.warning(f"Failed to scrape website: {e}")
                     website_data = {"error": str(e)}
@@ -260,7 +260,7 @@ class FunctionExecutor:
         from services.image_generator import generate_images
         
         # Scrape website
-        website_data = await scrape_website(args["website_url"])
+        website_data = await scrape_website(args["website_url"], user_id=self.user_id)
         
         # Generate posts
         variations = await generate_posts(
@@ -275,13 +275,13 @@ class FunctionExecutor:
             account_id=self.account_id
         )
         
-        # Generate images
         images = await generate_images(
             website_data=website_data,
             variations=variations,
             platforms=args["platforms"],
             image_size="1080x1080",
-            include_logo=False
+            include_logo=False,
+            user_id=self.user_id,
         )
         
         return {
