@@ -36,6 +36,9 @@ export function Admin() {
   const [creditAmount, setCreditAmount] = useState('')
   const [creditReason, setCreditReason] = useState('')
   const [addingCredits, setAddingCredits] = useState(false)
+  const [bypassModal, setBypassModal] = useState<{ user: UserStats } | null>(null)
+  const [bypassCredits, setBypassCredits] = useState('100000')
+  const [bypassingAccess, setBypassingAccess] = useState(false)
   const [margin, setMargin] = useState(2.0)
   const [savedMargin, setSavedMargin] = useState(2.0)
   const [savingMargin, setSavingMargin] = useState(false)
@@ -352,21 +355,29 @@ export function Admin() {
                           <Plus size={12} /> Add Credits
                         </button>
                         <button
-                          onClick={async () => {
-                            const current = (user as any).bypass_subscription
-                            const action = current ? 'Revoke' : 'Grant'
-                            if (!confirm(`${action} free access for ${user.full_name}?`)) return
-                            try {
-                              const apiUrl = getApiUrl()
-                              await fetch(`${apiUrl}/api/admin/user/${user.user_id}/bypass-subscription`, {
-                                method: 'POST',
-                                headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ bypass: !current, credits: !current ? 100000 : 0, reason: `Admin ${action.toLowerCase()}` }),
-                              })
-                              await loadUsers()
-                            } catch {}
+                          onClick={() => {
+                            if ((user as any).bypass_subscription) {
+                              if (!confirm(`Revoke free access for ${user.full_name}?`)) return
+                              ;(async () => {
+                                try {
+                                  await fetch(`${getApiUrl()}/api/admin/user/${user.user_id}/bypass-subscription`, {
+                                    method: 'POST',
+                                    headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ bypass: false, credits: 0, reason: 'Admin revoked' }),
+                                  })
+                                  await loadUsers()
+                                } catch {}
+                              })()
+                            } else {
+                              setBypassCredits('100000')
+                              setBypassModal({ user })
+                            }
                           }}
-                          className="mt-1 flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50 transition"
+                          className={`mt-1 flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition ${
+                            (user as any).bypass_subscription
+                              ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 hover:bg-red-200'
+                              : 'bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 hover:bg-violet-200'
+                          }`}
                         >
                           <Shield size={12} /> {(user as any).bypass_subscription ? 'Revoke Access' : 'Grant Access'}
                         </button>
@@ -527,6 +538,66 @@ export function Admin() {
                 className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2">
                 {addingCredits ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
                 Add {creditAmount ? `${parseInt(creditAmount).toLocaleString()} cr` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bypassModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setBypassModal(null)}>
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 w-full max-w-md mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 mb-4">
+              <Shield className="w-6 h-6 text-violet-600" />
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Grant Free Access</h3>
+            </div>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              {bypassModal.user.full_name} ({bypassModal.user.email})
+              <br />
+              This user will be able to use the product <strong>without a subscription</strong>.
+            </p>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Credits to grant</label>
+              <div className="flex gap-2">
+                <input
+                  type="number" min="0" value={bypassCredits} onChange={e => setBypassCredits(e.target.value)}
+                  placeholder="e.g. 100000"
+                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white rounded-lg focus:border-blue-500 focus:outline-none"
+                />
+                <div className="flex gap-1">
+                  {[50000, 100000, 200000].map(v => (
+                    <button key={v} onClick={() => setBypassCredits(String(v))}
+                      className="px-2 py-1 text-xs rounded border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
+                      {v / 1000}K
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Set to 0 to grant access without adding credits</p>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setBypassModal(null)} className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                Cancel
+              </button>
+              <button
+                disabled={bypassingAccess}
+                onClick={async () => {
+                  setBypassingAccess(true)
+                  try {
+                    await fetch(`${getApiUrl()}/api/admin/user/${bypassModal.user.user_id}/bypass-subscription`, {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ bypass: true, credits: parseFloat(bypassCredits) || 0, reason: 'Admin granted access' }),
+                    })
+                    setBypassModal(null)
+                    await loadUsers()
+                  } catch {}
+                  finally { setBypassingAccess(false) }
+                }}
+                className="flex-1 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg transition disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {bypassingAccess ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} />}
+                Grant Access{bypassCredits && parseInt(bypassCredits) > 0 ? ` + ${parseInt(bypassCredits).toLocaleString()} cr` : ''}
               </button>
             </div>
           </div>
