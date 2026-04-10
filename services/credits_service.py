@@ -109,8 +109,8 @@ async def check_balance(user_id: str, min_credits: float = 10.0) -> dict:
         supabase = get_supabase()
         res = supabase.table("user_credits").select("credits_remaining, total_credits_purchased, credits_used").eq("user_id", user_id).limit(1).execute()
         if not res.data:
-            logger.info(f"💳 No credits row for user {user_id[:8]}, creating with 3000")
-            await ensure_user_credits_exist(user_id, initial_credits=3000.0)
+            logger.info(f"💳 No credits row for user {user_id[:8]}, creating with 0 (subscription required)")
+            await ensure_user_credits_exist(user_id, initial_credits=0.0)
             res = supabase.table("user_credits").select("credits_remaining, total_credits_purchased, credits_used").eq("user_id", user_id).limit(1).execute()
 
         if res.data:
@@ -234,7 +234,7 @@ async def get_user_usage_stats(user_id: str) -> dict:
         return {}
 
 
-async def ensure_user_credits_exist(user_id: str, initial_credits: float = 3000.0):
+async def ensure_user_credits_exist(user_id: str, initial_credits: float = 0.0):
     """
     Ensure user has a credits record (create if doesn't exist)
     """

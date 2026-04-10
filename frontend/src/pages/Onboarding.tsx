@@ -188,7 +188,7 @@ export function Onboarding() {
     try {
       await retrySave(() => saveOrUpdate(onboardingComplete))
       localStorage.removeItem('onboarding_connected')
-      navigate('/app', { replace: true })
+      navigate('/app?tab=billing', { replace: true })
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Failed to save.')
     } finally { setLoading(false) }
@@ -206,7 +206,7 @@ export function Onboarding() {
         : () => createAccount(data)
       await retrySave(fn)
       localStorage.removeItem('onboarding_connected')
-      navigate('/app', { replace: true })
+      navigate('/app?tab=billing', { replace: true })
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Failed to save.')
     } finally { setLoading(false) }
@@ -216,7 +216,7 @@ export function Onboarding() {
     setLoading(true); setError('')
     try {
       await saveOrUpdate(true)
-      navigate('/app?tab=integrations', { replace: true })
+      navigate('/app?tab=billing', { replace: true })
     } catch (err: any) {
       setError(err.response?.data?.detail || err.message || 'Failed to save.')
     } finally { setLoading(false) }

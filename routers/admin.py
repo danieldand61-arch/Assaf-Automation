@@ -106,6 +106,7 @@ async def get_users_stats(user=Depends(get_current_user)):
             credits_remaining = float(credit_record.get("credits_remaining", 0)) if credit_record else 0.0
             total_credits = float(credit_record.get("total_credits_purchased", 0)) if credit_record else 0.0
             credits_used = float(credit_record.get("credits_used", 0)) if credit_record else 0.0
+            bypass_sub = bool(credit_record.get("bypass_subscription", False)) if credit_record else False
 
             usage_by_service = {}
             total_requests = 0
@@ -145,6 +146,7 @@ async def get_users_stats(user=Depends(get_current_user)):
                 "usage_by_service": usage_by_service,
                 "total_requests": total_requests,
                 "last_activity": last_activity,
+                "bypass_subscription": bypass_sub,
             })
 
         return {"success": True, "users": users_data}
@@ -200,4 +202,42 @@ async def get_user_details(user_id: str, admin_user=Depends(get_current_user)):
 
     except Exception as e:
         logger.error(f"Failed to get user details: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class BypassRequest(BaseModel):
+    bypass: bool
+    credits: float = 0
+    reason: str = "Admin override"
+
+
+@router.post("/user/{user_id}/bypass-subscription")
+async def set_subscription_bypass(user_id: str, body: BypassRequest, admin_user=Depends(get_current_user)):
+    """Grant or revoke subscription bypass for a user. Optionally add credits."""
+    try:
+        supabase = get_supabase()
+        existing = supabase.table("user_credits").select("user_id").eq("user_id", user_id).limit(1).execute()
+        if existing.data:
+            supabase.table("user_credits").update({
+                "bypass_subscription": body.bypass,
+            }).eq("user_id", user_id).execute()
+        else:
+            supabase.table("user_credits").insert({
+                "user_id": user_id,
+                "total_credits_purchased": body.credits,
+                "credits_used": 0.0,
+                "credits_remaining": body.credits,
+                "bypass_subscription": body.bypass,
+            }).execute()
+
+        if body.credits > 0:
+            from routers.billing import _add_credits
+            await _add_credits(user_id, int(body.credits), "admin_grant", "admin_bypass")
+
+        action = "granted" if body.bypass else "revoked"
+        logger.info(f"Admin {admin_user.get('user_id', '?')[:8]} {action} bypass for {user_id[:8]} +{body.credits}cr — {body.reason}")
+        return {"success": True, "bypass": body.bypass, "credits_added": body.credits}
+
+    except Exception as e:
+        logger.error(f"Failed to set bypass: {e}")
         raise HTTPException(status_code=500, detail=str(e))

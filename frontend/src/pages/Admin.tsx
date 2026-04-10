@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { getApiUrl } from '../lib/api'
-import { Loader2, Search, ArrowUpDown, Users, DollarSign, Activity, LogOut, Plus, Coins, Settings } from 'lucide-react'
+import { Loader2, Search, ArrowUpDown, Users, DollarSign, Activity, LogOut, Plus, Coins, Settings, Shield } from 'lucide-react'
 
 interface UserStats {
   user_id: string
@@ -350,6 +350,25 @@ export function Admin() {
                           className="mt-1 flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition"
                         >
                           <Plus size={12} /> Add Credits
+                        </button>
+                        <button
+                          onClick={async () => {
+                            const current = (user as any).bypass_subscription
+                            const action = current ? 'Revoke' : 'Grant'
+                            if (!confirm(`${action} free access for ${user.full_name}?`)) return
+                            try {
+                              const apiUrl = getApiUrl()
+                              await fetch(`${apiUrl}/api/admin/user/${user.user_id}/bypass-subscription`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ bypass: !current, credits: !current ? 100000 : 0, reason: `Admin ${action.toLowerCase()}` }),
+                              })
+                              await loadUsers()
+                            } catch {}
+                          }}
+                          className="mt-1 flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-400 hover:bg-violet-200 dark:hover:bg-violet-900/50 transition"
+                        >
+                          <Shield size={12} /> {(user as any).bypass_subscription ? 'Revoke Access' : 'Grant Access'}
                         </button>
                       </div>
                     </td>

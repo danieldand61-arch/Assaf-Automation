@@ -135,8 +135,8 @@ class CreditsTracker:
 
             if not result.data:
                 from services.credits_service import ensure_user_credits_exist
-                await ensure_user_credits_exist(self.user_id, initial_credits=3000.0)
-                return {"total_purchased": 3000.0, "used": 0.0, "remaining": 3000.0}
+                await ensure_user_credits_exist(self.user_id, initial_credits=0.0)
+                return {"total_purchased": 0.0, "used": 0.0, "remaining": 0.0}
 
             row = result.data[0]
             purchased = float(row.get("total_credits_purchased") or 0)

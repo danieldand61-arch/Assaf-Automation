@@ -69,6 +69,26 @@ export function MainWorkspace() {
   const { theme } = useTheme()
   const { t } = useApp()
 
+  // Subscription gate
+  const [hasSubscription, setHasSubscription] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!session) return
+    fetch(`${getApiUrl()}/api/billing/subscription`, {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        setHasSubscription(d?.has_subscription ?? false)
+        if (d && !d.has_subscription && activeTab !== 'billing') setActiveTab('billing')
+      })
+      .catch(() => setHasSubscription(true))
+  }, [session])
+
+  const gatedSetActiveTab = (tab: TabType) => {
+    if (hasSubscription === false && tab !== 'billing' && tab !== 'settings') return
+    setActiveTab(tab)
+  }
+
   // Social post generator state
   const [socialScreen, setSocialScreen] = useState<SocialScreen>('form')
   const [progress, setProgress] = useState(0)
@@ -222,7 +242,7 @@ export function MainWorkspace() {
       include_people: false, graphic_mode: false, image_only: false, uploaded_image: null, media_file: videoUrl,
     }
     setSocialScreen('form')
-    setActiveTab('social')
+    gatedSetActiveTab('social')
   }
 
   if (loading) {
@@ -251,13 +271,13 @@ export function MainWorkspace() {
 
       <JoyoSidebar
         activeTab={activeTab}
-        onTabChange={(tab) => setActiveTab(tab as TabType)}
+        onTabChange={(tab) => gatedSetActiveTab(tab as TabType)}
         collapsed={collapsed}
         onToggleCollapse={() => setCollapsed(!collapsed)}
       />
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <JoyoTopBar title={pageTitles[activeTab]} onNavigate={(tab) => setActiveTab(tab as TabType)} />
+        <JoyoTopBar title={pageTitles[activeTab]} onNavigate={(tab) => gatedSetActiveTab(tab as TabType)} />
 
         {/* Social tab stays mounted so generation doesn't reset on tab switch */}
         <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto', display: activeTab === 'social' ? undefined : 'none' }}>
@@ -302,7 +322,7 @@ export function MainWorkspace() {
 
         {activeTab !== 'social' && activeTab !== 'videogen' && activeTab !== 'creative' && (
           <div style={{ flex: 1, padding: '28px 28px 40px', overflowY: 'auto' }}>
-            {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => setActiveTab(tab as TabType)} />}
+            {activeTab === 'dashboard' && <Dashboard onNavigate={(tab) => gatedSetActiveTab(tab as TabType)} />}
             {activeTab === 'ads' && <GoogleAdsGeneration />}
             {activeTab === 'analyst' && <AdAnalytics />}
             {activeTab === 'advisor' && <AIAdvisor />}
@@ -340,7 +360,7 @@ export function MainWorkspace() {
                   {t('later')}
                 </button>
                 <button
-                  onClick={() => { setShowCreditsPopup(false); setActiveTab('billing') }}
+                  onClick={() => { setShowCreditsPopup(false); gatedSetActiveTab('billing') }}
                   className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-violet-600 to-blue-600 text-white text-sm font-bold hover:from-violet-700 hover:to-blue-700 transition-all shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
                 >
                   {t('buyCredits')}
