@@ -124,16 +124,15 @@ async def get_subscription_status(current_user: dict = Depends(get_current_user)
     supabase = get_supabase()
     user_id = current_user["user_id"]
 
-    # Check admin bypass
-    bypass = supabase.table("user_credits").select("bypass_subscription").eq("user_id", user_id).limit(1).execute()
-    if bypass.data and bypass.data[0].get("bypass_subscription"):
+    # Admin bypass — always grants access
+    uc = supabase.table("user_credits").select("bypass_subscription").eq("user_id", user_id).limit(1).execute()
+    if uc.data and uc.data[0].get("bypass_subscription"):
         return {"has_subscription": True, "bypass": True, "subscription": None}
 
-    # Check active subscription
+    # Any subscription row (active, canceled, expired) = user subscribed at some point → full access
     sub = supabase.table("subscriptions") \
         .select("*") \
         .eq("user_id", user_id) \
-        .in_("status", ["active", "trialing"]) \
         .order("created_at", desc=True) \
         .limit(1) \
         .execute()
@@ -153,6 +152,7 @@ async def get_subscription_status(current_user: dict = Depends(get_current_user)
             },
         }
 
+    # Never subscribed, no bypass → gate
     return {"has_subscription": False, "bypass": False, "subscription": None}
 
 

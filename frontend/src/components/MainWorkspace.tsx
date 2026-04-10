@@ -69,9 +69,9 @@ export function MainWorkspace() {
   const { theme } = useTheme()
   const { t } = useApp()
 
-  // Subscription gate
+  // Subscription gate — re-check when switching away from billing (covers Stripe return)
   const [hasSubscription, setHasSubscription] = useState<boolean | null>(null)
-  useEffect(() => {
+  const checkSubscription = () => {
     if (!session) return
     fetch(`${getApiUrl()}/api/billing/subscription`, {
       headers: { Authorization: `Bearer ${session.access_token}` },
@@ -79,7 +79,9 @@ export function MainWorkspace() {
       .then(r => r.ok ? r.json() : null)
       .then(d => setHasSubscription(d?.has_subscription ?? false))
       .catch(() => setHasSubscription(true))
-  }, [session])
+  }
+  useEffect(checkSubscription, [session])
+  useEffect(() => { if (activeTab !== 'billing' && hasSubscription === false) checkSubscription() }, [activeTab])
 
   const needsSubscription = hasSubscription === false && activeTab !== 'billing' && activeTab !== 'settings'
 

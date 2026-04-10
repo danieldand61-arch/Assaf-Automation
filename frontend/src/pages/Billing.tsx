@@ -75,6 +75,27 @@ export default function Billing() {
 
   useEffect(() => { loadAll() }, [session])
 
+  // After Stripe redirect, webhook may not have fired yet — poll until subscription appears
+  useEffect(() => {
+    const ps = new URLSearchParams(window.location.search).get('payment')
+    if (ps !== 'success') return
+    let attempts = 0
+    const poll = setInterval(async () => {
+      attempts++
+      if (attempts > 10) { clearInterval(poll); return }
+      try {
+        const res = await fetch(`${API_URL}/api/billing/subscription`, {
+          headers: { Authorization: `Bearer ${session?.access_token}` },
+        })
+        if (res.ok) {
+          const d = await res.json()
+          if (d.has_subscription) { clearInterval(poll); await loadAll() }
+        }
+      } catch {}
+    }, 3000)
+    return () => clearInterval(poll)
+  }, [])
+
   const handlePurchase = async (packageId: string) => {
     setPurchasing(packageId)
     try {
