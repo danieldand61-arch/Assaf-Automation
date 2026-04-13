@@ -177,6 +177,14 @@ export function Signup() {
               Sign in
             </Link>
           </div>
+
+          {/* Privacy & Terms */}
+          <div className="mt-4 text-center text-xs text-gray-400 dark:text-gray-500">
+            By signing up you agree to our{' '}
+            <Link to="/terms" className="hover:underline text-gray-500 dark:text-gray-400">Terms of Service</Link>
+            {' '}and{' '}
+            <Link to="/privacy" className="hover:underline text-gray-500 dark:text-gray-400">Privacy Policy</Link>
+          </div>
         </div>
       </div>
     </div>
