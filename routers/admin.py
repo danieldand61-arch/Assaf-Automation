@@ -241,3 +241,108 @@ async def set_subscription_bypass(user_id: str, body: BypassRequest, admin_user=
     except Exception as e:
         logger.error(f"Failed to set bypass: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ─── Drop-offs / Funnel endpoint ──────────────────────────────────────────────
+
+@router.get("/drop-offs")
+async def get_drop_offs(user=Depends(get_current_user)):
+    """
+    Return all registered users with their funnel stage:
+      - registered only (never started onboarding)
+      - started onboarding (account exists, onboarding_complete=false)
+      - completed onboarding but no payment
+      - completed payment (converted)
+      - bypass (admin granted free access)
+    """
+    try:
+        supabase = get_supabase()
+
+        # Try the materialized view first (fastest)
+        try:
+            view_result = supabase.table("user_funnel").select("*").execute()
+            if view_result.data is not None:
+                return {"success": True, "drop_offs": _enrich_funnel(view_result.data)}
+        except Exception as view_err:
+            logger.info(f"user_funnel view not available ({view_err}), using fallback")
+
+        # Fallback: assemble from raw tables
+        accounts_res = supabase.table("accounts").select("user_id, name, metadata, created_at").execute()
+        accounts_by_user: dict = {}
+        for acc in (accounts_res.data or []):
+            uid = acc["user_id"]
+            if uid not in accounts_by_user or acc.get("created_at", "") > accounts_by_user[uid].get("created_at", ""):
+                accounts_by_user[uid] = acc
+
+        subs_res = supabase.table("subscriptions").select("user_id").execute()
+        paid_users: set = {s["user_id"] for s in (subs_res.data or [])}
+
+        credits_res = supabase.table("user_credits").select("user_id, bypass_subscription").execute()
+        bypass_users: set = {c["user_id"] for c in (credits_res.data or []) if c.get("bypass_subscription")}
+
+        activity_res = supabase.table("credits_usage").select("user_id, created_at").order("created_at", desc=True).execute()
+        last_activity_map: dict = {}
+        for row in (activity_res.data or []):
+            uid = row["user_id"]
+            if uid not in last_activity_map:
+                last_activity_map[uid] = row["created_at"]
+
+        all_user_ids = set(accounts_by_user.keys()) | paid_users | bypass_users
+        rows = []
+        for uid in all_user_ids:
+            email, full_name, registered_at = "unknown@example.com", "", None
+            try:
+                auth_resp = supabase.auth.admin.get_user_by_id(uid)
+                u = getattr(auth_resp, "user", auth_resp)
+                if u:
+                    email = getattr(u, "email", None) or email
+                    meta = getattr(u, "user_metadata", {}) or {}
+                    full_name = meta.get("full_name", "") if isinstance(meta, dict) else ""
+                    registered_at = str(getattr(u, "created_at", ""))
+            except Exception as e:
+                logger.warning(f"get_user_by_id failed for {uid[:8]}: {e}")
+
+            acc = accounts_by_user.get(uid)
+            onboarding_complete = bool(acc and (acc.get("metadata") or {}).get("onboarding_complete")) if acc else False
+            rows.append({
+                "user_id": uid,
+                "email": email,
+                "full_name": full_name,
+                "registered_at": registered_at,
+                "company_name": acc["name"] if acc else "",
+                "website_url": (acc.get("metadata") or {}).get("website_url", "") if acc else "",
+                "started_onboarding": acc is not None,
+                "completed_onboarding": onboarding_complete,
+                "completed_payment": uid in paid_users,
+                "bypass_subscription": uid in bypass_users,
+                "last_activity": last_activity_map.get(uid),
+            })
+
+        return {"success": True, "drop_offs": _enrich_funnel(rows)}
+
+    except Exception as e:
+        logger.error(f"Failed to get drop-offs: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+def _enrich_funnel(rows: list) -> list:
+    enriched = []
+    for row in rows:
+        paid = row.get("completed_payment", False)
+        bypass = row.get("bypass_subscription", False)
+        onb_done = row.get("completed_onboarding", False)
+        onb_started = row.get("started_onboarding", False)
+
+        if paid or bypass:
+            stage = "converted"
+        elif onb_done:
+            stage = "onboarding_done"
+        elif onb_started:
+            stage = "onboarding_started"
+        else:
+            stage = "registered"
+
+        enriched.append({**row, "stage": stage})
+
+    enriched.sort(key=lambda r: r.get("registered_at") or "", reverse=True)
+    return enriched
