@@ -774,61 +774,51 @@ export function Admin() {
 
                             {/* Funnel step icons */}
                             <td className="px-5 py-4">
-                              <div className="flex items-center gap-1.5">
-                                {/* Registered */}
-                                <span title="Registered" className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                                  <CheckCircle size={13} className="text-green-600" />
-                                </span>
+                              <div className="flex items-start">
+                                {/* Registered — always done */}
+                                <div className="flex flex-col items-center">
+                                  <span title="Registered" className="w-6 h-6 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                                    <CheckCircle size={13} className="text-green-600" />
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 mt-0.5">reg</span>
+                                </div>
+                                <div className="w-4 h-px bg-gray-300 dark:bg-gray-600 mt-3 shrink-0" />
                                 {/* Onboarding started */}
-                                <div className="w-4 h-px bg-gray-300 dark:bg-gray-600" />
-                                <span
-                                  title="Onboarding started"
-                                  className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                                    u.started_onboarding
-                                      ? 'bg-green-100 dark:bg-green-900/30'
-                                      : 'bg-gray-100 dark:bg-gray-700'
-                                  }`}
-                                >
-                                  {u.started_onboarding
-                                    ? <CheckCircle size={13} className="text-green-600" />
-                                    : <XCircle size={13} className="text-gray-400" />}
-                                </span>
+                                <div className="flex flex-col items-center">
+                                  <span
+                                    title="Onboarding started"
+                                    className={`w-6 h-6 rounded-full flex items-center justify-center ${u.started_onboarding ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-700'}`}
+                                  >
+                                    {u.started_onboarding ? <CheckCircle size={13} className="text-green-600" /> : <XCircle size={13} className="text-gray-400" />}
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 mt-0.5">start</span>
+                                </div>
+                                <div className="w-4 h-px bg-gray-300 dark:bg-gray-600 mt-3 shrink-0" />
                                 {/* Onboarding completed */}
-                                <div className="w-4 h-px bg-gray-300 dark:bg-gray-600" />
-                                <span
-                                  title="Onboarding completed"
-                                  className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                                    u.completed_onboarding
-                                      ? 'bg-green-100 dark:bg-green-900/30'
-                                      : 'bg-gray-100 dark:bg-gray-700'
-                                  }`}
-                                >
-                                  {u.completed_onboarding
-                                    ? <CheckCircle size={13} className="text-green-600" />
-                                    : <XCircle size={13} className="text-gray-400" />}
-                                </span>
+                                <div className="flex flex-col items-center">
+                                  <span
+                                    title="Onboarding completed"
+                                    className={`w-6 h-6 rounded-full flex items-center justify-center ${u.completed_onboarding ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-700'}`}
+                                  >
+                                    {u.completed_onboarding ? <CheckCircle size={13} className="text-green-600" /> : <XCircle size={13} className="text-gray-400" />}
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 mt-0.5">onb</span>
+                                </div>
+                                <div className="w-4 h-px bg-gray-300 dark:bg-gray-600 mt-3 shrink-0" />
                                 {/* Payment */}
-                                <div className="w-4 h-px bg-gray-300 dark:bg-gray-600" />
-                                <span
-                                  title={u.bypass_subscription ? 'Admin bypass (free access)' : u.completed_payment ? 'Paid' : 'No payment'}
-                                  className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                                    u.completed_payment || u.bypass_subscription
-                                      ? 'bg-green-100 dark:bg-green-900/30'
-                                      : 'bg-gray-100 dark:bg-gray-700'
-                                  }`}
-                                >
-                                  {u.completed_payment
-                                    ? <CheckCircle size={13} className="text-green-600" />
-                                    : u.bypass_subscription
-                                      ? <Shield size={13} className="text-violet-500" />
-                                      : <XCircle size={13} className="text-gray-400" />}
-                                </span>
-                              </div>
-                              <div className="flex text-[10px] text-gray-400 mt-1 gap-[14px] pl-0.5">
-                                <span>reg</span>
-                                <span>start</span>
-                                <span>onb</span>
-                                <span>pay</span>
+                                <div className="flex flex-col items-center">
+                                  <span
+                                    title={u.bypass_subscription ? 'Admin bypass (free access)' : u.completed_payment ? 'Paid' : 'No payment'}
+                                    className={`w-6 h-6 rounded-full flex items-center justify-center ${u.completed_payment || u.bypass_subscription ? 'bg-green-100 dark:bg-green-900/30' : 'bg-gray-100 dark:bg-gray-700'}`}
+                                  >
+                                    {u.completed_payment
+                                      ? <CheckCircle size={13} className="text-green-600" />
+                                      : u.bypass_subscription
+                                        ? <Shield size={13} className="text-violet-500" />
+                                        : <XCircle size={13} className="text-gray-400" />}
+                                  </span>
+                                  <span className="text-[10px] text-gray-400 mt-0.5">pay</span>
+                                </div>
                               </div>
                             </td>
                           </tr>
