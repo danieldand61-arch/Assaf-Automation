@@ -260,6 +260,7 @@ async def generate_text_to_video(
             "sound": request.sound,
             "mode": request.quality,
             "multi_shots": False,
+            "cfg_scale": 0.9,
         }
         if request.kling_elements:
             input_params["kling_elements"] = [
@@ -336,6 +337,7 @@ async def generate_image_to_video(
                 "sound": request.sound,
                 "mode": request.quality,
                 "multi_shots": False,
+                "cfg_scale": 0.9,
             },
             api_key,
         )

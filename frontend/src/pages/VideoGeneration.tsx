@@ -363,7 +363,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
 
   const buildFinalPrompt = (useElement: boolean) => {
     let p = prompt.trim()
-    const noText = 'IMPORTANT: Do not render any text, titles, captions, watermarks, labels, logos, letters or words anywhere in the video. The video must be completely free of any written text or typography.'
+    const noText = 'STRICT RULE — ABSOLUTELY NO TEXT: The video must contain zero text of any kind. Do not generate any letters, words, numbers, characters, symbols, typography, fonts, captions, subtitles, titles, labels, watermarks, logos with text, signs, posters, billboards, UI text, screen text, product labels, packaging text, handwriting, graffiti, or any written language anywhere in the scene. This includes text on clothing, screens, devices, walls, paper, products, or any surface. All surfaces must be blank — plain, empty, or abstract patterns only. Any text the model produces will look wrong and broken, so generate NO text whatsoever.'
 
     const brandCtx = useBrand && hasBrandInfo
       ? `Brand: ${brandName}${brandDesc ? `. ${brandDesc}` : ''}${brandIndustry ? `. Industry: ${brandIndustry}` : ''}${brandAudience ? `. Target audience: ${brandAudience}` : ''}.`
@@ -374,11 +374,11 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       const isRandom = selectedAvatar === 'random'
       const personDesc = isRandom ? 'a relatable, friendly person' : (avatar?.desc ?? 'a young, friendly person')
       const person = useElement ? '@avatar' : personDesc
-      p = `UGC-style promotional video: ${person} holding and showcasing the product to camera. ${brandCtx} Scene: ${p}. The person holds the product up, shows it from different angles, points at key features, smiles genuinely. Close-up shots of the product intercut with the person demonstrating it. The product must be clearly visible in frame throughout the video. Natural lighting, casual lifestyle setting, authentic social media ad feel. ${noText}`
+      p = `UGC-style promotional video: ${person} holding and showcasing the product to camera. ${brandCtx} Scene: ${p}. The person holds the product up, shows it from different angles, points at key features, smiles genuinely. Close-up shots of the product intercut with the person demonstrating it. The product is shown with completely blank packaging and no writing on it. Natural lighting, casual lifestyle setting, authentic social media ad feel. ${noText}`
     } else if (videoStyle === 'product') {
-      p = `Cinematic product showcase video: ${brandCtx} ${p}. Professional product photography in motion, smooth camera movements, studio-quality lighting, clean background. Focus on the product details, textures, and premium feel. ${noText}`
+      p = `Cinematic product showcase video: ${brandCtx} ${p}. Professional product photography in motion, smooth camera movements, studio-quality lighting, clean background. Focus on the product shape, textures, materials, and premium feel. Product has completely blank surfaces with no printed text or writing. ${noText}`
     } else if (videoStyle === 'cinematic') {
-      p = `Cinematic atmospheric mood video: ${brandCtx} ${p}. Dramatic lighting, slow motion elements, rich color grading, emotional storytelling. Visual-only storytelling without any on-screen text. ${noText}`
+      p = `Cinematic atmospheric mood video: ${brandCtx} ${p}. Dramatic lighting, slow motion elements, rich color grading, emotional storytelling, purely visual narrative. ${noText}`
     }
     return p
   }
