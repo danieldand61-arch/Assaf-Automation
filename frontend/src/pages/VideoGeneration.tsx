@@ -374,7 +374,7 @@ export default function VideoGeneration({ onSendToPostGenerator, onNeedCredits }
       const isRandom = selectedAvatar === 'random'
       const personDesc = isRandom ? 'a relatable, friendly person' : (avatar?.desc ?? 'a young, friendly person')
       const person = useElement ? '@avatar' : personDesc
-      p = `UGC-style promotional video: ${person} holding and showcasing the product to camera. ${brandCtx} Scene: ${p}. The person holds the product up, shows it from different angles, points at key features, smiles genuinely. Close-up shots of the product intercut with the person demonstrating it. The product is shown with completely blank packaging and no writing on it. Natural lighting, casual lifestyle setting, authentic social media ad feel. ${noText}`
+      p = `UGC-style social media video, authentic and casual: ${person} speaks directly to the camera in a natural, genuine way. ${brandCtx} Scene: ${p}. The person does exactly what is described in the scene — nothing more, nothing less. Do not add any extra props, objects, products, or items that are not explicitly mentioned. Natural lighting, casual home or lifestyle setting, selfie-style handheld camera feel, like an Instagram Reel or TikTok. ${noText}`
     } else if (videoStyle === 'product') {
       p = `Cinematic product showcase video: ${brandCtx} ${p}. Professional product photography in motion, smooth camera movements, studio-quality lighting, clean background. Focus on the product shape, textures, materials, and premium feel. Product has completely blank surfaces with no printed text or writing. ${noText}`
     } else if (videoStyle === 'cinematic') {
