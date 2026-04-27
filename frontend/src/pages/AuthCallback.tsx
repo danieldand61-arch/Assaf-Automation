@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import { getApiUrl } from '../lib/api'
+import { fireSignupEvents } from '../lib/metaTracking'
 
 export function AuthCallback() {
   const navigate = useNavigate()
@@ -13,7 +14,12 @@ export function AuthCallback() {
       const accessToken = hashParams.get('access_token')
 
       if (accessToken) {
-        // Check if user needs onboarding
+        let userEmail: string | undefined
+        try {
+          const payload = JSON.parse(atob(accessToken.split('.')[1]))
+          userEmail = payload?.email
+        } catch {}
+
         try {
           const response = await fetch(`${getApiUrl()}/api/accounts`, {
             headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -21,9 +27,13 @@ export function AuthCallback() {
           
           if (response.ok) {
             const data = await response.json()
-            const needsOnboarding = !data.accounts?.length ||
+            const isNewUser = !data.accounts?.length
+            const needsOnboarding = isNewUser ||
               data.accounts.some((a: any) => a.metadata?.onboarding_complete === false)
             
+            if (isNewUser) {
+              fireSignupEvents(userEmail).catch(() => {})
+            }
             if (needsOnboarding) {
               navigate('/onboarding', { replace: true })
               return

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate, Link } from 'react-router-dom'
 import { Loader2, Mail, Lock, User } from 'lucide-react'
+import { fireSignupEvents } from '../lib/metaTracking'
 
 export function Signup() {
   const { signUp, signInWithGoogle } = useAuth()
@@ -20,7 +21,7 @@ export function Signup() {
 
     try {
       await signUp(email, password, fullName)
-      // signUp sets user/session directly, so ProtectedRoute on /onboarding will pass
+      fireSignupEvents(email).catch(() => {})
       navigate('/onboarding', { replace: true })
     } catch (err: any) {
       setError(err.message || 'Failed to sign up')

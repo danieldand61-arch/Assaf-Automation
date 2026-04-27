@@ -287,6 +287,14 @@ except Exception as e:
     logger.error(f"❌ Subtitles router failed to load: {str(e)}")
     logger.warning("⚠️ Subtitle generation will NOT be available!")
 
+try:
+    from routers import meta_capi
+    app.include_router(meta_capi.router)
+    logger.info("✅ Meta CAPI router registered (POST /api/meta-capi)")
+except Exception as e:
+    logger.error(f"❌ Meta CAPI router failed to load: {str(e)}")
+    logger.warning("⚠️ Meta Conversions API will NOT be available!")
+
 logger.info("ℹ️ All routers loaded successfully!")
 
 # Log all requests middleware (after CORS)

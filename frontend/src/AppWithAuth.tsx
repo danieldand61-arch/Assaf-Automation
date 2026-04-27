@@ -1,6 +1,8 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { AccountProvider, useAccount } from './contexts/AccountContext'
+import { captureUtmAndFbclid } from './lib/metaTracking'
 import { Login } from './pages/Login'
 import { Signup } from './pages/Signup'
 import { Onboarding } from './pages/Onboarding'
@@ -187,6 +189,7 @@ function AppRoutes() {
 }
 
 export function AppWithAuth() {
+  useEffect(() => { captureUtmAndFbclid() }, [])
   return (
     <BrowserRouter>
       <AuthProvider>
